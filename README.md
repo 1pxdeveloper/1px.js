@@ -33,6 +33,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<script src="/js/jquery.js"></script>
 <script src="/js/jpixel.js"></script>
 </head>
 <body>
@@ -51,8 +52,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-<script src="//1px.so/js/jquery.js"></script>
-<script src="//1px.so/js/jpixel.js"></script>
+<script src="/js/jquery.js"></script>
+<script src="/js/jpixel.js"></script>
 <script>
 function ViewController(self) {
 return {
