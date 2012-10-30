@@ -1,6 +1,11 @@
 #jPixel beta 0.1(Working Draft)
 *Data-bind Template Javascript Library*
 
+##NOTICE!
+- This is not release version.
+- it can be changed API or Syntax when next version.
+- current version jPixel depends jQuery.
+
 
 ##Key Concept
 
