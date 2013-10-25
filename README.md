@@ -1,4 +1,4 @@
-#jPixel beta 0.1(Working Draft)
+#jPixel 1.2 beta (inspired by angularjs)
 *Data-bind Template Javascript Library*
 
 ##NOTICE!
@@ -34,7 +34,7 @@
 <html>
 <head>
 <script src="/js/jquery.js"></script>
-<script src="/js/jpixel.js"></script>
+<script src="/js/jpx-1.2.js"></script>
 </head>
 <body>
 
@@ -53,7 +53,7 @@
 <html>
 <head>
 <script src="/js/jquery.js"></script>
-<script src="/js/jpixel.js"></script>
+<script src="/js/jpx-1.2.js"></script>
 <script>
 function ViewController(self) {
 return {
@@ -174,7 +174,7 @@ return {
 ###template = “{string}”
 
 ```html
-<div template="popup"><!-- content here!! -->></div>
+<div template="popup"><!-- content here!! --></div>
 
 
 <template id="popup">
@@ -256,11 +256,7 @@ to
 
 ###css = “{string}”
 
-###controller = “{string}”
-
-###init = “{expr}”
-
-###validate = “{expr}”
+###outlet = "{expr}"
 
 ###~event = “{expr}”
 - click, mousedown, mouseover, ...
@@ -295,14 +291,4 @@ __define(“@html”, function() {
 
 });
 ```
-
-
-##Define filters (Working Draft)
-
-```javascript
-__define(“#number”, function() {
-
-});
-```
-
 
