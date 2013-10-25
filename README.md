@@ -9,7 +9,7 @@
 
 ##Key Concept
 
-- easy to use
+- Very Easy to use!!
 - HTML like template syntax
 - Controller write just plain javascript
 - jQuery Compatible (jQuery mini)
@@ -30,30 +30,33 @@
 
 ### Tutorial #1
 ```html
-<!DOCTYPE html>
-<html>
-<head>
 <script src="/js/jquery.js"></script>
 <script src="/js/jpx-1.2.js"></script>
-</head>
-<body>
 
 <div><input type="text" name="first"></div>
 <div><input type="text" name="last"></div>
 <div>Hello, {first} {last}</div>
-</body>
-</html>
 ```
 
 
 ### Tutorial #2
 
 ```html
-<!DOCTYPE html>
-<html>
-<head>
 <script src="/js/jquery.js"></script>
 <script src="/js/jpx-1.2.js"></script>
+
+<form submit="addTodo()">
+    <div><input type="text" name="todoName" placeholder="todo title here"/></div>
+</form>
+
+<ul>
+    <li repeat="todos as todo, index" class="todo {todo.is_done && 'todo-is-done'}">
+        <input type="checkbox" with="todo" name="is_done"/>
+		#{index} - {todo.name} <a click="removeTodo(todo)">del</a>
+    </li>
+</ul>
+
+
 <script>
 function ViewController(self) {
 return {
@@ -73,22 +76,6 @@ return {
 	}
 }}
 </script>
-</head>
-<body>
-
-<form submit="addTodo()">
-    <div><input type="text" name="todoName" placeholder="todo title here"/></div>
-</form>
-
-<ul>
-    <li repeat="todos as todo, index" class="todo {todo.is_done && 'todo-is-done'}">
-        <input type="checkbox" with="todo" name="is_done"/>
-		#{index} - {todo.name} <a click="removeTodo(todo)">del</a>
-    </li>
-</ul>
-
-</body>
-</html>
 ```
 
 
@@ -206,14 +193,14 @@ equals
 <input type="checkbox" name="yn"/> <!-- self.yn = {checked ? true : false} -->
 
 <form>
-<input type="checkbox" name="sport" value="baseball" checked />
-<input type="checkbox" name="sport" value="soccer" checked /> 
-<input type="checkbox" name="sport" value="basketball" /> <!-- self.sport = ['baseball', 'soccer'] -->
+	<input type="checkbox" name="sport" value="baseball" checked />
+	<input type="checkbox" name="sport" value="soccer" checked /> 
+	<input type="checkbox" name="sport" value="basketball" /> <!-- self.sport = ['baseball', 'soccer'] -->
 </form>
 
 <form>
-<input type="radio" name="sex" value="male" checked /> <!-- self.sport = baseball -->
-<input type="radio" name="sex" value="female" checked /> <!-- self.sport = baseball -->
+	<input type="radio" name="sex" value="male" checked /> <!-- self.sport = baseball -->
+	<input type="radio" name="sex" value="female" checked /> <!-- self.sport = baseball -->
 </form>
 
 <select name="foo">
@@ -223,12 +210,13 @@ equals
 </select>
 
 
-<!-- Working with 'with' attr
+<!-- Working with 'with' attr -->
 
 <input type="text" with="user" name="name"/> <!-- self.row.name = {input.value} -->
 <input type="password" with="user.account" name="pwd"/> <!-- self.user.account.pwd = {input.value} -->
 
 ```
+
 
 ###img-src = “{string}”
 
@@ -236,6 +224,7 @@ equals
 <img src="{path}"/> <!-- occur loading error! "{path}" is not URL -->
 <img img-src="{path}"/> <!-- ok, if image finished loading replace to src attribute -->
 ```
+
 
 ###html = “{string}”
 
