@@ -20,8 +20,18 @@ if (typeof console == "undefined") { this.console = {log: function() {}}; }
 		this.splice(0, this.length);
 		this.length = 0;
 		return this;
-	},
+	}
 	
+	this.isEmpty = function() {
+		for (var i = 0; i < this.length; ++i) {
+		    if (this[i] != null && this[i] != undefined) {
+				return false;
+		    }
+		}
+	
+		return true;
+	}
+
 	this.has = function(obj) {
 		if (this.length === 0) return false;
 		return this.indexOf(obj) >= 0;
@@ -625,7 +635,7 @@ __define("compile", function() {
 		});
 	
 		if (hasExpr) {		
-			node.parentNode.removeChild(node);
+			node.nodeValue = "";
 		}
 	
 		return false;
@@ -1362,6 +1372,54 @@ __define("@placeholder", function() {
 		}
 	}
 });
+
+
+
+
+
+
+
+/// @css -- IE에서 style 속성 안 먹음
+__define("@width", function() {
+	return {
+		valueType: "string",
+		
+		update: function(self, value) {
+			if (self.el.nodeName === "IMG") {
+				return false;
+			}
+
+			value = value == +value ? value + "px" : value;
+			self.el.style.cssText += ("; width:" + value);
+		}
+	}
+});
+
+
+
+
+/// @css -- IE에서 style 속성 안 먹음
+__define("@height", function() {
+	return {
+		valueType: "string",
+		
+		update: function(self, value) {
+			if (self.el.nodeName === "IMG") {
+				return false;
+			}
+			
+			value = value == +value ? value + "px" : value;
+			self.el.style.cssText += ("; height:" + value);
+		}
+	}
+});
+
+
+
+
+
+
+
 
 
 
