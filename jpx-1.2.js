@@ -2,7 +2,7 @@
  * jpx JavaScript Library v1.2.0
  * http://1px.kr/
  *
- * Copyright 2013 1pxgardening
+ * Copyright 2012 1pxgardening
  * Released under the MIT license
  */ 
 
@@ -15,6 +15,33 @@ if (typeof console == "undefined") { this.console = {log: function() {}}; }
 
 /// --- sugar Array.prototype
 ;(function() {
+	this.indexOf = this.indexOf || function (searchElement , fromIndex) {
+		var i,
+			pivot = (fromIndex) ? fromIndex : 0,
+			length;
+		
+		if (!this) {
+			throw new TypeError();
+		}
+		
+		length = this.length;
+		
+		if (length === 0 || pivot >= length) {
+			return -1;
+		}
+		
+		if (pivot < 0) {
+			pivot = length - Math.abs(pivot);
+		}
+		
+		for (i = pivot; i < length; i++) {
+			if (this[i] === searchElement) {
+				return i;
+			}
+		}
+
+		return -1;
+	}
 
 	this.empty = function() {
 		this.splice(0, this.length);
@@ -152,6 +179,10 @@ if (typeof console == "undefined") { this.console = {log: function() {}}; }
 /// extends base API
 ;(function() {
 	
+	Array.isArray = Array.isArray || function (vArg) {
+		return Object.prototype.toString.call(vArg) === "[object Array]";
+	};
+
 	String.trim = function(str) {
 		return str.replace(/^\s+|\s+$/g, "");
 	}
@@ -337,6 +368,9 @@ if (typeof console == "undefined") { this.console = {log: function() {}}; }
 /// EVAL
 __define("eval", function() {
 
+	var REGEXP = /[_a-zA-Z\u0080-\uffff]+[_a-zA-Z0-9\u0080-\uffff]*/g;
+
+	var ref = {};
 	var func = {};
 
 	return function(script, scope) {
@@ -349,7 +383,7 @@ __define("eval", function() {
 			case "1": return 1;
 			case "": return "";
 		}
-		
+
 
 		var el;
 		if (scope.nodeName) {
@@ -361,12 +395,19 @@ __define("eval", function() {
 			scope = [scope];
 		}
 		
+
 		var thisObj = scope.thisObj || scope[scope.length-1];
-		var length = scope.length;
+		var length = scope.length + 2;
 		var hash = length + script;
 
 		try {
 			if (!(hash in func)) {
+				/// @NOTE: 레퍼런스 에러를 그냥 없애기 위한 Dummy Object!!!
+				script.replace(REGEXP, function(a) {
+					ref[a] = undefined;			
+					return a;
+				});
+
 				var code = "";
 				for (var i = 0; i < length; i++) {
 					code += ("with(arguments["+i+"])");
@@ -375,7 +416,7 @@ __define("eval", function() {
 				func[hash] = new Function(code);		
 			}
 
-			return func[hash].apply(thisObj, scope);
+			return func[hash].apply(thisObj, [ref, window].concat(scope));
 
 		} catch(error) {
 //			error.$stack = error.stack.split(/\n/);
@@ -394,14 +435,16 @@ __define("eval", function() {
 
 
 
-/// PARSE
+/// Parse
 __define("parse", function() {
+
+	var REG_EXPR = /"(?:[^"\\]|\\")*"|'(?:[^'\\]|\\')*'|{|}/g;
 
 	var evalfunc = function(isExpr, text, scope) {
 		if (!isExpr) {
 			return text;
 		}
-		
+				
 		var $eval = __require("eval");
 		var script = text.substring(1, text.length-1);
 		var result = $eval(script, scope);
@@ -409,44 +452,62 @@ __define("parse", function() {
 		return (result === undefined || result === null) ? "" : result;
 	}
 
+
 	var parse = function(script, scope, func) {
+
 		if (typeof script !== "string") {
 			return "";
 		}
-		
+
 		if (script == false) {
 			return script;
 		}
-	
-		var lastIndex = 0;
-		var result = [];
-		func = func || evalfunc;
 		
-		script.replace(parse.REGEXP_EXPRESSION, function(expr, index) {
-			var str = script.substring(lastIndex, index);
-			str.length > 0 && result.push(func(false, str, scope, index));
-			result.push(func(true, expr, scope, index));
-			
-			lastIndex = index + expr.length;
+		func = func || evalfunc;
 
-			return expr;
+		var result = [];	
+		var lbrace = 0;
+		var lbraceIndex = 0;
+		var lastIndex = 0;
+		
+		script.replace(REG_EXPR, function(a, index) {
+		
+			if (a === "{") {
+				if (lbrace === 0) {
+					lbraceIndex = index + 1;	
+				}
+				
+				lbrace++;
+			}
+	
+			if (a === "}") {
+				lbrace--;
+
+				if (lbrace == 0) {
+					result.push(func(false, script.substring(lastIndex, lbraceIndex - 1), scope));
+					result.push(func(true, script.substring(lbraceIndex-1, index+1), scope));
+					lastIndex = index + 1;
+				}
+			}
+	
+			return a;
 		});
-
-
-		if (lastIndex === 0) {		
+		
+		if (lastIndex == 0) {
 			return script;
 		}
-		
+	
 		if (lastIndex !== script.length) {
-			result.push(func(false, script.substring(lastIndex), lastIndex));
+			result.push(func(false, script.substring(lastIndex), scope));	
 		}
 
-		return result.length ? result.join("") : script;
+		return result.join("");
 	}
 	
+
 	parse.REGEXP_EXPRESSION = /{[^{}]+}/g;
 	
-	return parse;	
+	return parse;
 });
 
 
@@ -461,7 +522,7 @@ __define("travel", function() {
 		while(next) {
 			var result = func(next);
 			next.nextSibling && stack.push(next.nextSibling);
-			next = next.childNodes && next.childNodes.item(0);
+			next = next.childNodes && next.childNodes[0];
 			(!next || result === false) && (next = stack.pop());
 		}
 	}
@@ -501,28 +562,30 @@ __define("compile", function() {
 	var attributesOf = function() {
 		if (document.createElement("div").attributes.length === 0) {
 			return function(el) { 
-				return $.makeArray(el.attributes);
+				var ret = [];
+				for(var i = 0; i < el.attributes.length; i++) {
+					ret[i] = el.attributes[i];
+				}
+				return ret;
 			}
 		}
-	
-		var REGEXP_STRING = /"(?:\\.|[^"])*"|'(?:\\.|[^'])*'/g
-	
+//	
+		var REGEXP_STRING = /"(?:[^"\\]|\\")*"|'(?:[^'\\]|\\')*'/g;
+
 		return function(el) {
 			var div = document.createElement("div");
 			div.appendChild(el.cloneNode(false));
-			
-			var attrs = div.innerHTML.replace(REGEXP_STRING, "");
-			attrs = attrs.split(/>/);
-			attrs.pop();
-			attrs = attrs.join("");
+
+			var attrs = div.innerHTML.replace(REGEXP_STRING,"");
+			console.log(div.innerHTML);
+
+			attrs = attrs.split(/>/)[0];		
 			attrs = attrs.split(/\s+/g).slice(1);
-			
+
 			var result = [];
 			$.each(attrs, function(index, attr) {
-				var a = attr.split("=");
-				var attrNode = {};
-				attrNode.nodeName = a.shift();
-				attrNode.value = a.join("=");
+				var nodeName = attr.split("=")[0];
+				var attrNode = el.getAttributeNode(nodeName);
 				attrNode && result.push(attrNode);
 			});
 			
@@ -649,7 +712,54 @@ __define("compile", function() {
 
 
 
+ 
+  
+  
 /////////////////////////////////// Observer /////////////////////////////////////
+  
+__define("isVisible", function() {
+
+	//-- Cross browser method to get style properties:
+	function getStyle(el, property) {
+		var currentStyle = (window.getComputedStyle ? document.defaultView.getComputedStyle(el, null) :  el.currentStyle) || {};
+		return currentStyle[property];
+	}
+	
+	return function(el) {
+		if (!el) {
+			return false;
+		}
+		
+		if (el === document) {
+			return true;
+		}
+		
+		if (getStyle(el, 'display' === 'none')) {
+			return false;
+		}
+
+		if (getStyle(el, 'opacity' === '0')) {
+			return false;
+		}
+
+		if (getStyle(el, 'visibility' === 'hidden')) {
+			return false;
+		}
+
+		var w = el.offsetWidth;
+		var h = el.offsetHeight;
+		var isTR = el.tagName === 'TR';	
+		
+		if (w === 0 && h === 0 && !isTR) {
+			return false;
+		}
+
+		return true;
+	}
+});
+
+
+
 var Observer = {
 
 	create: function(el) {
@@ -669,9 +779,14 @@ var Observer = {
 	update: function() {
 
 		var travel = __require("travel");
-
+		var isVisible = __require("isVisible");
+		
 		travel(document, function(el) {
-			if (el.parentNode) {
+			if (el.nodeName === "SCRIPT" || el.nodeName === "HEAD" || el.nodeName === "STYLE") {
+				return false;
+			}
+
+			if (el.parentNode && el.nodeType != 3) {
 				el.$scope = Array.prototype.slice.call(el.parentNode.$scope);
 				el.$scope.thisObj = el.parentNode.$scope.thisObj;
 			}
@@ -680,8 +795,17 @@ var Observer = {
 				if (o.update() === false) {
 					el._observers.removeObject(o);
 				}
+				
+				/// @NOTE: visible, css, template 등 관련해서만 적용할수 있도록 구조 수정할것!!
+				
+//				if (!isVisible(el)) {
+//					return false;
+//				}
 			});
+			
+			return isVisible(el);
 		});
+
 
 		/// @FIXME: input value가 초기값을 가질때 한번더 리프레쉬 하는 기능 - 임시구현
 		if (document.update.again) {
@@ -863,7 +987,7 @@ __define("@repeat", function() {
 			self.repeatNode = self.el.cloneNode(true);
 			self.repeatNode.removeAttribute(attr);
 
-			var startNode = document.createTextNode("");
+			var startNode = document.createComment(""); // @NOTE: for IE: IE는 TextNode에 값을 입력할수 없다.
 			var endNode = document.createTextNode("");
 			self.el.parentNode.insertBefore(startNode, self.el);
 			self.el.parentNode.insertBefore(endNode, self.el);
@@ -918,8 +1042,8 @@ __define("@repeat", function() {
 				var row = value[index];
 
 				var repeatNode = reorders[index] || pool.shift() || self.repeatNode.cloneNode(true);
-				repeatNode.$scope = Array.prototype.slice(self.el.$scope);
-				repeatNode.$scope.thisObj = self.el.$scope.thisObj;
+				repeatNode.$scope = Array.prototype.slice(self.el.parentNode.$scope);
+				repeatNode.$scope.thisObj = self.el.parentNode.$scope.thisObj;
 
 				repeatNode.collection = collection;
 				repeatNode.data = row;
@@ -952,6 +1076,7 @@ __define("@repeat", function() {
 					.css("display", "none")
 					.appendTo("body")
 					.trigger("change");
+
 				setTimeout(function() { $(removed).remove(); });
 
 				removed.parentNode.removeChild(removed);
@@ -1145,8 +1270,7 @@ __define("@name", function() {
 			var val = getFormValueOf(self.el);
 
 			// 표현식이 없고 값이 세팅이 안된경우 초기 입력값으로 설정한다.
-			if (!self.hasExpression && !$scope.thisObj.hasOwnProperty(name)) {
-				self.el.initValue = self.el.initValue || val;
+			if (!self.hasExpression && !$scope.thisObj.hasOwnProperty(name) && self.el.initValue) {
 				$scope.thisObj[name] = self.el.initValue;
 				document.update.again = true;
 			}
@@ -1200,7 +1324,8 @@ __define("@value", function() {
 			self.el.initValue = value;
 			self.el.value = $scope.thisObj[self.el.name] || value;
 			self.$el.trigger("change");
-			
+			document.update.again = true;
+
 			return !self.hasExpression;
 		}
 	}
@@ -1379,7 +1504,7 @@ __define("@placeholder", function() {
 
 
 
-/// @css -- IE에서 style 속성 안 먹음
+/// @width = style.width;
 __define("@width", function() {
 	return {
 		valueType: "string",
@@ -1398,7 +1523,7 @@ __define("@width", function() {
 
 
 
-/// @css -- IE에서 style 속성 안 먹음
+/// @width = style.height;
 __define("@height", function() {
 	return {
 		valueType: "string",
@@ -1440,12 +1565,13 @@ $(document).on("submit", "form", function(e) {
 
 $(document).on("keydown", "form input", function(e) {
 	var self = $(this);
-
+		
 	if (e.keyCode == 13) {
 		e.preventDefault();
 		e.stopPropagation();
 
 		setTimeout(function() {
+			$(this)[0].blur();
 			self.closest("form").triggerHandler("submit");
 		});
 	}
