@@ -48,7 +48,7 @@
 <ul>
     <li repeat="todos as todo, index" class="todo {todo.is_done ? 'todo-is-done' : ''}">
         <input type="checkbox" with="todo" name="is_done"/>
-	#{index} - {todo.name} <a click="removeTodo(todo)">del</a>
+	#{index} - {todo.name} <a click="removeTodo(index)">del</a>
     </li>
 </ul>
 
@@ -65,8 +65,8 @@ return {
         self.todoName = "";
     },
 
-	removeTodo: function(todo) {
-		self.todos.removeObject(todo);
+	removeTodo: function(index) {
+		self.todos.splice(index, 1);
 	}
 }}
 </script>
