@@ -1,5 +1,5 @@
-#jPixel 1.2 beta (inspired by angularjs)
-*Data-bind Template Javascript Library*
+#jpx javascript framework (inspired by angularjs)
+*Data-bind Template Javascript Framework*
 
 ##NOTICE!
 - This is not release version.
@@ -67,8 +67,6 @@ return {
     addTodo: function() {
         self.todos.push({name: self.todoName, is_done: false});
         self.todoName = "";
-        
-        return false; /// event.preventDefault();
     },
 
 	removeTodo: function(todo) {
@@ -255,29 +253,4 @@ to
 
 
 
-
-
-
-##Core API
-
-```javascript
-__define(name, func);
-
-__require(name);
-```
-
-
-##Define bindings
-
-```javascript
-__define(“@repeat”, function() {
-
-});
-```
-
-```javascript
-__define(“@html”, function() {
-
-});
-```
 
