@@ -4,8 +4,6 @@
 ##NOTICE!
 - This is not release version.
 - it can be changed API or Syntax when next version.
-- current version jPixel depends jQuery.
-
 
 ##Key Concept
 
@@ -20,7 +18,7 @@
 
 - Data-binding
 - HTML like Template
-- Simple Controller
+- Simple Controller (Plain javascript code)
 - Automaitc UI Update
 - HTML Component (Working Draft)
 
@@ -30,8 +28,7 @@
 
 ### Tutorial #1
 ```html
-<script src="/js/jquery.js"></script>
-<script src="/js/jpx-1.2.js"></script>
+<script src="/js/jpx.js"></script>
 
 <div><input type="text" name="first"></div>
 <div><input type="text" name="last"></div>
@@ -42,17 +39,16 @@
 ### Tutorial #2
 
 ```html
-<script src="/js/jquery.js"></script>
-<script src="/js/jpx-1.2.js"></script>
+<script src="/js/jpx.js"></script>
 
 <form submit="addTodo()">
     <div><input type="text" name="todoName" placeholder="todo title here"/></div>
 </form>
 
 <ul>
-    <li repeat="todos as todo, index" class="todo {todo.is_done && 'todo-is-done'}">
+    <li repeat="todos as todo, index" class="todo {todo.is_done ? 'todo-is-done' : ''}">
         <input type="checkbox" with="todo" name="is_done"/>
-		#{index} - {todo.name} <a click="removeTodo(todo)">del</a>
+	#{index} - {todo.name} <a click="removeTodo(todo)">del</a>
     </li>
 </ul>
 
@@ -109,7 +105,7 @@ return {
 
 ### Re-use Controller (inherit, minix, whatever)
 ```javascript
-function SomeController(self) {
+function BaseController(self) {
 return {
 	init: function() {
 		self.name = "SomeController";
@@ -125,10 +121,10 @@ return {
 }}
 
 
-function OhterController(self, SomeController /*, ...others */) { 
+function ViewController(self, BaseController /*, ...others */) { 
 return {
 	init: function() {
-		SomeController.init() // super call
+		BaseController.init() // super call
 		alert(self.name) // "SomeController"
 
 		self.bar(); // inherit (or mixin)
@@ -137,7 +133,7 @@ return {
 	// override
 	foo: function() { 
 		alert("foo2");
-		// SomeController.foo(); # you can also call super
+		// BaseController.foo(); # you can also call super
 	}
 }}
 
@@ -159,7 +155,7 @@ return {
 ###template = “{string}”
 
 ```html
-<div template="popup"><!-- content here!! --></div>
+<div template="popup"><!-- template content is injected here!! --></div>
 
 
 <template id="popup">
@@ -238,6 +234,8 @@ to
 ###visible = “{expr}”
 
 ###hidden = “{expr}”
+
+###enabled = “{expr}”
 
 ###fn = “{string}”
 
