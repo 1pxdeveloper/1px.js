@@ -1,4 +1,5 @@
-#jpx javascript framework (inspired by angularjs)
+#jpx javascript framework
+##(inspired by angularjs)
 *Data-bind Template Javascript Framework*
 
 ##NOTICE!
