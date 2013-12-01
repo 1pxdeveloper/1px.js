@@ -1,6 +1,5 @@
 #jpx javascript framework
-##(inspired by angularjs)
-*Data-bind Template Javascript Framework*
+*Data-bind Template Javascript Framework* (inspired by angularjs)
 
 ##NOTICE!
 - This is not release version.
