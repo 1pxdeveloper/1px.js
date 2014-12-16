@@ -1,197 +1,308 @@
 /*!
- * jpx JavaScript Library v0.0.0
+ * 1px.js JavaScript Library
  * http://1px.kr/
  *
- * Copyright 2012 1pxgardening
+ * Copyright 2014 1pxgardening
  * Released under the MIT license
  */ 
 
 (function(window,document,undefined) {
-"use strict";
-
-var msie = +(/msie (\d+)/i.exec(navigator.userAgent) || [])[1],
-	_toString = Object.prototype.toString,
-	_cache = {};
-
-var	regexp_$eval = /[_a-zA-Z\u0080-\uffff]+[_a-zA-Z0-9\u0080-\uffff]*/g,
-	regexp_$parse = /'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|[{}'"]|[^'"{}]+/g,
-	regexp_string = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g,
-	regexp_uppercase = /[A-Z]/g,
-	regexp_brace = /[{}]/g,
-	regexp_trim = /^\s+|\s+$/g,
-	regexp_nonwhitespace = /\S+/g,
-	regexp_whitespace = /\s+/g,
-	regexp_whitespace_only = /^\s+$/g,
-	regexp_route = /[^\/#!]+$/g,
-	regexp_args = /\([^)]*\)/m,
-	regexp_comma = /\s*,\s*/,
-	regexp_opacity = /;\s*opacity\s*:([^;]+);/;
-
-var isArray = Array.isArray = Array.isArray || function(obj) { return _toString.call(obj) === "[object Array]"; }
-var now = Date.now = Date.now || function() { return new Date().getTime(); }
-
 
 var ELEMENT_NODE = 1,
 	ATTR_NODE = 2,
 	TEXT_NODE = 3,
 	DOCUMENT_NODE = 9;
 
+var ua = navigator.userAgent;
+var msie = +(/msie (\d+)/i.exec(ua) || [])[1];
+if (!msie) {
+	msie = /trident/i.test(ua) ? 11 : undefined;
+}
+
+var regex_string = /"[^"]*"|'[^']*'/g;
+var regex_trim = /^\s+|\s+$'/g;
+var regexp_args = /\([^)]*\)/m;
+var regexp_comma = /\s*,\s*/;
+var regexp_skip = /^(script|style|head|link|meta)$/i;
+var regexp_template = /^(template)$/i;
+var regexp_whitespace = /\s+/g;
 
 
-/// --- Core
-function noop() {}
+/// -- Core Utils
+function noop(){}
 
+var _cache = {};
 function $cache(name) {
 	return (_cache[name] = _cache[name] || {});
 }
 
-function define(name, fn) {
-	$cache("sources")[name] = fn;
-}
-
-function require(name) {
-	var modules = $cache("modules"),
-		sources = $cache("sources");
-
-	return modules[name] || (modules[name] = sources[name] && sources[name]());
-}
-
-
-/// Collection
-function foreach(obj, fn) {
-	if (typeof obj !== "object" || obj === null) return obj;
-	if (typeof obj.length === "number") {
-		for (var i = 0, len = obj.length; i < len; i++) {
-			fn(obj[i], i);
+function foreach(collection, fn) {
+	if (typeof collection !== "object" || collection == null) {
+		return collection;
+	}
+	
+	if (collection.length >= 0) {
+		for (var i = 0, len = collection.length; i < len; i++) {
+			fn(collection[i], i);
 		}
-		return obj;
+		return collection;
 	}
-	for (var key in obj) {
-		obj.hasOwnProperty(key) && fn(obj[key], key);
+
+	for (var key in collection) {
+		collection.hasOwnProperty(key) && fn(collection[key], key);
 	}
-	return obj;
+	
+	return collection;
 }
 
-function search(obj, fn) {
-	if (typeof obj !== "object" || obj === null) return obj;
-	if (typeof obj.length === "number") {
-		for (var i = 0, len = obj.length; i < len; i++) {
-			if (fn(obj[i], i) === true) return obj[i];
+function search(collection, fn) {
+	if (typeof collection !== "object" || collection == null) {
+		return;
+	}
+	
+	if (collection.length >= 0) {
+		for (var i = 0, len = collection.length; i < len; i++) {
+			if (fn(collection[i], i) === true) {
+				return collection[i];
+			}
 		}
 		return;
 	}
-	for (var key in obj) {
-		if (obj.hasOwnProperty(key) && fn(obj[key], key) === true) {
-			return obj[key];
+
+	for (var key in collection) {
+		if (collection.hasOwnProperty(key) && fn(collection[key], key) === true) {
+			return collection[key];
 		}
 	}
 }
 
 
-/// Object
-function extend(obj) {
-	if (obj === null || typeof obj !== "object") return obj;
+function extend(target) {
+	if (target === null || typeof target !== "object") return target;
+
 	for (var i = 1, len = arguments.length; i < len; i++) {
 		foreach(arguments[i], function(value, key) {
-			obj[key] = value;
+			target[key] = value;
 		});
 	}
 
-	return obj;
+	return target;
 }
 
-
-/// Array
 function makeArray(arr) {
-	if (arr === undefined || arr === null || typeof arr.length !== "number") return [];
-	var i = arr.length, r = Array(i);
-	while(i-- !== 0) r[i] = arr[i];
-	return r;
-}
-
-function indexOf(arr, search, fromIndex) {
-	if (arr === undefined || arr === null) return -1;
-
-	fromIndex = +fromIndex || 0;
-	for (var len = arr.length; fromIndex < len; fromIndex++) {
-		if (arr[fromIndex] === search) return fromIndex;
+	var len = arr.length, result = Array(len), i;
+	for (i = 0; i < len; i++) {
+		result[i] = arr[i];
 	}
-	return -1;
+	return result;
 }
 
-
-/// String
 function trim(str) {
-	return str.replace(regexp_trim, "");
+	return str.replace(regex_trim, "");
 }
 
 
-
-
-
-
-
-/// ELEMENT
-function traversal(el, fn, fn2, data) {
-
-	var done;
-	var result;
+/// ---
+function traversal(node, fn, data) {
+	fn = fn || noop;
 	var stack = [];
-	var dones = [el];
-	var next = el.childNodes && el.childNodes[0];
-	var nextSibling;
+	while(node) {		
+		node = fn(node, data) === false ? stack.pop() : node.firstChild || stack.pop();
+		node && node.nextSibling && stack.push(node.nextSibling);
+	}
+}
+
+function traversal2(node, fn, fn2, data) {
+	fn = fn || noop;
+	fn2 = fn2 || noop;
 	
-	if (fn(el, data) === false) {
+	var stack = [];
+	while(node) {
+		if (node.nodeType === ELEMENT_NODE) {
+			stack.push(node);
+			stack.push(true);
+		}
+		
+		node = fn(node, data) === false ? stack.pop() : node.firstChild || stack.pop();
+		while (node === true) {
+			fn2(stack.pop(), data);
+			node = stack.pop();
+		}
+		
+		node && node.nextSibling && stack.push(node.nextSibling);
+	}
+}
+
+function parse_expr(string, fn) {
+	fn = fn || noop;
+	while(string) {
+		var index = string.indexOf("{");
+		if (index === -1) {
+			string && fn(string, false)
+			return;
+		}	
+		fn(string.substring(0, index), false);
+		string = string.substring(index);
+
+		var striped = string.replace(regex_string, function(a){ return Math.pow(10, a.length-1) });		
+		var num_brace = index = 0;
+		do {
+			var ch = striped.charAt(index++);
+			if (ch === "{") num_brace++;
+			else if (ch === "}") num_brace--;
+		} while(ch && num_brace > 0);
+		
+		fn(string.substring(1, index-1), true)
+		string = string.substring(index);
+	}
+}
+
+
+function $eval(script, scope) {
+	if (!scope || !scope.length) {
+		return;
+	}
+
+	var cache = $cache("eval"),
+		thisObj = scope[scope.length-1],
+		length = scope.length,
+		hash = length + script,
+		code = "",
+		fn; 
+
+	try {
+		if (cache[hash] === undefined) {
+			for (var i = 0, len = length + 1; i < len; i++) {
+				code += ("with(arguments["+i+"])");
+			}
+			code += ("{return("+script+");}");
+			cache[hash] = new Function(code);
+		}
+
+		fn = cache[hash] || noop;
+		return fn.apply(thisObj, scope.concat(scope.local || {}));
+		
+	} catch(e) {
+		console.log(e.message, "/", script);
+	}
+}
+
+function $parse(script, scope) {
+	var result = "";
+	parse_expr(script, function(text, isexpr) {
+		result += isexpr ? $eval(text, scope) : text;
+	});
+	return result;
+}
+
+
+/// -- $compile
+function $compile(el) {
+	traversal(el, $compile_process);
+}
+
+function $compile_process(node) {
+	var type = node.nodeType;
+	var tagName = node.tagName;
+
+	if (regexp_skip.test(tagName)) {
+		return false;
+	}
+
+	if (regexp_template.test(tagName)) {
+		$cache("template")[node.id] = extractTemplate(node);
+		removeNode(node);
+		return false;
+	}
+
+	if (type === ELEMENT_NODE) {
+		return $compile_process_element(node);
+	}
+
+	if (type === TEXT_NODE) {
+		return $compile_process_text(node);	
+	}
+}
+
+function $compile_process_element(el) {
+	
+	var attrs = attributesOf(el);
+	var length = attrs.length;
+	if (length === 0) {
 		return;
 	}
 	
-	fn2 = fn2 || noop;
+	var result = true;
+	var num_bindings = 0;
+
+	foreach(attrs.sort(by_attr_priority), function(attr) {
+		var name = attr.name;
+		var value = attr.value;
+		var handler;
 	
-	while(next) {
-		dones.push(next);
-		nextSibling = next.nextSibling;
-		result = fn(next, data);
-		nextSibling = next.nextSibling || nextSibling;
-		nextSibling && stack.push(nextSibling);
-
-		if (next.tagName === "IFRAME" && hasAttribute(next, "template") && next.contentWindow) {
-			next = next.contentWindow.document;
+		if (_$["@"+name]) {
+			handler = "@"+name;
+		}
+		
+		else if ("on"+name in el) {
+			handler = "~event";
+		}
+		
+		else if (value.indexOf("{") !== -1) {
+			handler = "~attrValue";
+		}
+		
+		else if (isBooleanAttr(name) === true) {
+			handler = "~boolean";
 		}
 
-		next = next.childNodes && next.childNodes[0];
-		if (!next || result === false) {
-			next = stack.pop();
-
-			while(done = dones.pop()) {
-				var hasNextSibling = done.nextSibling;
-				fn2(done, data);
-
-				if (hasNextSibling) {
-					break;
-				}
-			}
+		if (!handler) {
+			return;
 		}
+		
+		var params = {
+			name: name,
+			script: value
+		}
+
+		if (create_binding(el, num_bindings++, name, handler, params) === false) {
+			result = false;
+		}
+	});
+	el.bindings && (el.bindings.length = num_bindings);
+
+	return result;
+}
+
+function $compile_process_text(textNode) {
+	var frag = document.createDocumentFragment();
+	parse_expr(textNode.nodeValue, function(text, isexpr) {
+		var newTextNode = document.createTextNode(isexpr ? '' : text);
+		if (isexpr) {
+			create_binding(newTextNode, 0, "#text", "~nodeValue", {script: text});
+		}
+		frag.appendChild(newTextNode);
+	});
+
+	textNode.parentNode.replaceChild(frag, textNode);
+	return false;
+}
+
+// @FIXME:..
+function create_binding(node, name, index, handler, binding) {
+	binding = binding || {};
+	binding.handler = _$[handler];	
+	node.bindings = node.bindings || [];
+	node.bindings[index] = binding; 
+	node.bindings[name] = binding; 
+	
+	binding.handler.init = binding.handler.init || noop;
+	binding.handler.update = binding.handler.update || noop;
+	binding.handler.done = binding.handler.done || noop;
+	
+	if (binding.handler.init && binding.handler.init(binding, node) === false) {
+		return false;
 	}
-
-	while(done = dones.pop()) {
-		fn2(done, data);
-	}
-}
-
-function isElement(el) {
-	return el && el.nodeName !== undefined;
-}
-
-function isRadioButton(el) {
-	return el && el.tagName === "INPUT" && el.type === "radio";
-}
-
-function isCheckbox(el) {
-	return el && el.tagName === "INPUT" && el.type === "checkbox";
-}
-
-function isArrayCheckbox(el) {
-	return isCheckbox(el) && el.name.slice(-2) === "[]";
 }
 
 function isBooleanAttr(a) {
@@ -225,544 +336,220 @@ function isBooleanAttr(a) {
 	return false;
 }
 
-function attributesOf(el) {
-	return makeArray(el.attributes);
-}
-
-function hasAttribute(el, attr) {
-	return el.hasAttribute(attr);
-}
-
-function styleOf(el) {
-	return document.defaultView.getComputedStyle(el) || el.style || {};
-}
-
-function makeCSSValue(type, value) {
-	if (type !== "opacity" 
-		&& type !== "line-height"
-		&& type !== "z-index"
-		&& typeof value === "number") {
-		return value + "px";
-	}
-
-	return value;
-}
-
-function makeCSSText(obj) {
-	var ret = ";";
-	foreach(obj, function(value, key) {
-		key = key.replace(regexp_uppercase, function(a) {
-			return "-" + a.toLowerCase();
-		});
-	
-		ret += key + ":" + makeCSSValue(key, value) + ";";
-	});
-	return ret;
-}
-
-function show(el) {
-	el.style.display = "";
-
-	if (styleOf(el)["display"] === "none") {
-
-//		/// @TODO: 모듈화 할것!! -> 그리고 memoize도 하고.. 좀더 아이디어를 내볼것..
-//		var iframe = document.createElement("iframe");
-//		iframe.style.display = "none";
-//		document.body.appendChild(iframe);
-//		var node = document.createElement(el.nodeName);
-//		iframe.contentWindow.document.body.appendChild(node);
-//		
-//		var a = styleOf(node)["display"];
-//		document.body.removeChild(iframe);
-		
-		var a = "block";
-				
-		el.style.cssText += (";" + "display:"+a+" !important;");
-	}
-}
-
-function hide(el) {
-	el.style.cssText += (";" + "display:none !important;");
-}
-
-
-function makeClassName(className, removeClass) {
-	var result = {};
-	var classNames = [];
-
-	className = className || "";
-	className.replace(regexp_nonwhitespace, function(a) {
-		result[a] = true;
-		return a;
-	});
-
-	removeClass && removeClass.replace(regexp_nonwhitespace, function(a) {
-		delete result[a];
-		return a;
-	});
-	
-	for(var name in result) {
-		classNames.push(name);
-	}
-
-	return classNames.join(" ");
-}
-
-function addClass(el, className) {
-	el.className = makeClassName(el.className + " " + className);
-}
-
-function removeClass(el, className) {
-	el.className = makeClassName(el.className, className);
-}
-
-function hasClass(el, className) {
-	return (" " + el.className + " ").indexOf(" " + className + " ") !== -1;
-}
-
-
-
-
-
-/// Data
-var $key = now();
-var $uuid = 1;
-function createData(el) {
-	if (el === undefined || el === null) return {};
-	var cache = $cache("data"),
-		id = el[$key] = el[$key] || $uuid++;
-	return (cache[id] = cache[id] || {});
-}
-
-function readData(el) {
-	if (el === undefined || el === null) return;
-	var cache = $cache("data");
-	return cache[el[$key]];
-}
-
-function removeData(el) {
-	if (el === undefined || el === null) return;
-	var cache = $cache("data");
-	delete cache[el[$key]];
-}
-
-
-
-
-
-/// EVENT
-function addEvent(el, type, fn, flag) {
-	el.addEventListener(type, fn, flag || false);
-}
-
-function removeEvent(el, type, fn, flag) {
-	el.removeEventListener(type, fn, flag || false);
-}
-
-function dispatchEvent(el, type, props, bubbles, cancelable) {
-	bubbles = bubbles === undefined ? true : bubbles;
-	cancelable = cancelable === undefined ? true : cancelable;
-
-	var event = document.createEvent("Event");
-	event.initEvent(type, bubbles, cancelable);
-	
-	if (props) {
-		var ignore = dispatchEvent.ignore = dispatchEvent.ignore || Object.getOwnPropertyNames(event);
-		for (var key in props) {
-			if (props.hasOwnProperty(key) === false) continue;
-			if (indexOf(ignore, key) === -1) event[key] = props[key];
-		}
-	}
-
-	return el.dispatchEvent(event);
-}
-
-function bind(el) {
-	var fn = arguments[arguments.length-1];
-	for (var i = 1, len = arguments.length-1; i < len; i++) {
-		addEvent(el, arguments[i], fn);
-	}
-}
-
-function unbind(el) {
-	var fn = arguments[arguments.length-1];
-	for (var i = 1, len = arguments.length-1; i < len; i++) {
-		removeEvent(el, arguments[i], fn);
-	}
-}
-
-
-
-
-
-
-/// JPX CORE
-function $eval(script, scope) {
-	if (script === '') return '';
-	if (script === 'true') return true;
-	if (script === 'false') return false;
-	if (script === 'undefined') return undefined;
-	if (script === 'null') return null;
-	
-	if (!scope || !scope.length) {
-		return;
-	}
-
-	var cache = $cache("eval"),
-		thisObj = scope[scope.length-1],
-		length = scope.length,
-		hash = length + script,
-		code = "",
-		fn; 
-
-	try {	
-		if (cache[hash] === undefined) {
-			for (var i = 0, len = length + 1; i < len; i++) {
-				code += ("with(arguments["+i+"])");
-			}
-			code += ("{return("+script+");}");
-			cache[hash] = new Function(code);
-		}
-
-		fn = cache[hash] || noop;
-		return fn.apply(thisObj, scope.concat(scope.local || {}));
-		
-	} catch(e) {
-		console.log(e.stack, e, e.message, script);
-//		console.trace();
-	}
-}
-$eval[0] = "with(arguments[0])";
-$eval[1] = "with(arguments[0])with(arguments[1])";
-$eval[2] = "with(arguments[0])with(arguments[1])with(arguments[2])";
-$eval[3] = "with(arguments[0])with(arguments[1])with(arguments[2])with(arguments[3])";
-$eval[4] = "with(arguments[0])with(arguments[1])with(arguments[2])with(arguments[3])with(arguments[4])";
-
-
-
-
-function $parse(script, scope) {
-	script = ""+script;
-	if (script.indexOf("{") === -1) return script;
-
-	var cache = $cache("parse"),
-		snippet = cache[script] = cache[script] || $parse_expr(script),
-		ret = "";
-
-	for (var i = 0; i < snippet.length; i++) {
-		var text = snippet[i];
-		if (i % 2 === 1) {
-			text = $eval(text.slice(1,-1), scope);
-			if (text === null || text === undefined) {
-				text = "";
-			};
-		}
-		ret += text;
-	}
-	
-	return ret;	
-}
-
-function $parse_expr(script) {
-
-	var result = [];
-	
-	var index;
-	var removed_string;
-	var num_brace;
-	var match;
-	
-	while(script.length) {
-
-		// find brace {
-		index = script.indexOf("{");
-		if (index === -1) {
-			result.push(script);
-			break;
-		}
-		result.push(script.substring(0, index));
-		script = script.substring(index);
-		
-
-		// match brace {}
-		num_brace = 0;
-		regexp_brace.lastIndex = 0;
-		removed_string = script.replace(regexp_string, function(a) { return Math.pow(10, a.length-1); });
-
-		while(match = regexp_brace.exec(removed_string)) {
-			num_brace += (match[0] === "{" ? 1 : -1);
-			if (num_brace === 0) {
-				result.push(script.substring(0, match.index+1));
-				script = script.substring(match.index+1);
-				break;
-			}
-		}
-		
-		if (num_brace !== 0) {
-			result.push((result.pop() || "") + script);
-			break;
-		}
-	}
-	
-	return result;
-}
-
-
-
-function $compile(el, scope) {
-	scope && (createData(el).scope = scope);
-	traversal(el, $compile_process);
-}
-
-function $compile_process(el) {
-
-	var nodeType = el.nodeType;
-
-	if (nodeType === ELEMENT_NODE) {
-		return $compile_process_element(el);
-	}
-
-	if (nodeType === TEXT_NODE) {
-		return $compile_process_textnode(el);
-	}		
-}
-
-function $attr_priority(a) {
-	if (a === "repeat") return 50;
+function attr_priority(a) {
+	if (a === "repeat") return 70;
+	if (a === "controller") return 60;
+	if (a === "ready") return 50;
 	if (a === "init") return 30;
-	if (a === "var") return 20;
 	if (a === "css") return -10;
 	if (a === "background-image") return -15;
 	if (a === "visible") return -20;
-	if (a === "hidden") return -20;
-	if (a === "with") return -30;
-	if (a === "name") return -40;
-	if (a === "template") return -50;
+	if (a === "template") return -30;
+	if (a === "with") return -40;
+	if (a === "name") return -50;
 
 	return 0;
 }
 
-function $by_attr_priority(a, b) {
-	return $attr_priority(b.nodeName) - $attr_priority(a.nodeName);
+function by_attr_priority(a, b) {
+	return attr_priority(b.tagName) - attr_priority(a.tagName);
 }
 
-function $compile_process_element(el) {
-	var nodeName = el.nodeName;
+function cloneScope(scope) {
+	var $scope = scope.slice();
+	$scope.local = Object.create(scope.local || {});
+	$scope.templates = Object.create(scope.templates || {});
+	return $scope;	
+}
 
-	if (nodeName === "SCRIPT" || nodeName === "HEAD" || nodeName === "STYLE") {
-		return false;
-	}
+/// -- $update
+function $update(el, scope) {
+	scope = scope || [];
+	scope.local = scope.local || {};
+	scope.templates = scope.templates || {};
+	traversal2(el, $update_process, $update_process_done, scope);
+}
+
+function $update_process(node, scope) {
+	foreach(node.bindings, function(binding) {
+		binding.scope = scope;
+		scope.local = scope.local || {};
+		scope.local.el = node;
+
+		var value = (valueType[binding.handler.value] || binding.handler.value)(binding, node);
+		if (value === binding.value) {
+			return;
+		}
 	
-	if (hasAttribute(el, "sandbox")) {
-		return false;
-	}
+		binding.value = value;
+		binding.handler.update(binding, node, value);
+	});
+}
+
+function $update_process_done(node, scope) {
+	foreach(node.bindings, function(binding) {
+		binding.handler.done(binding, node);
+	});
+}
+
+
+/// -- Directive
+var valueType = {
+	"string": function(self, el) {
+		return $parse(self.script, self.scope);
+	},
 	
-	if (nodeName === "TEMPLATE" && !$cache("template")[el.id]) {
-		var frag = el.content;
-		if (!frag) {
-			frag = document.createDocumentFragment();
-			while(el.childNodes[0]) {
-				frag.appendChild(el.childNodes[0]);
+	"expr": function(self, el) {
+		return $eval(self.script, self.scope);
+	},
+	
+	"boolean": function(self, el) {
+		return !!$eval(self.script, self.scope);
+	}
+}
+
+var _$ = {};
+_$["~nodeValue"] = __nodeValue();
+_$["~attrValue"] = __attrValue();
+_$["~boolean"] = __boolean();
+_$["~event"] = __event();
+_$["@repeat"] = __repeat();
+_$["~@repeat"] = __repeat__();
+_$["@controller"] = __controller();
+_$["@enabled"] = __enabled();
+_$["@visible"] = __visible();
+_$["@img-src"] = __img_src();
+_$["@html"] = __html();
+_$["@text"] = __text();
+_$["@css"] = __css();
+_$["@template"] = __template();
+_$["@with"] = __with();
+_$["@name"] = __name();
+_$["@value"] = __value();
+
+
+
+function __repeat() {
+return {
+	init: function(self, el) {
+		if (self.script === "@") {
+			el.removeAttribute("repeat");
+			return;
+		}
+
+		var rows, row, index, lastIndex, script = self.script;
+		rows = script;
+
+		lastIndex = rows.lastIndexOf(" as ");
+		if (lastIndex !== -1) {
+			rows = rows.substring(0, lastIndex);
+			row = trim(script.substring(lastIndex + 4));
+		
+			lastIndex = row.lastIndexOf(",");
+			if (lastIndex !== -1) {
+				index = trim(row.substring(lastIndex + 1));
+				row = trim(row.substring(0, lastIndex));			
 			}
 		}
-		el.parentNode.removeChild(el);
-								
-		$cache("template")[el.id] = frag;
+
+		self.rows = rows;
+		self.row = row;
+		self.index = index;
+
+		var c = document.createTextNode("");
+		if (msie <= 8) {
+			el.bindings = null;
+			c = document.createComment("");
+		}
+
+		var placeholder = document.createTextNode("");
+		el.parentNode.insertBefore(c, el);
+		el.parentNode.insertBefore(document.createTextNode(""), el);
+		el.parentNode.insertBefore(placeholder, el);
+		removeNode(el);
+		el.setAttribute("repeat", "@");
+		
+		self.repeatNode = el.cloneNode(true);
+		self.placeholder = placeholder;
+		create_binding(c, 0, "~@repeat", "~@repeat", self);
 		return false;
+	},
+	
+	value: function(self, el) {
+		self.old_local = self.scope.local;
+		self.scope.local = extend({}, self.scope.local);//Object.create(self.scope.local);			
+		self.row && (self.scope.local[self.row] = self.data.collection[self.i]);
+		self.index && (self.scope.local[self.index] = self.i);
+	},
+
+	done: function(self) {
+		self.scope.local = self.old_local;//Object.getPrototypeOf(self.scope.local);
 	}
-	
-	var attributes = attributesOf(el).sort($by_attr_priority);
-	if (attributes.length === 0) {
-		return;
-	}
-	
-	var data = createData(el);
-	var bindings = (data.bindings = data.bindings || []);		
+}}
 
-	foreach(attributes, function(attr, index) {
-		var nodeName = attr.nodeName;
-		var script = attr.nodeValue;
 
-		if (bindings[nodeName]) {
-			return;
+function __repeat__() {
+return {
+	init: function(self) {
+		self.container = [];
+	},
+	
+	value: function(self, el) {
+		self.collection = $eval(self.rows, self.scope) || [];
+		return self.collection.length;
+	},
+	
+	update: function(self, el, length) {
+		var i, node;
+		
+		for (i = length; i < self.container.length; i++) {
+			node = self.container[i];
+			node.bindings = null;
+			removeNode(node);
 		}
 
-		// Handler - Custom
-		var handler = require("@"+nodeName);
-		if (handler) {
-			return $createBinding(bindings, el, attr, handler);
-		}
-	
-		// Handler - Boolean Attribute
-		if (script && isBooleanAttr(nodeName) === true) {
-			return $createBinding(bindings, el, attr, require("~boolean"));
-		}
-
-		// Handler - Event
-		if (("on"+nodeName) in document || ("on"+nodeName) in el || nodeName.substring(0,3) === "on-") {
-			return $createBinding(bindings, el, attr, require("~event"));
-		}
-
-		// Handler - NodeValue
-		if (script.indexOf("{") !== -1) {
-			return $createBinding(bindings, el, attr, require("~nodeValue"));
-		}
-	});
-}
-
-function $compile_process_textnode(el) {
-	var nodeValue = el.nodeValue;
-	var snippets = $parse_expr(nodeValue);
-	if (snippets.length <= 1) {
-		return;
-	}
-	
-	var frag = document.createDocumentFragment();
-	foreach(snippets, function(text, index) {
-		if (text.length === 0) return;
-	
-		var textNode = document.createTextNode(text);
-		frag.appendChild(textNode);
-
-		if (index % 2 === 1) {
-			var bindings = createData(textNode).bindings = [];
-			$createBinding(bindings, el.parentNode, textNode, require("~nodeValue"));
-		}	
-	});
-	
-	el.parentNode.replaceChild(frag, el);
-}
-
-
-function $createBinding(bindings, el, node, handler) {
-
-	var binding = {
-		node: node,
-		script: node.nodeValue,
-		handler: handler
-	};
-
-	bindings.push(binding);
-	bindings[node.nodeName] = true;
-	
-	handler.init && handler.init(binding, el, node, node.nodeValue);
-
-	handler.value = handler.value || "parse";
-	if (typeof handler.value === "string") {
-		handler.value = $createBinding[handler.value];
-	}
-}
-
-
-/// @FIXME: 이거 이름좀 확실하게 바꾸자...
-$createBinding["parse"] = function(self, el, attr, script) {
-	return $parse(script, self.scope);
-};
-
-$createBinding["ident"] = function(self, el, attr, script) {
-	return script;
-};
-
-$createBinding["expr"] = function(self, el, attr, script) {
-	return $eval(script, self.scope);
-};
-
-$createBinding["expr-nocache"] = function(self, el, attr, script) {
-	delete self.value;
-	return $eval(script, self.scope);
-};
-
-$createBinding["boolean"] = function(self, el, attr, script) {
-	return !!$eval(script, self.scope);
-};
-
-
-
-/// update
-function $update(el) {
-	var t = now();
-	
-	var data = readData(el) || {};
-	var $scope = data.scope || {};
-	$scope.local = {};
-	traversal(el, $update_process, $update_done, $scope);
-	
-	console.log(now() - t);
-}
-
-function $update_process(el, $scope) {
-	var data = readData(el);
-	if (data === undefined || data.bindings === undefined) {
-		return;
-	}
-
-	var bindings = makeArray(data.bindings);
-	foreach(bindings, function(binding, index) {
-
-		var scope = makeArray($scope);
-		scope.local = extend({}, $scope.local);
-		scope.local.$root = $scope[0];
-		scope.local.el = el;
-
-		binding.$scope = $scope;
-		binding.scope = scope;
-		binding.thisObj = scope[scope.length-1];
-
-		var handler = binding.handler;
-		if (!handler.update) {
-			return;
-		}
-
-		var node = 	binding.node;
-		var script = binding.script;
-
-		var value = handler.value(binding, el, node, script);
-		if (!binding.hasOwnProperty("value") || binding.value !== value) {
-			binding.value = value;
-			if (handler.update(binding, el, node, value) === false) {
-				data.bindings.splice(indexOf(data.bindings, binding), 1);
+		if (self.container.length < length) {
+			var frag = document.createDocumentFragment();
+			for (i = self.container.length; i < length; i++) {
+				node = self.repeatNode.cloneNode(true);
+				$compile(node);
+				frag.appendChild(node)
+							
+				var binding = node.bindings["repeat"];
+				binding.data = self;
+				binding.i = i;
+				binding.row = self.row;
+				binding.index = self.index;
+				self.container[i] = node;
 			}
+			self.placeholder.parentNode.insertBefore(frag, self.placeholder);
 		}
-		
-	});
-}
-
-function $update_done(el, $scope) {
-	var data = readData(el);
-	if (data === undefined || data.bindings === undefined) {
-		return;
+			
+		self.container.length = length;
 	}
-
-	foreach(data.bindings.slice().reverse(), function(binding, index) {
-
-		var handler = binding.handler;		
-		if (!handler.done) {
-			return;
-		}
-		
-		var scope = makeArray($scope);
-		scope.local = $scope.local || {};
-		scope.local.$root = $scope[0];
-		scope.local.el = el;
-		
-		binding.$scope = $scope;
-		binding.scope = scope;
-		binding.thisObj = scope[scope.length-1];
-
-		var node = 	binding.node;
-		var script = binding.script;
-		var value = binding.value;
-		handler.done(binding, el, node, value);
-	});	
-}
+}}
 
 
-
-/// Directive
 function __nodeValue() {
 return {
-	update: function(self, el, node, value) {
+	value: "expr",
+
+	update: function(self, node, value) {
+		if (value === undefined || value === null) {
+			value = "";
+		}
+
+		node = node;		
 		node.nodeValue = value;
+	}
+}}
+
+function __attrValue() {
+return {
+	value: "string",
+
+	update: function(self, el, value) {
+		el.setAttribute(self.name, value);
 	}
 }}
 
@@ -770,238 +557,273 @@ return {
 function __boolean() {
 return {
 	value: "boolean",
-		
-	update: function(self, el, node, value) {		
-		value ? el.setAttribute(node.nodeName, "") : el.removeAttribute(node.nodeName);
-		value ? addClass(el, node.nodeName) : removeClass(el, node.nodeName);
+
+	update: function(self, el, bool) {
+		var name = self.name;
+		bool ? el.setAttribute(name, true) : el.removeAttribute(name);
+		bool ? addClass(el, name) : removeClass(el, name);		
 	}
 }}
 
 
 function __event() {
 return {
-	init: function(self, el, node, script) {
-		var name = node.nodeName;
-		var type = name.substring(0,3) === "on-" ? name.substring(3) : name;
-
+	init: function(self, el) {
+		var script = self.script;
+		var type = self.name;
+		
 		addEvent(el, type, function(e) {
-
-//			if (isclosest(el, ".disabled, *[disabled]")) {
-//				e.preventDefault();
-//				e.stopPropagation();	
-//				return false;		
-//			}
-
-
 			if (type === "submit" && !el.getAttribute("action")) {
 				e.preventDefault();
 				e.stopPropagation();			
 			}
 
-			window.$event = e;
-			var result = $eval(script, self.scope);
-//			window.$event = undefined; // @FIXME: dummy event
-			
-			if (result === false) {
-				return false;
+			if (type === "click") {
+				e.stopPropagation();			
 			}
-			
-			$update(document);
+
+			window.$event = e;
+			var result = $eval(script, self.$scope)
+			window.$event = undefined;
+
+			if (result === false) {
+				return;
+			}
+
+			document.update();
 		});
-	}
-}}
 
-
-function __init() {
-return {
-	value: "expr",
-	
-	update: function(self) {
-		return false;
-	}
-}}
-
-
-function __ready() {
-return {
-	value: "ident",
-
-	update: function(self, el, node, value) {
-		return false;
+		/// ENTER for Submit
+		if (type === "submit") {
+			addEvent(el, "keydown", function(e) {
+				if (e.keyCode === 13) {
+					dispatchEvent(el, "submit");
+				}
+			});
+		}
 	},
 	
-	done: function(self, el, node, value) {
-		$eval(value, self.scope);
-		return false;
+	value: function(self) {
+		self.$scope = cloneScope(self.scope);
 	}
 }}
 
 
 function __controller() {
 return {
-	init: function(self, el, node, script) {
-		self.script = script.replace("(", ".$new(");
-	},
-	
-	value: function(self, el, node, script) {
-		if (!self.controller) {
-			self.controller = $eval(script, self.scope);
-		}
-		delete self.value;
-		return self.controller;
+	init: function(self, el) {
+		self.script = self.script.replace("(", ".$new(");
 	},
 
-	update: function(self, el, node, value) {
-		self.$scope.push(value);
+	value: function(self, el) {
+		if (!self.controller) {
+			self.controller = $eval(self.script, self.scope);
+		}
+		self.scope.push(self.controller)
 	},
-	
+
 	done: function(self, el, node, value) {
-		self.$scope.pop();
+		self.scope.pop();
 	}
 }}
 
 
-function __repeat() {
-var repeatHandler = {
-	init: function(self, el, node, script) {
-		
-		/// parse Script "{expr} as {none}, {none}";
-		var rows, row, index, lastIndex;
-		rows = script;
-		lastIndex = rows.lastIndexOf(" as ");
-
-		if (lastIndex !== -1) {
-			rows = script.substring(0, lastIndex);
-			row = script.substring(lastIndex + 4);
-			lastIndex = row.lastIndexOf(",");
-
-			if (lastIndex !== -1) {
-				index = trim(row.substring(lastIndex + 1));
-				row = trim(row.substring(0, lastIndex));
-			}
-		}		
-		
-		self.pool = [];
-		self.container = [];
-		self.rows = rows;
-		self.row = row;
-		self.index = index;
-		self.placeholder = el.nextSibling;
-		self.repeatNode = el.nextSibling.nextSibling;
-		self.repeatNode.setAttribute("repeat", "#");
-		self.repeatNode.parentNode.removeChild(self.repeatNode);	
-		self.repeatNode = self.repeatNode.cloneNode(true);
-	},
-	
-	value: function(self, el, attr, script) {
-		var collection = $eval(self.rows, self.scope);
-		if (collection === null || typeof collection !== "object" || typeof collection.length !== "number") {
-			collection = [];
-		}
-		
-		self.collection = collection;
-		return collection.length;
-	},
-	
-	update: function(self, el, attr, value) {
-		
-		if (self.container.length > self.collection.length) {
-			for (var i = self.collection.length, len = self.container.length; i < len; i++) {
-				var node = self.container[i];
-//				self.pool.push(node);
-				node.parentNode.removeChild(node);
-			}
-			self.container.length = self.collection.length;
-			return;
-		}
-
-		var frag = document.createDocumentFragment();
-		for (var i = self.container.length, len = self.collection.length; i < len; i++) {
-			var repeatNode = self.pool.pop() || self.repeatNode.cloneNode(true);
-			var data = createData(repeatNode);
-			if (!data.source) {
-				data.source = self;
-				$compile(repeatNode);
-			}
-			data.index = i;
-			self.container.push(repeatNode);
-			frag.appendChild(repeatNode);
-		}
-		el.parentNode.insertBefore(frag, self.placeholder);
-	}	
-}
-
+function __css() {
 return {
-	init: function(self, el, node, script) {
-		if (script === "#") {			
-			el.removeAttribute("repeat");
-			return;
-		}
-		
-		var textNode = document.createTextNode("");
-		el.parentNode.insertBefore(textNode, el);
-		el.parentNode.insertBefore(document.createTextNode(""), el);
+	value: "string",
+	
+	init: function(self, el) {		
+		self.initValue = el.style.cssText + ";";
+	},
+	
+	update: function(self, el, value) {
+		el.style.cssText = self.initValue + value;
+	}
+}}
 
-		var bindings = createData(textNode).bindings = [];
-		$createBinding(bindings, textNode, node, repeatHandler);
-		
-		el.innerHTML = "";
+function __img_src() {
+return {
+	value: "string",
+	
+	init: function(self, el) {
+		el.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+	},
+	
+	update: function(self, el, value) {
+		el.src = value;
+	}
+}}
+
+function __enabled() {
+return {
+	value: "boolean",
+
+	update: function(self, el, bool) {
+		bool ? el.removeAttribute("disabled") : el.setAttribute("disabled", true);
+		bool ? removeClass(el, "disabled") : addClass(el, "disabled");
+	}
+}}
+
+function __visible() {
+return {
+	value: "boolean",
+	
+	update: function(self, el, bool) {
+		bool ? show(el) : hide(el);
+	}
+}}
+
+
+/// @TODO: if
+function __if() {
+return {
+	value: "boolean",
+	
+	init: function(self, el) {
+
+	},
+	
+	update: function(self, el, bool) {
+		/// bool에 따라서 placeholder와 content로 넣고 빼고...
+	}
+}}
+
+
+function __html() {
+return {
+	value: "string",
+
+	update: function(self, el, value) {
+		el.innerHTML = value;
+	}
+}}
+
+function __text() {
+return {
+	value: "string",
+
+	update: function(self, el, value) {
+		el.innerText = value;
+	}
+}}
+
+function __template() {
+return {
+	init: function(self, el) {
+		self.templates = {};
+
+		foreach(makeArray(el.getElementsByTagName("template")), function(node) {
+			self.templates["@"+node.id] = extractTemplate(node);
+			removeNode(node);
+		});		
+		self.templates["@content"] = extractTemplate(el);
 		return false;
 	},
 	
-	value: function(self, el, attr, script) {
-		delete self.value;
-		return readData(el);
+	value: function(self, el) {
+		var value = $parse(self.script, self.scope);
+		self.content = self.scope.templates["@content"];
+		self.scope.templates = Object.create(self.scope.templates || {});
+		extend(self.scope.templates, self.templates);
+		return value;
 	},
 	
-	update: function(self, el, attr, value) {
-		var source = value.source;
-		var row = source.row;
-		var index = source.index; 
-		var collection = source.collection;
+	update: function(self, el, id) {
+		emptyNode(el);
+		var template = id === "@content" ? self.content : ($cache("template")[id] || self.scope.templates[id]);
+		if (!template) {
+			return;
+		}
 
-		self.old_local = self.$scope.local;
-		self.$scope.local = extend({}, self.$scope.local);
-		if (row) self.$scope.local[row] = source.collection[value.index];
-		if (index) self.$scope.local[index] = value.index;
+		var div = document.createElement("div");
+		div.appendChild(template.cloneNode(true));
+
+		template = template.cloneNode(true);
+		$compile(template);
+		$update(template, self.scope);
+
+		self.template = template;
 	},
 	
-	done: function(self, el, attr, value) {
-		self.$scope.local = self.old_local;
+	done: function(self, el) {
+		if (self.template) {
+			el.appendChild(self.template);
+			delete self.template;
+		}
+		
+		self.scope.templates = Object.getPrototypeOf(self.scope.templates);
+	}
+}}
+
+function __with() {
+return {
+	value: function(self, el) {
+		self.scope.push($eval(self.script, self.scope) || {});
+	},
+	
+	done: function(self) {
+		self.scope.pop();
 	}
 }}
 
 
-
 function __name() {
-var $emitter;
+
+function getFormValueArray(el, thisObj) {
+	var result = [];
+
+	var name = el.name;
+	var form = $(el).closest("form")[0];
+	var elements = form ? form.elements[name] : document.getElementsByName(name);
+	elements = elements.length ? elements : [elements];
+
+	foreach(elements, function(el, index) {
+//		var data = readData(el);
+//		if (!data || !data.bindgins) {
+//			return;
+//		}		
+//		var scope = data.bindgins[data.bindgins.length-1].scope;
+
+		var type = el.type;		
+		if (type === "radio" || type === "checkbox") {
+			el.checked && result.push(el.value);
+			return;
+		}
+		
+		result.push(el.value);
+	});
+
+	return result;
+}
+
+
+var _dispatcher;
 
 return {
 	init: function(self, el, attr, script) {
-		
 		self.initValue = el.value;
-		
+
 		bind(el, "input", "change", function(e) {
 			var thisObj = self.thisObj;
-			var name = el.name;
+			var name = self.isArray ? el.name.slice(0,-2) : el.name;
 			var value = el.value;
-			
-			if (isCheckbox(el)) {
-				value = !!el.checked;
-			}
 
-//			else if (isRadioButton(el)) {
-//				value = !!el.checked;
-//			}
-
-			if (thisObj[name] === value) {
+			if (isRadioButton(el) && !el.checked) {
 				return;
 			}
 			
+			if (isCheckbox(el)) {
+				value = self.isArray ? getFormValueArray(el) : !!el.checked;
+				if (thisObj[name] === value) {
+					return;
+				}
+			}
+					
 			self.value = thisObj[name] = value;
-			$emitter = el;
-			$update(document);
-			$emitter = null;
+
+			_dispatcher = el;
+			document.update();
+			_dispatcher = null;
 		});
 
 		if (msie <= 8) {
@@ -1012,18 +834,30 @@ return {
 	},
 	
 	value: function(self, el, attr, script) {
-		self.hasExpr && (el.name = $parse(script, self.scope));
-		var name = isArrayCheckbox(el) ? el.name.slice(0,-2) : el.name;
-
-		return self.thisObj[name];
+		self.$scope = cloneScope(self.scope);
+		self.thisObj = self.$scope[self.$scope.length-1];
+		
+		self.hasExpr && (el.name = $parse(script, self.$scope));
+		self.isArray = el.name.slice(-2) === "[]";
+		var name = self.isArray ? el.name.slice(0,-2) : el.name;
+		return self.thisObj && self.thisObj[name];
 	},
 	
 	update: function(self, el, node, value) {
-		if ($emitter === el) return;
+		if (_dispatcher === el) return;
 		
 		var thisObj = self.thisObj;
-		var name = el.name;
+		if (!thisObj) {
+			return;
+		}
+
+		var name = self.isArray ? el.name.slice(0,-2) : el.name;
 		var value = el.value;
+		var type = el.type;
+		
+		if (thisObj[name] === undefined) {
+			thisObj[name] = "";
+		}
 		
 		if (isRadioButton(el)) {
 			if (el.checked && thisObj[name] === undefined) {
@@ -1036,227 +870,35 @@ return {
 			return;
 		}
 
+		if (isCheckbox(el) && self.isArray) {
+			el.checked = indexOf(thisObj[name], value) >= 0;
+			return
+		}
+		
 		if (isCheckbox(el)) {
 			el.checked = !!thisObj[name];
 			return;
 		}
-	
-		if (!thisObj.hasOwnProperty(name)) {
-			thisObj[name] = self.initValue;
-		}
 
+		/// INPUT, TEXTAREA, ETC		
 		value = thisObj[name];
 		el.value = value;
 	}
 }}
 
-function __with() {
-return {
-	value: "expr-nocache",
 
-	update: function(self, el, node, value) {
-		if (typeof value !== "object") return;
-		self.$scope.push(value);
-	},
-	
-	done: function(self, el, node, value) {
-		if (typeof value !== "object") return;
-		self.$scope.pop();
+function __value() {
+return {
+	value: "string",
+
+	update: function(self, el, value) {
+		el.value = value;
 	}
 }}
-
-
-
-function __local() {
-return {
-	value: "expr-nocache",
-
-	update: function(self, el, node, value) {
-		self.old_local = self.$scope.local;
-		self.$scope.local = extend({}, self.$scope.local, value);
-	},
-	
-	done: function(self, el, node, value) {
-		self.$scope.local = self.old_local;
-	}
-}}
-
-
-
-
-function __template() {
-return {
-	init: function(self, el, node, value) {
-
-		// slot
-		var slots = {};
-		traversal(el, function(node) {
-			var slot = "";
-			if (node.nodeType === ELEMENT_NODE && (slot = node.getAttribute("slot"))) {
-				node.removeAttribute("slot");
-				slots["@"+slot] = node.cloneNode(true);
-				node.parentNode.removeChild(node);
-			}
-		});
-
-
-		// content
-		var frag = document.createDocumentFragment();
-		foreach(el.childNodes, function(child) {
-			frag.appendChild(child.cloneNode(true));
-		});
-		slots["@content"] = frag;
-		
-		
-		// preapre
-		self.slots = slots;
-		el.innerHTML = "";
-	},
-	
-	update: function(self, el, node, value) {
-		if (el.nodeName === "IFRAME") {
-			el = el.contentWindow.document.body;
-		}
-		
-		el.innerHTML = "";
-
-		var slots = self.$scope.slots || {};
-		var template = value.charAt(0) === "@" ? slots[value] : $cache("template")[value];
-		if (!template) {
-			return;
-		}
-
-
-		template = template.cloneNode(true);
-		$compile(template);
-		el.appendChild(template);
-
-		self.old_slots = self.$scope.slots;
-		self.$scope.slots = self.slots;
-	},
-	
-	done: function(self) {
-		self.$scope.slots = self.old_slots;
-	}
-}}
-
-
-function __visible() {
-return {
-	value: "boolean",
-	
-	update: function(self, el, node, value) {
-		value ? show(el) : hide(el);
-	}
-}}
-
-
-//function __if() {
-//return {
-//	value: "boolean",
-//	
-//	init: function(self, el) {
-//		var textNode = document.createTextNode("");
-//		el.parentNode.insertBefore(textNode, el);
-//	
-//	},
-//
-//	update: function(self, el, node, value) {
-//		value ? show(el) : hide(el);
-//	}
-//}}
-
-
-function __enabled() {
-return {
-	value: "boolean",
-	
-	update: function(self, el, node, value) {
-		if (value) {
-			el.removeAttribute("disabled");
-			removeClass(el, "disabled");
-			el.setAttribute("enabled", "enabled");
-			addClass(el, "enabled");
-		} else {
-			el.removeAttribute("enabled");
-			removeClass(el, "enabled");
-			el.setAttribute("disabled", "disabled");
-			addClass(el, "disabled");
-		}
-	}
-}}
-
-
-function __html() {
-return {
-	init: function(self, el, node, script) {
-		if (hasAttribute(el, "template")) {
-			return false;
-		}
-		el.innerHTML = "";
-	},
-	
-	update: function(self, el, node, value) {
-		el.innerHTML = value;
-	}
-}}
-
-
-function __css() {
-return {
-	init: function(self, el) {
-		self.initValue = el.style.cssText + ";";	
-	},
-	
-	update: function(self, el, node, value) {
-		el.style.cssText = self.initValue + value + ";";
-	}
-}}
-
-
-function __img_src() {
-return {
-	init: function(self, el, node, script, value) {
-		el.src = "/img/blank.gif";
-	},
-	
-	update: function(self, el, node, value) {
-		if (!value) {
-			el.src = "/img/blank.gif";
-			return;
-		}
-//		el.src = "/img/blank.gif";
-//		lazyload(el, value);
-		el.src = value;
-	}
-}}
-
-
-define("~nodeValue", __nodeValue);
-define("~boolean", __boolean);
-define("~event", __event);
-define("@init", __init);
-define("@ready", __ready);
-define("@repeat", __repeat);
-define("@controller", __controller);
-define("@name", __name);
-define("@with", __with);
-define("@local", __local);
-define("@template", __template);
-define("@css", __css);
-define("@visible", __visible);
-//define("@if", __if);
-define("@enabled", __enabled);
-define("@html", __html);
-define("@img-src", __img_src);
-
-
-
 
 
 /// Class
 function $createController(self, fn) {
-
 	/// function(self, Controller1, Controller2, ...) 으로 부터 컨트롤을 가져옴.
 	var args = [self];
 	var source = fn.toString();
@@ -1278,12 +920,19 @@ function $createController(self, fn) {
 }
 
 function $newInstance(fn, args) {
+	args = args || [];
+
 	var self = {};
 	extend(self, $createController(self, fn));
+
+	if (typeof self.__init__ === "function") {
+		self.__init__.apply(self, args);
+	}
 
 	if (typeof self.init === "function") {
 		self.init.apply(self, args);
 	}
+
 	return self;
 }
 
@@ -1292,102 +941,47 @@ Function.prototype.$new = function() { return $newInstance(this, arguments); };
 
 
 
-/// --- CROSS-BROWSING
-
-/// TOUCH DEVICE
-if ("ontouchstart" in document) {
-
-	var _addEvent = addEvent;
-	var _removeEvent = removeEvent;
-	var $touchTaget = null;
-	var screenX = 0;
-	var screenY = 0;
-
-	window.addEventListener("touchstart", function(e) {
-		$touchTaget = e.target;
-		var touch = e.changedTouches[0];
-		screenX = touch.screenX;
-		screenY = touch.screenY;
-
-	}, false);
-
-	window.addEventListener("touchmove", function(e) {
-		if ($touchTaget === null) return;
-
-		var touch = e.changedTouches[0];
-		var dx = screenX - touch.screenX;
-		var dy = screenY - touch.screenY;
-		screenX = touch.screenX;
-		screenY = touch.screenY;
-
-//		/// @TODO: 현재는 세로 스크롤만 체크하고 있지만 touchstart에서 getStyle등을 이용 hscroll, vscroll을 구분 적용해야된다.
-		if (Math.abs(dy) > Math.abs(dx)) {
-			$touchTaget = null;
-			return;
-		}
-
-	}, false);
-
-
-	addEvent = function(el, type, fn, flag) {
-		if (type === "mousedown") { type = "touchstart"; }
-		else if (type === "mousemove") { type = "touchmove"; }
-		else if (type === "mouseup") { type = "touchend"; }
-		
-		else if (type === "click") {
-			fn[$key] = function(e) {
-				if ($touchTaget === null || el.contains($touchTaget) === false) {
-					return;
-				}
-
-				_removeEvent(el, "touchend", fn[$key], flag);
-				$touchTaget = null;
-
-				addClass(el, "highlighted");				
-				setTimeout(function() {
-					fn.call(this, e);
-					e.stopPropagation();
-					
-					setTimeout(function() {
-						removeClass(el, "highlighted");
-						_addEvent(el, "touchend", fn[$key], flag);			
-					}, 100);			
-				}, 100);
-			}
-
-			_addEvent(el, "touchend", fn[$key], flag);
-			return;
-		}
-
-		_addEvent(el, type, fn, flag);
-	};
-	
-
-	removeEvent = function(el, type, fn, flag) {
-		if (type === "mousedown") { type = "touchstart"; }
-		else if (type === "mousemove") { type = "touchmove"; }
-		else if (type === "mouseup") { type = "touchend"; }
-		else if (type === "click") {
-			_removeEvent(el, "touchend", fn[$key], flag);
-			return;
-		}
-
-		_removeEvent(el, type, fn, flag);
-	}	
+/// DOM Utils
+function isElement(el) {
+	return el && el.nodeType > 0;
 }
 
-
-
-
-/// --- jQuery
-function $jQuery(){}
-
-function jQuery(selector, context) {
-	return new $jQuery().add(selector, context);
+function isRadioButton(el) {
+	return el && el.tagName === "INPUT" && el.type === "radio";
 }
+
+function isCheckbox(el) {
+	return el && el.tagName === "INPUT" && el.type === "checkbox";
+}
+
+function isArrayCheckbox(el) {
+	return isCheckbox(el) && el.name.slice(-2) === "[]";
+}
+
 
 function querySelectorAll(el, selector) {
 	return el.querySelectorAll(selector);
+}
+
+function matchesSelector(el, selector) {
+	if (el.nodeType !== ELEMENT_NODE) return false;
+	var matches = el.matchesSelector || el.webkitMatchesSelector || el.msMatchesSelector || el.mozMatchesSelector || el.oMatchesSelector;
+	return matches.call(el, selector);
+}
+
+function cssValue(type, value) {
+	if (typeof value !== "number") return value;
+	if (type === "opacity") return value;
+	if (type === "z-index") return value;
+	if (type === "zIndex") return value;
+	if (type === "line-height") return value;
+	if (type === "lineHeight") return value;
+	return value + "px";
+}
+
+function DOMContentLoaded(fn) {
+	if (document.readyState !== "loading") return fn();
+	document.addEventListener("DOMContentLoaded", fn);
 }
 
 function makeFragment() {
@@ -1398,12 +992,497 @@ function makeFragment() {
 	return frag;
 }
 
-$jQuery.prototype = jQuery.prototype = jQuery.fn = {
+function extractTemplate(node) {
+	var frag = node.content;
+	if (!frag) {
+		frag = document.createDocumentFragment();
+		while(node.firstChild) {
+			frag.appendChild(node.firstChild);
+		}
+	}
+	return frag;
+}
 
-	jquery: "mini 1.0.0",
+function emptyNode(el) {
+	traversal2(el, noop, function(node) {
+		if (el === node) return;
+		removeNode(node);
+	});
+}
+
+function removeNode(node) {
+	try {
+		delete node.bindings;
+	} catch(e) { node.bindings = null; }
 	
-	constructor: jQuery,
+	foreach(node.events, function(event) {
+		removeEvent(node, event.type, event.fn);
+	});		
+	return node.parentNode.removeChild(node);
+}
+
+function addClass(el, className) {
+	foreach(className.split(regexp_whitespace), function(className) {
+		el.classList.add(className);
+	});
+}
+
+function removeClass(el, className) {
+	return el.classList.remove(className);
+}
+
+function hasClass(el, className) {
+	return el.classList.contains(className);
+}
+
+function show(el) {
+	try {
+		el.style.display = "";
+	} catch(e) {
+		el.style.cssText = el.style.cssText.replace(/display\s*:\s*none\s*(!important)?/ig, "");
+	}
+}
+
+function hide(el) {
+	try {
+		el.style.cssText += ";display:none!important";
+	} catch(e) {
+		el.setAttribute("style", el.getAttribute("style") + ";display:none!important");
+	}
+}
+
+function attributesOf(el) {
+	return makeArray(el.attributes);
+}
+
+function hasAttribute(el, attr) {
+	return el.hasAttribute(attr);
+}
+
+function addEvent(el, type, fn) {
+	var event = {type:type, fn: fn};
+	el.events = el.events || [];
+	el.events.push(event);
+	return el.addEventListener(type, fn);
+}
+
+function removeEvent(el, type, fn) {
+	return el.removeEventListener(type, fn);
+}
+
+function dispatchEvent(el, type) {
+	var event = document.createEvent("HTMLEvents");
+	event.initEvent(type, true, true);
+	return el.dispatchEvent(event);
+}
+
+function bind(el) {
+	var fn = arguments[arguments.length-1];
+	for (var i = 1, len = arguments.length-1; i < len; i++) {
+		addEvent(el, arguments[i], fn);
+	}
+}
+
+function unbind(el) {
+	var fn = arguments[arguments.length-1];
+	for (var i = 1, len = arguments.length-1; i < len; i++) {
+		removeEvent(el, arguments[i], fn);
+	}
+}
+
+
+/// MSIE - CrossBrowsing
+if (typeof console === "undefined") {
+	window.console = {log:noop};
+}
+
+if (msie) {
+	$compile_process_text = function(textNode) {
+		var frag = document.createDocumentFragment();
+		parse_expr(textNode.nodeValue, function(text, isexpr) {
+			var newTextNode = document.createTextNode(isexpr ? '' : text);
+			if (isexpr) {
+				var iefix = document.createComment("");
+				frag.appendChild(iefix);
+				create_binding(iefix, 0, "#text", "~nodeValue", {script: text, textNode: newTextNode});
+			}
+			frag.appendChild(newTextNode);
+		});
 	
+		textNode.parentNode.replaceChild(frag, textNode);
+		return false;
+	}
+
+	_$["~nodeValue"] = {
+		value: "expr",
+
+		update: function(self, node, value) {
+			if (value === undefined || value === null) {
+				value = "";
+			}
+			self.textNode.nodeValue = value;
+		}
+	}
+}
+
+
+if (msie <= 9) {
+	DOMContentLoaded = function(fn) {
+		(function() {
+			try { document.documentElement.doScroll('left'); }
+			catch(e) { return setTimeout(arguments.callee, 50); }
+			fn();
+		}())
+	}
+
+	addClass = function(el, className) {
+		className = el.className + " " + className;
+		
+		var check = {};
+		var result = [];
+		foreach(className.split(regexp_whitespace), function(className) {
+			if (check[className] === true) {
+				return;
+			}
+			
+			check[className] = true;
+			result.push(className);
+		});
+		el.className = result.join(" ");
+	},
+	
+	removeClass = function(el, className) {
+		var result = [];
+		foreach(el.className.split(regexp_whitespace), function($className) {
+			$className !== className && result.push($className);
+		});
+		el.className = result.join(" ");
+	}
+	
+	hasClass = function(el, className) {
+		return (" " + el.className + " ").indexOf(className) >= 0;
+	}
+}
+
+
+if (msie <= 8) {
+	
+	/// html5shiv
+	foreach("abbr article aside audio bdi canvas data datalist details dialog figcaption figure footer header hgroup main mark meter nav output progress section summary template time video template".split(" "), function(tagName) {
+		document.createElement(tagName);
+	});
+	
+	Object.create = function(prototype) {
+		function object(){}
+		object.prototype = prototype;
+		var o = new object();
+		o.__proto__ = prototype;
+		return o;
+	}
+	
+	Object.getPrototypeOf = function(object) {
+		return object.__proto__ || object.constructor.prototype;
+	}
+	
+	attributesOf = function(el) {
+		var result = [];
+		foreach(el.attributes, function(attr) {
+			attr.specified && result.push(attr);			
+		});
+		return result;
+	}
+	
+	hasAttribute = function(el, attr) {
+		attr = el.getAttributeNode(attr);
+		return attr && attr.specified;
+	}
+
+	function fixEvent(el, fn) {
+		return (fn.iefix = function(e) {
+			e.target = e.srcElement || document;
+			e.currentTarget = el;
+			e.defaultPrevented = false;
+			e.preventDefault = fixEvent.preventDefault;
+			e.stopPropagation = fixEvent.stopPropagation;
+			e.timeStamp = +new Date;
+
+			e.metaKey = !!e.metaKey;
+			e.relatedTarget = e.fromElement === e.target ? e.toElement : e.fromElement;
+
+			if (e.clientX) {
+				e.pageX = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+				e.pageY = e.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+			}
+	
+			/// @TODO: IE EVENT FIX: which~
+			
+//			var button = e.button;
+//			if (button) {
+//				e.which = ( button & 1 ? 1 : ( button & 2 ? 3 : ( button & 4 ? 2 : 0 ) ) );
+//			}
+//			
+//			var charCode = e.charCode != null ? e.charCode : e.keyCode;
+//			e.which = charCode;
+
+			var result = fn.call(e.currentTarget, e);
+			e.target = null;
+			e.relatedTarget = null;
+			e.preventDefault = null;
+			e.stopPropagation = null;
+	
+			return (e.defaultPrevented === true) ? false : result;
+		})
+	}
+	
+	fixEvent.preventDefault = function() {
+		this.defaultPrevented = true;
+		this.returnValue = false;
+	}
+	
+	fixEvent.stopPropagation = function() {
+		this.cancelBubble = true;
+	}
+	
+	addEvent = function(el, type, fn) {
+		el.attachEvent("on"+type, fixEvent(el, fn));
+	}
+
+	removeEvent = function(el, type, fn) {
+		el.detachEvent("on"+type, fn.iefix);
+	}
+
+	dispatchEvent = function(el, type) {
+		return el.fireEvent("on"+type);
+	}
+
+	/* ie8은 되는데 67이 안되네...
+	var _compile = compile;
+	compile = function(el) {
+		traversal(el, function(node) {
+			var tagName = node.tagName;
+			if (!tagName || tagName.charAt(0) !== "/") {
+				return;
+			}
+
+			tagName = tagName.substring(1);
+			
+			var frag = document.createDocumentFragment();
+			var tmp = document.createTextNode("");
+			frag.appendChild(tmp);
+
+			var prev = node.previousSibling;			
+			while(prev && prev.tagName !== tagName) {
+				var p = prev.previousSibling;
+				frag.insertBefore(prev, frag.firstChild);
+				prev = p;
+			}
+			frag.removeChild(tmp);
+			
+			var e = frag.createElement(tagName);
+			e.appendChild(frag);
+			foreach(attributesOf(prev), function(attr) {
+				e.setAttribute(attr.name, attr.value);
+			});
+			prev.parentNode.replaceChild(e, prev);
+		});
+		
+		return _compile(el);
+	}
+	*/
+}
+
+
+if (msie <= 7) {
+	querySelectorAll = function(context, selectors) {
+		var style = document.createElement('style'), elements = [], element;
+		document.documentElement.firstChild.appendChild(style);
+		document._qsa = [];
+		
+		style.styleSheet.cssText = selectors + '{x-qsa:expression(document._qsa && document._qsa.push(this))}';
+		window.scrollBy(0, 0);
+		style.parentNode.removeChild(style);
+		
+		while(document._qsa.length) {
+			element = document._qsa.shift();
+			element.style.removeAttribute('x-qsa');
+			if (context === document || context.contains(element)) {
+				elements.push(element);
+			}
+		}
+
+		document._qsa = null;
+		return elements;
+	};
+
+	matchesSelector = function(node, selector) {
+		var nodeList = querySelectorAll(node.parentNode, selector);
+		for (var i = 0, len = nodeList.length; i < len; i++) {
+			if (nodeList[i] == node) return true;
+		}		
+		return false;
+	};
+
+	if (!window.XMLHttpRequest)
+	window.XMLHttpRequest = function () {
+		try { return new ActiveXObject("Msxml2.XMLHTTP.6.0"); } catch(e) {}
+		try { return new ActiveXObject("Msxml2.XMLHTTP.3.0"); } catch(e) {}
+		try { return new ActiveXObject("Microsoft.XMLHTTP"); } catch(e) {}
+		throw new Error("This browser does not support XMLHttpRequest.");
+	};
+}
+
+if (msie <= 6) {
+	document.execCommand("BackgroundImageCache", false, true)
+}
+
+
+
+/// TOUCH DEVICE - CrossBrowsing
+if ("ontouchstart" in document) { 
+	var _addEvent = addEvent;
+	var _removeEvent = removeEvent;
+	
+	var $touchTaget = null;
+	var screenX = 0;
+	var screenY = 0;
+	var $key = "_touchfix";
+	var clickable = false;
+	var scrollY = 0;
+	
+	window.addEventListener("touchstart", function(e) {
+		clickable = true;
+		window.scrollY;
+	
+//		$touchTaget = e.target;
+//		var touch = e.changedTouches[0];
+//		screenX = touch.screenX;
+//		screenY = touch.screenY;
+	}, false);
+
+	
+	window.addEventListener("touchmove", function(e) {
+		clickable = false;
+		console.log(window.scrollY);
+		
+//		if ($touchTaget === null) return;
+//
+//		var touch = e.changedTouches[0];
+//		var dx = screenX - touch.screenX;
+//		var dy = screenY - touch.screenY;
+//		screenX = touch.screenX;
+//		screenY = touch.screenY;
+//
+//		/// @TODO: 현재는 세로 스크롤만 체크하고 있지만 touchstart에서 getStyle등을 이용 hscroll, vscroll을 구분 적용해야된다.
+//		if (Math.abs(dy) > Math.abs(dx)) {
+//			$touchTaget = null;
+//			return;
+//		}
+
+	}, false);
+
+
+	addEvent = function(el, type, fn, flag) {
+		if (type === "click") {
+//			fn[$key] = function(e) {
+//				if ($touchTaget === null || el.contains($touchTaget) === false) {
+//					return;
+//				}
+//
+//				_removeEvent(el, "touchend", fn[$key], flag);
+//				$touchTaget = null;
+//
+//				addClass(el, "highlighted");				
+//				setTimeout(function() {
+//					fn.call(this, e);
+//					e.stopPropagation();
+//					
+//					setTimeout(function() {
+//						removeClass(el, "highlighted");
+//						_addEvent(el, "touchend", fn[$key], flag);			
+//					}, 100);			
+//				}, 100);
+//			}
+
+			fn[$key] = function(e) {
+				if (clickable === false) {
+					return;
+				}				
+				fn.call(this, e);
+			}
+
+			return _addEvent(el, "touchend", fn[$key], flag);
+		}
+
+		if (type === "mousedown") { type = "touchstart"; }
+		else if (type === "mousemove") { type = "touchmove"; }
+		else if (type === "mouseup") { type = "touchend"; }
+
+		return _addEvent(el, type, fn, flag);
+	};
+	
+
+	removeEvent = function(el, type, fn, flag) {
+		if (type === "click") {
+			return _removeEvent(el, "touchend", fn[$key], flag);
+		}
+
+		if (type === "mousedown") { type = "touchstart"; }
+		else if (type === "mousemove") { type = "touchmove"; }
+		else if (type === "mouseup") { type = "touchend"; }
+		return _removeEvent(el, type, fn, flag);
+	}	
+}
+
+
+
+/// publish
+window.$compile = $compile;
+window.$update = $update;
+window.foreach = foreach;
+window.msie = msie;
+window.addEvent = addEvent;
+window.removeEvent = removeEvent;
+
+
+var style = document.createElement("style");
+var cssText = "html,body{opacity:0;filter:alpha(opacity=0);}";
+style.setAttribute("type", "text/css");
+style.styleSheet ? (style.styleSheet.cssText = cssText) : (style.innerHTML = cssText);
+document.documentElement.firstChild.appendChild(style);
+
+DOMContentLoaded(run);
+function run() {
+	$compile(document);
+	style.parentNode.removeChild(style);
+	
+	var viewController;
+	document.update = function() {
+		viewController && $update(document, [viewController]);	
+	}
+
+	var vc = window["ViewController"];
+	viewController = vc ? $newInstance(vc) : {};
+	document.update();
+}
+
+
+
+
+
+
+
+
+
+/// jQuery
+var jQuery = (function(prototype) {
+	function jQuery(){}
+	function $(selector, context) { return new jQuery().add(selector, context) }
+	$.fn = jQuery.prototype = prototype;
+	return $;
+})({
+
+	jquery: "m1.0",
+
 	length: 0,
 	
 	add: function(mixed, context) {
@@ -1421,7 +1500,6 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 		if (mixed === "body") {
 			return this.add(document.body);
 		}
-
 
 		var self = this;
 		var type = typeof mixed;
@@ -1448,7 +1526,8 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 		
 		/// function
 		if (type === "function") {
-			/// @TODO: DOM ready
+			/// @TODO: DOM ready in order~~
+			DOMContentLoaded(mixed);
 			return this;
 		}
 
@@ -1508,11 +1587,28 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 	},
 	
 	bind: function(eventType, handler) {
+		if (arguments.length === 1) {
+			var self = this;
+			foreach(eventType, function(handler, eventType) {
+				self.bind(eventType, handler);
+			});	
+			return this;
+		}
+		
+		eventType = eventType.split(regexp_whitespace);
 		return foreach(this, function(el) {
-			addEvent(el, eventType, handler);
+			foreach(eventType, function(eventType) {
+				addEvent(el, eventType, handler);
+			});
 		});
 	},
 	
+	blur: function() {
+		return foreach(this, function(node) {
+			node.blur && node.blur();
+		});
+	},
+
 	children: function() {
 		var result = jQuery();
 		foreach(this, function(el) {
@@ -1531,12 +1627,10 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 		return result;
 	},
 	
-	closest: function(tagName) {
-		tagName = tagName.toUpperCase();
-		
+	closest: function(selector) {
 		var result = jQuery();
 		foreach(this, function(el) {
-			while(el && el.tagName !== tagName) {
+			while(el && !matchesSelector(el, selector)) {
 				el = el.parentNode;
 			}
 			result.add(el);
@@ -1555,20 +1649,21 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 	css: function(propertyName, value) {
 		if (arguments.length === 1) {
 			if (typeof propertyName === "string") {
-				/// @TODO
-				return;
+				return this[0] && styleOf(this[0])[propertyName];
 			}
 
 			if (typeof propertyName === "object") {
-				var cssText = makeCSSText(propertyName);
+				var properties = propertyName;
 				return foreach(this, function(el) {
-					el.style.cssText += ";" + cssText;
+					foreach(properties, function(value, propertyName) {
+						el.style[propertyName] = cssValue(propertyName, value);
+					});
 				});
 			}
 		}
 		
 		return foreach(this, function(el) {
-			el.style[propertyName] = makeCSSValue(propertyName, value);
+			el.style[propertyName] = cssValue(propertyName, value);
 		});
 	},
 	
@@ -1579,7 +1674,7 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 	},
 	
 	data: function(key, value) {
-	
+		/// @TODO:	
 	},
 	
 	each: function(fn) {
@@ -1599,8 +1694,12 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 		return jQuery(this[index < 0 ? this.length + index : index]);
 	},
 	
-	filter: function() {
-		// @TODO:
+	filter: function(fn) {
+		var ret = jQuery();
+		foreach(this, function(node, index) {
+			fn(index, node) && ret.add(node);
+		})
+		return ret;
 	},
 		
 	find: function(sel) {
@@ -1616,7 +1715,7 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 	},
 	
 	focus: function() {
-		foreach(this, function(node) {
+		return foreach(this, function(node) {
 			node.focus && node.focus();
 		})
 	},
@@ -1661,11 +1760,11 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 	},
 	
 	innerHeight: function() {
-	
+		/// @TODO:	
 	},
 	
 	innerWidth: function() {
-	
+		/// @TODO:	
 	},
 	
 	insertAfter: function(target) {
@@ -1691,7 +1790,14 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 	},
 	
 	next: function() {
-		/// @TODO:
+		var result = jQuery();
+		foreach(this, function(el) {
+			do {
+				el = el.nextSibling;
+			} while(el && el.nodeType !== ELEMENT_NODE);
+			el && result.add(el);
+		});
+		return result;
 	},
 	
 	nextAll: function() {
@@ -1722,16 +1828,33 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 		/// @TODO:	
 	},
 	
-	one: function() {
-		/// @TODO:
+	one: function(eventType, handler) {
+		if (arguments.length === 1) {
+			var self = this;
+			foreach(eventType, function(handler, eventType) {
+				self.one(eventType, handler);
+			});	
+			return this;
+		}
+		
+		eventType = eventType.split(regexp_whitespace);
+		return foreach(this, function(el) {
+			foreach(eventType, function(eventType) {
+				var fn = function() {
+					handler.apply(el, arguments);
+					removeEvent(el, eventType, fn);
+				}
+				addEvent(el, eventType, fn);
+			});
+		});
 	},
 	
 	outerHeight: function() {
-	
+		/// @TODO:	
 	},
 	
 	outerWidth: function() {
-	
+		/// @TODO:		
 	},
 	
 	parent: function() {
@@ -1766,7 +1889,7 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 		var args = arguments;
 		return foreach(this, function(el) {
 			var frag = makeFragment(args);
-			el.childNodes.length === 0 ? el.appendChild(frag) : el.insertBefore(frag, el.childNodes[0]);
+			el.firstChild ? el.insertBefore(frag, el.firstChild) : el.appendChild(frag);
 		});
 	},
 	
@@ -1775,6 +1898,17 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 		return this;	
 	},
 	
+	/// @TODO: previousElementSibling
+	prev: function() {
+		var result = jQuery();
+		foreach(this, function(el) {
+			do { el = el.previousSibling; }
+			while(el && el.nodeType !== ELEMENT_NODE);
+			el && result.add(el);
+		});
+		return result;
+	},
+
 	prop: function(propertyName, value) {
 		if (arguments.length === 1) {
 			return this[0] ? this[0][propertyName] : undefined;
@@ -1829,14 +1963,27 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 		});
 	},
 
-	scrollLeft: function() {
+	scrollLeft: function(value) {
 		if (arguments.length === 0) return this.prop("scrollLeft");
 		if (arguments.length === 1) return this.prop("scrollLeft", value);	
 	},
 	
-	scrollTop: function() {
+	scrollTop: function(value) {
 		if (arguments.length === 0) return this.prop("scrollTop");
 		if (arguments.length === 1) return this.prop("scrollTop", value);		
+	},
+	
+	scrollParent: function() {
+		var ret = $();
+		if (this.length === 0) return ret;
+
+		var el = this[0];
+		while(el = el.parentNode) {
+			if (el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight) {
+				return ret.add(el);
+			}
+		}		
+		return ret;
 	},
 	
 	show: function() {
@@ -1856,7 +2003,7 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 	},
 	
 	slice: function() {
-	
+		return jQuery(Array.prototype.slice.apply(this, arguments));
 	},
 	
 	text: function(value) {
@@ -1871,7 +2018,7 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 	},
 
 	toggle: function() {
-	
+		/// @TODO:		
 	},
 	
 	toggleClass: function(className) {
@@ -1888,15 +2035,15 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 	},
 	
 	triggerHanlder: function() {
-	
+		/// @TODO:	
 	},
 	
 	unbind: function() {
-	
+		/// @TODO:	
 	},
 	
 	unwrap: function() {
-	
+		/// @TODO:	
 	},
 	
 	val: function(value) {
@@ -1905,140 +2052,51 @@ $jQuery.prototype = jQuery.prototype = jQuery.fn = {
 	},
 
 	width: function() {
-	
+		/// @TODO:	
 	},
 	
 	wrap: function() {
-	
+		/// @TODO:	
 	},
 	
 	wrapAll: function() {
-	
+		/// @TODO:		
 	},
 	
 	wrapInner: function() {
-	
+		/// @TODO:		
 	}
-}
+})
 
+jQuery.makeArray = makeArray;
 jQuery.extend = extend;
 
-
-
-
-/// jQuery ajax
-/// @FIXME: ajax를 좀더 잘 모듈화 시킬 것~
-var ajax_options = {
-	async: true,
-	data: {},
-	dataType: "html",
-	type: "GET",
-	cache: true,
-	success: noop
-};
-
-
-jQuery.ajax = function() {
-
-	var r20 = /%20/g;
-	
-	function makeParams(param) {
-		var result = [];
-
-		var add = function(key, value) {
-			var type = typeof value;
-			
-			if (type === "function") {
-				return;
-			}
-			
-			if (type === "array") {
-				key = key+"[]";
-				foreach(value, function(index, value) {
-					add(key, value);
-				});				
-				return;
-			}
-			
-			if (type === "object") {
-				for (var prop in value) {
-					value[prop] = value[prop];
-				}				
-				value = JSON.stringify(value);
-			}			
-
-			result.push(encodeURIComponent(key) + "=" + encodeURIComponent(value));
-		}
-		
-		if (param !== null && typeof param === "object" && !isArray(param)) {
-			foreach(param, function(value, key) {
-				add(key, value);
-			});
-		}
-		
-		return result.join("&").replace(r20, "+");
-	}
-
-
-	return function(options) {
-		options = extend({}, ajax_options, options);
-
-		var url = options.url + (options.cache === false) ? "?" + (+new Date) : "";
-		var params = makeParams(options.data);
-
-		var http = new XMLHttpRequest();
-		http.open(options.type, options.url, options.async);
-		http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-		http.setRequestHeader("X-Requested-With", "XMLHttpRequest");
-		http.onreadystatechange = function(e) {
-	
-			if (http.readyState == 4) {
-				if (http.status == 200 || http.status == 304) {
-					if (options.dataType === "script") {
-						eval.call(window, this.responseText);
-					}
-					options.success.call(this, this.responseText);
-					return;
-				}
-
-				options.success.call(this, this.responseText);
-				return;
-			}
-	/*
-			if (http.readyState == 4 && http.status == 500) {
-				return func.call(this, this.responseText);
-			}
-	*/
-		}
-
-		http.send(params);
-		
-		return http;	
-	}
-}();
-
-
-jQuery.post = function(url, params, func) {
-
-	return $.ajax({
-		type: "POST",
-		url: url,
-		data: params,
-		success: func
-	});
-}
-
-jQuery.get = function(url, params, func) {
-
-	return $.ajax({
-		type: "GET",
-		url: url,
-		data: params,
-		success: func
-	});
-}
-
 window.$ = window.jQuery = jQuery;
+
+
+
+
+/// Local Storage
+function get_localStorage(key) {
+	try {
+		return JSON.parse(localStorage.getItem(key));	
+	} catch(e) {
+		return null;
+	}
+}
+
+function set_localStorage(key, value) {
+	localStorage.setItem(key, JSON.stringify(value));
+}
+
+function $localStorage(key, value) {
+	if (arguments.length === 1) return get_localStorage(key);
+	if (arguments.length === 2) return set_localStorage(key, value);
+}
+
+window.$localStorage = $localStorage;
+
+
 
 
 
@@ -2232,67 +2290,4 @@ Date.format.i18n = dateFormat.i18n;
 
 
 
-
-
-
-
-/// publish jpx
-window.use = function(name){ return require(name); };
-$cache("modules")['foreach'] = foreach;
-$cache("modules")['extend'] = extend;
-$cache("modules")['makeArray'] = makeArray;
-$cache("modules")['define'] = define;
-$cache("modules")['compile'] = $compile;
-$cache("modules")['traversal'] = traversal;
-$cache("modules")['createData'] = createData;
-$cache("modules")['readData'] = readData;
-$cache("modules")['removeData'] = removeData;
-
-
-
-
-/// do start! ㅋ 여기 소스 무지하게 (혼)잡스럽네.
-var style = document.createElement("style");
-var cssText = "html,body {visibility: hidden !important;}";
-style.setAttribute("type", "text/css");
-style.styleSheet ? (style.styleSheet.cssText = cssText) : (style.innerHTML = cssText);
-document.getElementsByTagName("head")[0].appendChild(style);
-
-if (document.readyState !== "loading") return start();
-addEvent(document, "readystatechange", start);
-
-function start() {
-	if (document.readyState === "loading") return;
-	if (!document.body) return setTimeout(start); // IE
-	removeEvent(document, "readystatechange", start);
-
-	// Support HTML5 UnknownElements for IE 8.0-
-//	var div = document.createElement("div");
-//	div.innerHTML = "<xyz></xyz>";
-//	if (div.childNodes.length !== 1) {
-//		foreach(document.getElementsByTagName("*"), function(el) {
-//			if (el.nodeName.charAt(0) == "/") {
-//				document.createElement(el.nodeName.substring(1));
-//			}
-//		});
-//		document.body.innerHTML = document.body.innerHTML;
-//	}
-
-//	try {
-		var scope = window.ViewController ? $newInstance(window.ViewController) : {};
-		$compile(document, [scope]);
-		document.update = function(el) { $update(el || document); }
-		document.update();
-
-		if (typeof scope.ready === "function") {
-			scope.ready();
-		}
-
-		style.parentNode.removeChild(style);
-			
-//	} catch(e) {};
-}
-
-
-
-}(window,document));
+}(window, document))
