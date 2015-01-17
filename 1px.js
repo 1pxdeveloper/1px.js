@@ -1,11 +1,3 @@
-/*!
- * 1px.js JavaScript Library
- * http://1px.kr/
- *
- * Copyright 2014 1pxgardening
- * Released under the MIT license
- */ 
-
 (function(window,document,undefined) {
 
 var ELEMENT_NODE = 1,
@@ -15,8 +7,9 @@ var ELEMENT_NODE = 1,
 
 var ua = navigator.userAgent;
 var msie = +(/msie (\d+)/i.exec(ua) || [])[1];
+
 if (!msie) {
-	msie = /trident/i.test(ua) ? 11 : undefined;
+	msie = /trident/i.test(ua) ? 11 : NaN;
 }
 
 var regex_string = /"[^"]*"|'[^']*'/g;
@@ -26,6 +19,9 @@ var regexp_comma = /\s*,\s*/;
 var regexp_skip = /^(script|style|head|link|meta)$/i;
 var regexp_template = /^(template)$/i;
 var regexp_whitespace = /\s+/g;
+
+
+
 
 
 /// -- Core Utils
@@ -183,7 +179,7 @@ function $eval(script, scope) {
 		return fn.apply(thisObj, scope.concat(scope.local || {}));
 		
 	} catch(e) {
-		console.log(e.message, "/", script);
+//		console.log(e.message, "/", script);
 	}
 }
 
@@ -375,8 +371,11 @@ function $update_process(node, scope) {
 		binding.scope = scope;
 		scope.local = scope.local || {};
 		scope.local.el = node;
+		
+		var valueFn = binding.handler.value || "string";
+		valueFn = valueType[valueFn] || valueFn || noop;
 
-		var value = (valueType[binding.handler.value] || binding.handler.value)(binding, node);
+		var value = valueFn(binding, node);
 		if (value === binding.value) {
 			return;
 		}
@@ -476,14 +475,13 @@ return {
 	},
 	
 	value: function(self, el) {
-		self.old_local = self.scope.local;
-		self.scope.local = extend({}, self.scope.local);//Object.create(self.scope.local);			
+		self.scope.local = Object.create(self.scope.local);			
 		self.row && (self.scope.local[self.row] = self.data.collection[self.i]);
 		self.index && (self.scope.local[self.index] = self.i);
 	},
 
 	done: function(self) {
-		self.scope.local = self.old_local;//Object.getPrototypeOf(self.scope.local);
+		self.scope.local = Object.getPrototypeOf(self.scope.local);
 	}
 }}
 
@@ -546,8 +544,6 @@ return {
 
 function __attrValue() {
 return {
-	value: "string",
-
 	update: function(self, el, value) {
 		el.setAttribute(self.name, value);
 	}
@@ -630,8 +626,6 @@ return {
 
 function __css() {
 return {
-	value: "string",
-	
 	init: function(self, el) {		
 		self.initValue = el.style.cssText + ";";
 	},
@@ -643,8 +637,6 @@ return {
 
 function __img_src() {
 return {
-	value: "string",
-	
 	init: function(self, el) {
 		el.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 	},
@@ -691,8 +683,6 @@ return {
 
 function __html() {
 return {
-	value: "string",
-
 	update: function(self, el, value) {
 		el.innerHTML = value;
 	}
@@ -700,8 +690,6 @@ return {
 
 function __text() {
 return {
-	value: "string",
-
 	update: function(self, el, value) {
 		el.innerText = value;
 	}
@@ -801,7 +789,6 @@ var _dispatcher;
 
 return {
 	init: function(self, el, attr, script) {
-		self.initValue = el.value;
 
 		bind(el, "input", "change", function(e) {
 			var thisObj = self.thisObj;
@@ -861,7 +848,7 @@ return {
 		
 		if (isRadioButton(el)) {
 			if (el.checked && thisObj[name] === undefined) {
-				thisObj[name] = el.value;
+				thisObj[name] = value;
 				/// @TODO: update~ later /// update중 update콜이 나오면 flag를 세워두었다가 다시 업데이트~ 대신 무한 업데이트 콜이 뜨는 지 확인은 필~
 				return;
 			}
@@ -881,16 +868,13 @@ return {
 		}
 
 		/// INPUT, TEXTAREA, ETC		
-		value = thisObj[name];
-		el.value = value;
+		el.value = thisObj[name];
 	}
 }}
 
 
 function __value() {
 return {
-	value: "string",
-
 	update: function(self, el, value) {
 		el.value = value;
 	}
@@ -964,7 +948,7 @@ function querySelectorAll(el, selector) {
 }
 
 function matchesSelector(el, selector) {
-	if (el.nodeType !== ELEMENT_NODE) return false;
+	if (el.nodeType !== ELEMENT_NODE || !selector) return false;
 	var matches = el.matchesSelector || el.webkitMatchesSelector || el.msMatchesSelector || el.mozMatchesSelector || el.oMatchesSelector;
 	return matches.call(el, selector);
 }
@@ -1090,6 +1074,22 @@ function unbind(el) {
 	}
 }
 
+function getScrollX() {
+	return window.pageXOffset;
+}
+
+function getScrollY() {
+	return window.pageYOffset;
+}
+
+function setScrollX(x) {
+	return window.scrollTo(x, getScrollY());
+}
+
+function setScrollY(y) {
+	return window.scrollTo(getScrollX(), y);
+}
+
 
 /// MSIE - CrossBrowsing
 if (typeof console === "undefined") {
@@ -1126,7 +1126,7 @@ if (msie) {
 }
 
 
-if (msie <= 9) {
+if (msie <= 10) {
 	DOMContentLoaded = function(fn) {
 		(function() {
 			try { document.documentElement.doScroll('left'); }
@@ -1134,6 +1134,35 @@ if (msie <= 9) {
 			fn();
 		}())
 	}
+
+	_$["@placeholder"] = {
+		init: function(self, el, value) {
+			self.placeholder = el.getAttribute("placeholder");
+			self.type = el.getAttribute("type");
+	
+			el.onfocus = function() {
+				if (hasClass(el, "input-placeholder")) {
+					removeClass(el, "input-placeholder");
+					el.value = "";
+					el.type = self.type;
+				}
+			}
+			
+			el.onblur = function() {
+				if (el.value === "") {
+					addClass(el, "input-placeholder");
+					el.type = "text";
+					el.value = self.placeholder;
+				}
+			}
+			el.onblur();
+		}
+	}
+}
+
+
+
+if (msie <= 9) {
 
 	addClass = function(el, className) {
 		className = el.className + " " + className;
@@ -1168,7 +1197,7 @@ if (msie <= 9) {
 if (msie <= 8) {
 	
 	/// html5shiv
-	foreach("abbr article aside audio bdi canvas data datalist details dialog figcaption figure footer header hgroup main mark meter nav output progress section summary template time video template".split(" "), function(tagName) {
+	foreach("abbr article aside audio bdi canvas data datalist details dialog figcaption figure footer header hgroup main mark meter nav output progress section summary template time video".split(" "), function(tagName) {
 		document.createElement(tagName);
 	});
 	
@@ -1289,6 +1318,14 @@ if (msie <= 8) {
 		return _compile(el);
 	}
 	*/
+
+	getScrollX = function() {
+		return document.compatMode === "CSS1Compat" ? document.documentElement.scrollLeft : document.body.scrollLeft;
+	}
+	
+	getScrollY = function() {
+		return document.compatMode === "CSS1Compat" ? document.documentElement.scrollTop : document.body.scrollTop;
+	}
 }
 
 
@@ -1351,8 +1388,6 @@ if ("ontouchstart" in document) {
 	
 	window.addEventListener("touchstart", function(e) {
 		clickable = true;
-		window.scrollY;
-	
 //		$touchTaget = e.target;
 //		var touch = e.changedTouches[0];
 //		screenX = touch.screenX;
@@ -1362,7 +1397,6 @@ if ("ontouchstart" in document) {
 	
 	window.addEventListener("touchmove", function(e) {
 		clickable = false;
-		console.log(window.scrollY);
 		
 //		if ($touchTaget === null) return;
 //
@@ -1789,13 +1823,23 @@ var jQuery = (function(prototype) {
 		/// @TODO:
 	},
 	
-	next: function() {
+	next: function(selector) {
 		var result = jQuery();
 		foreach(this, function(el) {
 			do {
 				el = el.nextSibling;
 			} while(el && el.nodeType !== ELEMENT_NODE);
-			el && result.add(el);
+			
+			if (!el) {
+				return;
+			}
+			
+			if (selector) {
+				matchesSelector(el, selector) && result.add(el);
+				return;
+			}
+			
+			result.add(el);
 		});
 		return result;
 	},
@@ -1824,8 +1868,9 @@ var jQuery = (function(prototype) {
 		/// @TODO:
 	},
 	
-	on: function() {
-		/// @TODO:	
+	on: function(eventType, handler) {
+		this.bind(eventType, handler);
+		/// @TODO:
 	},
 	
 	one: function(eventType, handler) {
@@ -1964,13 +2009,35 @@ var jQuery = (function(prototype) {
 	},
 
 	scrollLeft: function(value) {
-		if (arguments.length === 0) return this.prop("scrollLeft");
-		if (arguments.length === 1) return this.prop("scrollLeft", value);	
+		if (arguments.length === 0) {
+			var el = this[0];
+			if (!el) return undefined;
+			if (el === window || el === document) return getScrollX();
+			return el.scrollLeft;
+		}
+
+		if (arguments.length === 1) {
+			return foreach(this, function(el) {
+				if (el === window || el === document) return setScrollX(value);
+				el.scrollLeft = value;	
+			});
+		}
 	},
 	
 	scrollTop: function(value) {
-		if (arguments.length === 0) return this.prop("scrollTop");
-		if (arguments.length === 1) return this.prop("scrollTop", value);		
+		if (arguments.length === 0) {
+			var el = this[0];
+			if (!el) return undefined;
+			if (el === window || el === document) return getScrollY();
+			return el.scrollTop;
+		}
+
+		if (arguments.length === 1) {
+			return foreach(this, function(el) {
+				if (el === window || el === document) return setScrollY(value);
+				el.scrollTop = value;	
+			});
+		}
 	},
 	
 	scrollParent: function() {
