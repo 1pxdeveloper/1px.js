@@ -1,5 +1,5 @@
 #1px.js javascript framework
-*Data-bind Template Javascript Framework* (inspired by angularjs)
+*Data-bind Template Javascript Framework*
 
 ##NOTICE!
 - This is not release version.
