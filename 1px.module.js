@@ -24,7 +24,7 @@
  */
 "use strict";
 
-(function(window) {
+(function(window, document, undefined) {
 	Object.freeze = Object.freeze || function(){};
 
 	var _modules = {};
@@ -273,4 +273,9 @@
 		console.log("storage", _storage);
 	}, 500);
 
-})(window);
+
+	var module = $module("1px", []);
+	module.value("window", window);
+	module.value("document", document);
+
+})(window, document);

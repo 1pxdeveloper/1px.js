@@ -1,5 +1,3 @@
-$module("1px", []);
-
 $module("1px").define([function() {
 
 	function noop(){}

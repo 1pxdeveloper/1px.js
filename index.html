@@ -9,6 +9,9 @@
 	<script src="1px.dom.js"></script>
 	<script src="1px.compile.js"></script>
 	<script src="1px.directives.js"></script>
+
+	<script src="lib/1px.cookie.js"></script>
+
 	<script src="1px.js"></script>
 	<script src="app.js"></script>
 <style>
@@ -37,7 +40,7 @@ img:not([src]) { opacity: 0 }
 
 <script>
 	var app = $module("app", ["1px"]);
-	app.controller("ViewController", function(self, $rootScope) {
+	app.controller("ViewController", function(self, $rootScope, $cookie) {
 		return {
 			init: function() {
 				$rootScope.hello2 = "HELLO2";
@@ -47,6 +50,8 @@ img:not([src]) { opacity: 0 }
 				self.title = "HELLO, WORLD";
 				self.hello = "HELLO, WORLD";
 				self.color = "blue";
+
+				$cookie("hello", 2);
 			},
 
 			click: function(msg) {
