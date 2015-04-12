@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+</head>
+
+
+<body>
+
+
+<script>
+(function(window) {
+	var _modules = {};
+	var _storage = {};
+
+	setTimeout(function() {
+		console.log("modules", _modules);
+		console.log("storage", _storage);
+
+	}, 500);
+
+
+	function $storage(module, namespace, value) {
+		var ret = _storage[module.name] = _storage[module.name] || {};
+		ret = ret[namespace] = ret[namespace] || value || {};
+		return ret;
+	}
+
+	function $find(module, namespace, key) {
+		var ret = _storage[module.name]; if (!ret) return;
+		ret = ret[namespace]; if (!ret) return;
+		return key in ret && {value: ret[key]};
+	}
+
+	function $lookup(module, namespace, key) {
+		var ret = $find(module, namespace, key);
+		if (ret) return ret;
+
+		var i = module.dependencies.length;
+		while(i--) {
+			ret = $lookup($module(module.dependencies[i]), namespace, key);
+			if (ret) return ret;
+		}
+	}
+
+	function define(module, name, deps, factory) {
+		factory.$inject = deps;
+		$storage(module, "factory")[name] = factory;
+		return module;
+	}
+
+	function block(module, name, deps, factory) {
+		factory.$inject = deps;
+		$storage(module, name + "Block", []).push(factory);
+		return module;
+	}
+
+	function require(module, name, stack) {
+		stack = stack || [];
+
+		/// Look up Component: return component.
+		var component = $lookup(module, "components", name);
+		if (component) {
+			component = component.value;
+			$storage(module, "components")[name] = component;
+			return component;
+		}
+
+		/// Look up Factory
+		var factory = $lookup(module, "factory", name);
+		if (!factory) {
+			throw new Error(name + " is undefined.");
+		}
+		factory = factory.value;
+
+
+		/// Circular defined
+		if (stack.indexOf(name) >= 0) {
+			stack.unshift(name);
+
+			// Circular defined 문제를 exports로 해결함. @FIXME: 변수명 고민고민..
+			function Exports() {}
+
+			var exports = $storage(module, "components")[name] = new Exports();
+			var proto = invoke(module, factory, stack);
+			if (proto && typeof proto === "object") {
+				Exports.prototype = proto;
+				return exports;
+			}
+
+			throw new Error("Circular dependency found. " + stack.join(" <- "));
+		}
+
+		/// Circular defined
+		stack.unshift(name);
+		var ret = $storage(module, "components")[name] = invoke(module, factory, stack);
+		stack.shift();
+		return ret;
+	}
+
+	function invoke(module, factory, stack) {
+		var args = [], inject = factory.$inject, ret;
+		for (var i = 0, length = inject.length; i < length; i++) {
+			args.push(require(module, inject[i], stack));
+		}
+		return factory.apply(null, args);
+	}
+
+	function invokeBlocks(blockName, module) {
+		var provideBlocks = $storage(module, blockName + "Block", []);
+		while(provideBlocks.length) {
+			var ret = invoke(module, provideBlocks.shift());
+
+			for (var prop in ret) {
+				if (ret.hasOwnProperty(prop)) {
+					console.log(prop);
+					module.value(prop, ret[prop]);
+				}
+			}
+		}
+	}
+
+
+	var regex_args = /\([^)]*\)/m;
+	var regex_comma = /\s*,\s*/;
+	function parseDependenciesFromFactory(factory) {
+		var deps = factory.toString().match(regex_args())[0];
+		return deps.slice(1, -1).split(regex_comma);
+	}
+
+
+	function $module(name, deps) {
+		if (arguments.length === 1) {
+			if (!_modules[name]) throw new Error("Module " + name + "is not defined.");
+			return _modules[name];
+		}
+
+		if (arguments.length === 2) {
+			/// @TODO: deps가 있으면 초기화
+			deps = deps || [];
+			return (_modules[name] = new Module(name, deps));
+		}
+
+		throw SyntaxError("$module(name, deps): name is required.");
+	}
+
+	function Module(name, dependencies) {
+		this.name = name;
+		this.dependencies = dependencies || [];
+	}
+
+	Module.prototype = {
+		require: function(name) {
+			for (var i = 0, len = this.dependencies.length; i < len; i++) {
+				var module = $module(this.dependencies[i]);
+				invokeBlocks("provide", module);
+			}
+			invokeBlocks("provide", this);
+
+			return require(this, name);
+		},
+
+		factory: function(name, deps, factory) {
+			return define(this, name, deps, factory);
+		},
+
+		value: function(name, value) {
+			$storage(this, "components")[name] = value;
+			return this;
+		},
+
+		define: function(deps, factory) {
+			return block(this, "define", deps, factory);
+		},
+
+		provide: function(deps, factory) {
+			return block(this, "provide", deps, factory);
+		},
+
+		config: function(deps, factory) {
+			return block(this, "config", deps, factory);
+		}
+	};
+
+	window.$module = $module;
+
+})(window);
+</script>
+
+
+<script src="1px.core.js"></script>
+<script src="1px.dom.js"></script>
+
+
+<script>
+	var app = $module("1px", ["core", "dom"]);
+
+	var addEvent = app.require("addEvent");
+
+
+
+
+
+
+</script>
+
+
+</body>
+</html>

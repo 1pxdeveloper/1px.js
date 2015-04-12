@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+	<meta charset="UTF-8">
+	<title></title>
+	<script src="1px.module.js"></script>
+	<script src="1px.core.js"></script>
+	<script src="1px.parse.js"></script>
+	<script src="1px.dom.js"></script>
+	<script src="1px.compile.js"></script>
+	<script src="1px.directives.js"></script>
+	<script src="1px.js"></script>
+	<script src="app.js"></script>
+<style>
+img:not([src]) { opacity: 0 }
+</style>
+</head>
+<body app="app" controller="ViewController">
+	<h1 #hash style="color: red" click="click()" +selected="true">{title}</h1>
+
+	<img @src="http://img.naver.net/static/newsstand/up/2014/0715/038.gif" ^selected="rows.length > 0" +active="rows.isActive"/>
+
+	<h1 repeat="tabs as tab, index" click="startDrag(el)" @style="color: {color}">{title} {tab}</h1>
+
+	<wux-item #gallery repeat="rows as row" @selected="rows.has(row)" click="selectProduct(row)">
+		<h1>{row}</h1>
+	</wux-item>
+
+	<!--<div template="abcd" with="abc as c">-->
+	<!--</div>-->
+
+	<div template="hello"></div>
+
+<template id="hello">
+	asdklasjdklasjkdljaksldas
+</template>
+
+<script>
+	var app = $module("app", ["1px"]);
+	app.controller("ViewController", function(self, $rootScope) {
+		return {
+			init: function() {
+				$rootScope.hello2 = "HELLO2";
+
+				self.tabs = ["tab1", "tab2", "tab3"];
+				self.rows = ["tab1", "tab2", "tab3"];
+				self.title = "HELLO, WORLD";
+				self.hello = "HELLO, WORLD";
+				self.color = "blue";
+			},
+
+			click: function(msg) {
+				alert(msg);
+				self.color = "red";
+			}
+		}
+	});
+</script>
+
+</body>
+</html>
