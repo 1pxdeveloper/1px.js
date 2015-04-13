@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+	<meta charset="UTF-8">
+	<title></title>
+	<script src="1px.module.js"></script>
+	<!--<script src="1px.core.js"></script>-->
+	<script src="lib/1px.promise.js"></script>
+</head>
+<body style="white-space: pre">
+
+<script>
+window.onload = function() {
+	var Promise = $module("1px").require("Promise");
+
+	function test() {
+		return new Promise(function(resolve, reject) {
+//				setTimeout(function() {
+//					reject("error!!");
+//				}, 250);
+
+			setTimeout(function() {
+				resolve("hello 500");
+			}, 500);
+
+			setTimeout(function() {
+				resolve("hello 1000");
+			}, 1000);
+		});
+	}
+
+	test().then(function(res) {
+		console.log(res);
+
+	});
+
+	var p1 = test().then(function(res) {
+		console.log("test().then!!");
+		document.writeln(res);
+
+		return res + " test().then";
+
+	});
+
+	var p2 = p1.then(function(res) {
+		console.log("p1.then");
+
+		document.writeln(res);
+		console.log(res);
+
+		return new Promise(function(resolve) {
+			resolve(res + " p1.then");
+		})
+
+	}).then(function(res) {
+		console.log("p1.then.then");
+		document.writeln(res);
+
+		return res + " p1.then.then";
+	});
+
+	p2.then(function(res) {
+		console.log("p2.then");
+		document.writeln(res);
+
+		return res + " p2.then";
+	});
+
+	p1.then(function(res) {
+		console.log("p2.then -> p1.next");
+
+		document.writeln(res);
+
+		return res + " p2.then -> p1.next";
+	});
+
+	p2.then(function(res) {
+
+		console.log("p1.then -> p2.then");
+		document.writeln(res);
+
+		return res + " p2.then";
+
+	});
+
+	console.log(p1);
+
+}
+</script>
+
+</body>
+</html>

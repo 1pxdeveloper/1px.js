@@ -191,8 +191,27 @@
 	}]);
 
 
-	/// @TODO: 필터를 개발하면 삭제한다. <div html="abc{xxx}"></div> -> <div>abc{xxx|html}</div>
-	/// @TODO: 필터2를 개발하면 삭제한다. <div html="abc{xxx}"></div> -> <div>abc{xxx|text}</div> same as nl2br
+	/// @TODO: {value|text}, {value|html} 을 개발하면 너넨 없어질 것이야~
+
+	/// @TODO: nl2br을 적용한다. !! {text} 와는 다르다. {text} 와는...
+	module.directive("text", [function() {
+		function htmlEntities(str) {
+			return (""+str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+		}
+
+		function nl2br(text) {
+			var breakTag = "<br/>";
+			return (""+text).replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1' + breakTag + '$2');
+		}
+
+		return {
+			update: function(self, el, value) {
+				el.innerText = nl2br(htmlEntities(value));
+			}
+		}
+	}]);
+
+	/// @TODO: {value|text}, {value|html} 을 개발하면 너넨 없어질 것이야~
 	module.directive("html", [function() {
 		return {
 			update: function(self, el, value) {
