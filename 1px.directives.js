@@ -245,3 +245,126 @@
 	}]);
 
 }($module("1px"), document));
+
+
+/*
+function __name() {
+
+	function getFormValueArray(el, thisObj) {
+		var result = [];
+
+		var name = el.name;
+		var form = closest(el, "form");
+		var elements = form ? form.elements[name] : document.getElementsByName(name);
+		elements = elements.length ? elements : [elements];
+
+		foreach(elements, function(el, index) {
+//		var data = readData(el);
+//		if (!data || !data.bindgins) {
+//			return;
+//		}
+//		var scope = data.bindgins[data.bindgins.length-1].scope;
+
+			var type = el.type;
+			if (type === "radio" || type === "checkbox") {
+				el.checked && result.push(el.value);
+				return;
+			}
+
+			result.push(el.value);
+		});
+
+		return result;
+	}
+
+
+	var _dispatcher;
+
+	return {
+		init: function(self, el, attr, script) {
+
+			bind(el, "input", "change", function(e) {
+				var thisObj = self.thisObj;
+				var name = self.isArray ? el.name.slice(0, -2) : el.name;
+				var value = el.value;
+
+				if (isRadioButton(el) && !el.checked) {
+					return;
+				}
+
+				if (isCheckbox(el)) {
+					value = self.isArray ? getFormValueArray(el) : !!el.checked;
+					if (thisObj[name] === value) {
+						return;
+					}
+				}
+
+				self.value = thisObj[name] = value;
+
+				_dispatcher = el;
+				document.update();
+				_dispatcher = null;
+			});
+
+			if (msie <= 8) {
+				bind(el, "keydown", "cut", "paste", function(e) {
+					setTimeout(function() {
+						dispatchEvent(el, "change");
+					});
+				});
+			}
+		},
+
+		value: function(self, el, scope) {
+			self.$scope = cloneScope(scope);
+			self.thisObj = self.$scope[self.$scope.length - 1];
+
+			self.hasExpr && (el.name = $parse(script, self.$scope));
+			self.isArray = el.name.slice(-2) === "[]";
+			var name = self.isArray ? el.name.slice(0, -2) : el.name;
+			return self.thisObj && self.thisObj[name];
+		},
+
+		update: function(self, el, value, scope) {
+			if (_dispatcher === el) return;
+
+			var thisObj = self.thisObj;
+			if (!thisObj) {
+				return;
+			}
+
+			var name = self.isArray ? el.name.slice(0, -2) : el.name;
+			var value = el.value;
+			var type = el.type;
+
+			if (thisObj[name] === undefined) {
+				thisObj[name] = "";
+			}
+
+			if (isRadioButton(el)) {
+				if (el.checked && thisObj[name] === undefined) {
+					thisObj[name] = value;
+					/// @TODO: update~ later /// update중 update콜이 나오면 flag를 세워두었다가 다시 업데이트~ 대신 무한 업데이트 콜이 뜨는 지 확인은 필~
+					return;
+				}
+
+				el.checked = thisObj[name] === value;
+				return;
+			}
+
+			if (isCheckbox(el) && self.isArray) {
+				el.checked = indexOf(thisObj[name], value) >= 0;
+				return
+			}
+
+			if (isCheckbox(el)) {
+				el.checked = !!thisObj[name];
+				return;
+			}
+
+			/// INPUT, TEXTAREA, ETC
+			el.value = thisObj[name];
+		}
+	}
+}
+*/

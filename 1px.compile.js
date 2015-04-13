@@ -30,12 +30,96 @@ $module("1px").define(["foreach", "trim", "msie", "$cache", "noop", "addClass", 
 		return frag;
 	}
 
+	function isBooleanAttr(a) {
+		a = a.toLowerCase();
+
+		if (a === "selected") return true;
+		if (a === "checked") return true;
+		if (a === "disabled") return true;
+//	if (a === "autoplay") return true;
+//	if (a === "async") return true;
+//	if (a === "autofocus") return true;
+		if (a === "contenteditable") return true;
+//	if (a === "controls") return true;
+//	if (a === "default") return true;
+//	if (a === "defer") return true;
+//	if (a === "formnovalidate") return true;
+//	if (a === "hidden") return true;
+//	if (a === "ismap") return true;
+//	if (a === "itemscope") return true;
+//	if (a === "loop") return true;
+//	if (a === "multiple") return true;
+//	if (a === "novalidate") return true;
+		if (a === "open") return true;
+//	if (a === "pubdate") return true;
+		if (a === "readonly") return true;
+//	if (a === "required") return true;
+//	if (a === "reversed") return true;
+//	if (a === "scoped") return true;
+//	if (a === "seamless") return true;
+
+		return false;
+	}
+
+	function attr_priority(a) {
+		if (a === "repeat") return 70;
+		if (a === "controller") return 60;
+		if (a === "ready") return 50;
+		if (a === "init") return 30;
+		if (a === "css") return -10;
+		if (a === "background-image") return -15;
+		if (a === "visible") return -20;
+		if (a === "template") return -30;
+		if (a === "with") return -40;
+		if (a === "name") return -50;
+
+		return 0;
+	}
+
+	function by_attr_priority(a, b) {
+		return attr_priority(b.tagName) - attr_priority(a.tagName);
+	}
+
+
+	function cloneScope(scope) {
+		var $scope = scope.slice();
+		$scope.local = Object.create(scope.local || {});
+		$scope.templates = Object.create(scope.templates || {});
+		return $scope;
+	}
+
+	// @FIXME:..
+	function create_binding(node, name, index, handler, binding) {
+		var bindings = expandoStore(node, "bindings") || [];
+
+		binding = binding || {};
+		bindings[index] = binding;
+		bindings[name] = binding;
+		expandoStore(node, "bindings", bindings);
+
+		binding.handler = handler;
+		binding.handler.init = binding.handler.init || noop;
+		binding.handler.update = binding.handler.update || noop;
+		binding.handler.done = binding.handler.done || noop;
+
+		if (binding.handler.init && binding.handler.init(binding, node) === false) {
+			return false;
+		}
+	}
+
 
 	/// @FIXME: app 처리를 어떻게 할지 고민해보자.
 	var $app = $module("1px");
-	$module("1px").value("$controller", function(name) {
+	$module("1px").value("$controller", $controller);
+	$module("1px").value("$directive", $directive);
+
+	function $controller(name) {
 		return $app.require("controller/" + name);
-	});
+	}
+
+	function $directive(name) {
+		return $app.require("directive/" + name);
+	}
 
 
 	/// -- $compile
@@ -91,7 +175,7 @@ $module("1px").define(["foreach", "trim", "msie", "$cache", "noop", "addClass", 
 
 			var handler;
 			try {
-				handler = $app.require("directive/" + name);
+				handler = $directive(name);
 				console.log(handler, name)
 			} catch(e) {}
 
@@ -102,13 +186,11 @@ $module("1px").define(["foreach", "trim", "msie", "$cache", "noop", "addClass", 
 			else if ("on" + name in el) {
 				handler = __event;
 			}
-
 			else if (prefix === "@") {
 				handler = __attrValue;
 				name = name.slice(1);
 				el.removeAttributeNode(attr);
 			}
-
 			else if (prefix === "^") {
 				handler = __boolean;
 				name = name.slice(1);
@@ -119,6 +201,14 @@ $module("1px").define(["foreach", "trim", "msie", "$cache", "noop", "addClass", 
 				handler = __classList;
 				name = name.slice(1);
 				el.removeAttributeNode(attr);
+			}
+
+			else if (value.indexOf("{") >= 0) {
+				handler = __attrValue;
+			}
+
+			else if (isBooleanAttr(name)) {
+				handler = __boolean;
 			}
 
 			if (!handler) {
@@ -149,7 +239,7 @@ $module("1px").define(["foreach", "trim", "msie", "$cache", "noop", "addClass", 
 		parse_expr(textNode.nodeValue, function(text, isexpr) {
 			var newTextNode = document.createTextNode(isexpr ? '' : text);
 			if (isexpr) {
-				create_binding(newTextNode, 0, "#text", __nodeValue, {script: text});
+				create_binding(newTextNode, 0, "#text", __textNodeValue, {script: text});
 			}
 			frag.appendChild(newTextNode);
 		});
@@ -158,81 +248,6 @@ $module("1px").define(["foreach", "trim", "msie", "$cache", "noop", "addClass", 
 		return false;
 	}
 
-	// @FIXME:..
-	function create_binding(node, name, index, handler, binding) {
-		var bindings = expandoStore(node, "bindings") || [];
-
-		binding = binding || {};
-		bindings[index] = binding;
-		bindings[name] = binding;
-		expandoStore(node, "bindings", bindings);
-
-		binding.handler = handler;
-		binding.handler.init = binding.handler.init || noop;
-		binding.handler.update = binding.handler.update || noop;
-		binding.handler.done = binding.handler.done || noop;
-
-		if (binding.handler.init && binding.handler.init(binding, node) === false) {
-			return false;
-		}
-	}
-
-	function isBooleanAttr(a) {
-		a = a.toLowerCase();
-
-		if (a === "selected") return true;
-		if (a === "checked") return true;
-		if (a === "disabled") return true;
-//	if (a === "autoplay") return true;
-//	if (a === "async") return true;
-//	if (a === "autofocus") return true;
-		if (a === "contenteditable") return true;
-//	if (a === "controls") return true;
-//	if (a === "default") return true;
-//	if (a === "defer") return true;
-//	if (a === "formnovalidate") return true;
-//	if (a === "hidden") return true;
-//	if (a === "ismap") return true;
-//	if (a === "itemscope") return true;
-//	if (a === "loop") return true;
-//	if (a === "multiple") return true;
-//	if (a === "novalidate") return true;
-		if (a === "open") return true;
-//	if (a === "pubdate") return true;
-		if (a === "readonly") return true;
-//	if (a === "required") return true;
-//	if (a === "reversed") return true;
-//	if (a === "scoped") return true;
-//	if (a === "seamless") return true;
-
-		return false;
-	}
-
-	function attr_priority(a) {
-		if (a === "repeat") return 70;
-		if (a === "controller") return 60;
-		if (a === "ready") return 50;
-		if (a === "init") return 30;
-		if (a === "css") return -10;
-		if (a === "background-image") return -15;
-		if (a === "visible") return -20;
-		if (a === "template") return -30;
-		if (a === "with") return -40;
-		if (a === "name") return -50;
-
-		return 0;
-	}
-
-	function by_attr_priority(a, b) {
-		return attr_priority(b.tagName) - attr_priority(a.tagName);
-	}
-
-	function cloneScope(scope) {
-		var $scope = scope.slice();
-		$scope.local = Object.create(scope.local || {});
-		$scope.templates = Object.create(scope.templates || {});
-		return $scope;
-	}
 
 	/// -- $update
 
@@ -291,7 +306,7 @@ $module("1px").define(["foreach", "trim", "msie", "$cache", "noop", "addClass", 
 	}
 
 
-	var __nodeValue = {
+	var __textNodeValue = {
 		value: "expr",
 
 		update: function(self, node, value) {
@@ -308,9 +323,9 @@ $module("1px").define(["foreach", "trim", "msie", "$cache", "noop", "addClass", 
 		}
 	};
 
-
 	var __boolean = {
 		value: "boolean",
+
 		update: function(self, el, bool) {
 			var name = self.name;
 			bool ? el.setAttribute(name,"") : el.removeAttribute(name);
@@ -322,6 +337,7 @@ $module("1px").define(["foreach", "trim", "msie", "$cache", "noop", "addClass", 
 
 	var __classList = {
 		value: "boolean",
+
 		update: function(self, el, bool) {
 			var name = self.name;
 			bool ? addClass(el, name) : removeClass(el, name);
@@ -380,129 +396,6 @@ $module("1px").define(["foreach", "trim", "msie", "$cache", "noop", "addClass", 
 			self.$scope = cloneScope(scope);
 		}
 	};
-
-
-
-
-	function __name() {
-
-		function getFormValueArray(el, thisObj) {
-			var result = [];
-
-			var name = el.name;
-			var form = closest(el, "form");
-			var elements = form ? form.elements[name] : document.getElementsByName(name);
-			elements = elements.length ? elements : [elements];
-
-			foreach(elements, function(el, index) {
-//		var data = readData(el);
-//		if (!data || !data.bindgins) {
-//			return;
-//		}
-//		var scope = data.bindgins[data.bindgins.length-1].scope;
-
-				var type = el.type;
-				if (type === "radio" || type === "checkbox") {
-					el.checked && result.push(el.value);
-					return;
-				}
-
-				result.push(el.value);
-			});
-
-			return result;
-		}
-
-
-		var _dispatcher;
-
-		return {
-			init: function(self, el, attr, script) {
-
-				bind(el, "input", "change", function(e) {
-					var thisObj = self.thisObj;
-					var name = self.isArray ? el.name.slice(0, -2) : el.name;
-					var value = el.value;
-
-					if (isRadioButton(el) && !el.checked) {
-						return;
-					}
-
-					if (isCheckbox(el)) {
-						value = self.isArray ? getFormValueArray(el) : !!el.checked;
-						if (thisObj[name] === value) {
-							return;
-						}
-					}
-
-					self.value = thisObj[name] = value;
-
-					_dispatcher = el;
-					document.update();
-					_dispatcher = null;
-				});
-
-				if (msie <= 8) {
-					bind(el, "keydown", "cut", "paste", function(e) {
-						setTimeout(function() {
-							dispatchEvent(el, "change");
-						});
-					});
-				}
-			},
-
-			value: function(self, el, scope) {
-				self.$scope = cloneScope(scope);
-				self.thisObj = self.$scope[self.$scope.length - 1];
-
-				self.hasExpr && (el.name = $parse(script, self.$scope));
-				self.isArray = el.name.slice(-2) === "[]";
-				var name = self.isArray ? el.name.slice(0, -2) : el.name;
-				return self.thisObj && self.thisObj[name];
-			},
-
-			update: function(self, el, value, scope) {
-				if (_dispatcher === el) return;
-
-				var thisObj = self.thisObj;
-				if (!thisObj) {
-					return;
-				}
-
-				var name = self.isArray ? el.name.slice(0, -2) : el.name;
-				var value = el.value;
-				var type = el.type;
-
-				if (thisObj[name] === undefined) {
-					thisObj[name] = "";
-				}
-
-				if (isRadioButton(el)) {
-					if (el.checked && thisObj[name] === undefined) {
-						thisObj[name] = value;
-						/// @TODO: update~ later /// update중 update콜이 나오면 flag를 세워두었다가 다시 업데이트~ 대신 무한 업데이트 콜이 뜨는 지 확인은 필~
-						return;
-					}
-
-					el.checked = thisObj[name] === value;
-					return;
-				}
-
-				if (isCheckbox(el) && self.isArray) {
-					el.checked = indexOf(thisObj[name], value) >= 0;
-					return
-				}
-
-				if (isCheckbox(el)) {
-					el.checked = !!thisObj[name];
-					return;
-				}
-
-				/// INPUT, TEXTAREA, ETC
-				el.value = thisObj[name];
-			}
-		}
-	}
 
 
 	// @FIXME:..

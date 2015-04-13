@@ -3,17 +3,7 @@
 <head lang="en">
 	<meta charset="UTF-8">
 	<title></title>
-	<script src="1px.module.js"></script>
-	<script src="1px.core.js"></script>
-	<script src="1px.parse.js"></script>
-	<script src="1px.dom.js"></script>
-	<script src="1px.compile.js"></script>
-	<script src="1px.directives.js"></script>
-
-	<script src="lib/1px.cookie.js"></script>
-
 	<script src="1px.js"></script>
-	<script src="app.js"></script>
 <style>
 img:not([src]) { opacity: 0 }
 </style>
@@ -30,7 +20,6 @@ img:not([src]) { opacity: 0 }
 
 		<wux-item #gallery repeat="rows as row" @selected="rows.has(row)" click="selectProduct(row)">
 			<h1>{row}</h1>
-			<div>></div>
 		</wux-item>
 
 		<div template="hello" with="account.product as product"></div>
@@ -40,6 +29,7 @@ img:not([src]) { opacity: 0 }
 	<template id="hello">
 		asdklas{product.abc}jdklasjkdljaksldas
 	</template>
+
 
 <script>
 	var app = $module("app", ["1px"]);

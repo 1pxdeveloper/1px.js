@@ -1,31 +1,4 @@
-$module("1px").define([function() {
-
-	function noop(){}
-
-	function foreach(collection, fn) {
-		if (typeof collection !== "object" || collection == null) {
-			return collection;
-		}
-
-		if (collection.length >= 0) {
-			for (var i = 0, len = collection.length; i < len; i++) {
-				if (fn(collection[i], i) === false) {
-					return collection;
-				}
-			}
-			return collection;
-		}
-
-		for (var key in collection) {
-			if (collection.hasOwnProperty(key)) {
-				if (fn(collection[key], key) === false) {
-					return collection;
-				}
-			}
-		}
-
-		return collection;
-	}
+$module("1px").define(["foreach", function(foreach) {
 
 	function extend(target) {
 		if (target === null || typeof target !== "object") return target;
@@ -78,8 +51,6 @@ $module("1px").define([function() {
 	}
 
 	return {
-		"noop": noop,
-		"foreach": foreach,
 		"extend": extend,
 		"makeArray": makeArray,
 		"trim": trim,

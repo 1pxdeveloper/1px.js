@@ -25,6 +25,33 @@
 "use strict";
 
 (function(window, document, undefined) {
+	function noop(){}
+
+	function foreach(collection, fn) {
+		if (typeof collection !== "object" || collection == null) {
+			return collection;
+		}
+
+		if (+collection.length) {
+			for (var i = 0, len = collection.length; i < len; i++) {
+				if (fn(collection[i], i) === false) {
+					return collection;
+				}
+			}
+			return collection;
+		}
+
+		for (var key in collection) {
+			if (collection.hasOwnProperty(key)) {
+				if (fn(collection[key], key) === false) {
+					return collection;
+				}
+			}
+		}
+
+		return collection;
+	}
+
 	Object.freeze = Object.freeze || function(){};
 
 	var _modules = {};
@@ -127,9 +154,9 @@
 	/// --- Invoker
 	function invoke(module, factory, stack) {
 		var args = [], inject = factory.$inject;
-		for (var i = 0, length = inject.length; i < length; i++) {
-			args.push(require(module, inject[i], stack));
-		}
+		foreach(factory.$inject, function(inject) {
+			args.push(require(module, inject, stack));
+		});
 
 		return (factory.$invoker || defaultInvoker)(factory, args)
 	}
@@ -141,10 +168,11 @@
 	function controllerInvoker(factory, args) {
 		var controller = {};
 		args.unshift(controller);
+
 		var ret = factory.apply(null, args);
-		for (var prop in ret) {
-			ret.hasOwnProperty(prop) && (controller[prop] = ret[prop]);
-		}
+		foreach(ret, function(value, key) {
+			controller[key] = ret[key]
+		});
 
 		if (typeof controller["init"] === "function") {
 			controller["init"]();
@@ -163,20 +191,18 @@
 	}
 
 	function invokeAllBlocks(module, blockName, providerHanlder) {
-		for (var i = 0, len = module.dependencies.length; i < len; i++) {
-			invokeBlocks($module(module.dependencies[i]), blockName, providerHanlder);
-		}
+		foreach(module.dependencies, function(dependency) {
+			invokeBlocks($module(dependency), blockName, providerHanlder);
+		});
+
 		invokeBlocks(module, blockName, providerHanlder);
 	}
 
 	function defineBlockProvider(module, result) {
-		for (var prop in result) {
-			if (result.hasOwnProperty(prop)) {
-				module.value(prop, result[prop]);
-			}
-		}
+		foreach(result, function(value, name) {
+			module.value(name, value);
+		});
 	}
-
 
 
 	var regex_args = /\([^)]*\)/m;
@@ -277,5 +303,7 @@
 	var module = $module("1px", []);
 	module.value("window", window);
 	module.value("document", document);
+	module.value("noop", noop);
+	module.value("foreach", foreach);
 
 })(window, document);
