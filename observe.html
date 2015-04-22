@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+</head>
+
+
+<body>
+<pre id="output"></pre>
+
+<script>
+
+var $setImmediate = window.requestAnimationFrame;
+var $hashmap = new WeakMap();
+
+function $observe(object, callback) {
+	if (Object(object) !== object) {
+		return;
+	}
+
+	var shadow = Object.create(object);
+	var props = Object.create(shadow);
+	for (var prop in object) {
+		shadow[prop] = object[prop];
+	}
+
+	function $watcher() {
+		var changes = {};
+		var flag = false;
+
+		for (var prop in props) {
+			var oldValue = shadow[prop];
+			var newValue = object[prop];
+			if (oldValue !== newValue || shadow.hasOwnProperty(prop) === false) {
+				changes[prop] = {oldValue: oldValue, newValue: newValue};
+				flag = true;
+
+				$unobserve(oldValue);
+				$observe(newValue, callback);
+			}
+			shadow[prop] = newValue;
+		}
+
+		if (flag === true) {
+			callback(changes);
+		}
+
+		if ($watcher.obserable === true) {
+			$setImmediate($watcher);
+		}
+	}
+	$watcher.obserable = true;
+
+	$hashmap.set(object, $watcher);
+
+	$setImmediate($watcher);
+}
+
+function $unobserve(object) {
+	if (Object(object) !== object) {
+		return;
+	}
+
+	if ($hashmap.has(object) === false) {
+		return;
+	}
+
+	$hashmap.get(object).obserable = false;
+	for (var prop in object) {
+		if (object.hasOwnProperty(prop)) {
+			var value = object[prop];
+			$unobserve(value);
+		}
+	}
+
+	$hashmap["delete"](object);
+}
+
+
+var $output = document.getElementById("output");
+var a = [1,2,3];
+
+$observe(a, function(changes) {
+	console.log(changes);
+	$output.innerText = JSON.stringify(changes);
+});
+
+function test() {
+	a.foo = "sadlkfjalskf";
+	a.bar = "asdklfjaklsdfad";
+	a.baz = "asdklfjalsdf";
+}
+
+</script>
+
+
+</body>
+</html>
