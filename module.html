@@ -6,200 +6,170 @@
 
 <body>
 
+<div class="tab" #tab [name]="'키보드'" (click)="template = tab.name" [class.selected]="template === tab.name">${tab.name}</div>
+<div class="tab" #tab [name]="'설정'" (click)="template = tab.name" [class.selected]="template === tab.name">${tab.name}</div>
+<div class="tab" #tab [name]="'테마'" (click)="template = tab.name" [class.selected]="template === tab.name">${tab.name}</div>
+<div class="tab" #tab [name]="'실험실'" (click)="template = tab.name" [class.selected]="template === tab.name">${tab.name}</div>
+
 
 <script>
-(function(window) {
-	var _modules = {};
-	var _storage = {};
+	var _module = {};
+	var _component = {};
+	var _recipe = {};
 
-	setTimeout(function() {
-		console.log("modules", _modules);
-		console.log("storage", _storage);
-
-	}, 500);
-
-
-	function $storage(module, namespace, value) {
-		var ret = _storage[module.name] = _storage[module.name] || {};
-		ret = ret[namespace] = ret[namespace] || value || {};
-		return ret;
+	function itself(v) {
+		return function() { return v; }
 	}
 
-	function $find(module, namespace, key) {
-		var ret = _storage[module.name]; if (!ret) return;
-		ret = ret[namespace]; if (!ret) return;
-		return key in ret && {value: ret[key]};
+	function $component(name) {
+		return (_component[name] = _component[name] || {});
 	}
 
-	function $lookup(module, namespace, key) {
-		var ret = $find(module, namespace, key);
-		if (ret) return ret;
-
-		var i = module.dependencies.length;
-		while(i--) {
-			ret = $lookup($module(module.dependencies[i]), namespace, key);
-			if (ret) return ret;
-		}
+	function $recipe(name) {
+		return (_recipe[name] = _recipe[name] || {});
 	}
 
-	function define(module, name, deps, factory) {
-		factory.$inject = deps;
-		$storage(module, "factory")[name] = factory;
-		return module;
+	function define(module, name, recipe) {
+		$recipe(module.name)[name] = recipe;
 	}
 
-	function block(module, name, deps, factory) {
-		factory.$inject = deps;
-		$storage(module, name + "Block", []).push(factory);
-		return module;
+	function block(module, name, recipe) {
+//		var module = $block(module.name)["block/"+name] = recipe;
 	}
 
 	function require(module, name, stack) {
 		stack = stack || [];
 
-		/// Look up Component: return component.
-		var component = $lookup(module, "components", name);
-		if (component) {
-			component = component.value;
-			$storage(module, "components")[name] = component;
-			return component;
-		}
+		var modules = module.dependencies.concat([module.name]);
+		var index = modules.length;
+		while(index--) {
+			var module_name = modules[index];
+			var component = $component(module_name);
+			var recipe = $recipe(module_name);
 
-		/// Look up Factory
-		var factory = $lookup(module, "factory", name);
-		if (!factory) {
-			throw new Error(name + " is undefined.");
-		}
-		factory = factory.value;
-
-
-		/// Circular defined
-		if (stack.indexOf(name) >= 0) {
-			stack.unshift(name);
-
-			// Circular defined 문제를 exports로 해결함. @FIXME: 변수명 고민고민..
-			function Exports() {}
-
-			var exports = $storage(module, "components")[name] = new Exports();
-			var proto = invoke(module, factory, stack);
-			if (proto && typeof proto === "object") {
-				Exports.prototype = proto;
-				return exports;
+			if (component.hasOwnProperty(name)) {
+				return component[name];
 			}
 
-			throw new Error("Circular dependency found. " + stack.join(" <- "));
+			if (recipe.hasOwnProperty(name) === false) {
+				continue;
+			}
+
+			if (stack.indexOf(name) >= 0) {
+				stack.unshift(name);
+				throw Error("circurlar defined. " + stack.join(" <- "));
+			}
+
+			stack.unshift(name);
+			var result = component[name] = invoke(module, recipe[name], stack);
+			stack.pop();
+			return result;
 		}
 
-		/// Circular defined
-		stack.unshift(name);
-		var ret = $storage(module, "components")[name] = invoke(module, factory, stack);
-		stack.shift();
-		return ret;
+		throw Error("not defined. " + name);
 	}
 
-	function invoke(module, factory, stack) {
-		var args = [], inject = factory.$inject, ret;
-		for (var i = 0, length = inject.length; i < length; i++) {
-			args.push(require(module, inject[i], stack));
-		}
+	function invoke(module, recipe, stack) {
+		stack = stack || [];
+
+		var inject = recipe.slice();
+		var factory = inject.pop();
+
+		return defaultInvoker(module, factory, inject, stack);
+	}
+
+	function defaultInvoker(module, factory, inject, stack) {
+		var args = [];
+		inject.forEach(function(name) {
+			args.push(require(module, name, stack));
+		});
+
 		return factory.apply(null, args);
 	}
 
-	function invokeBlocks(blockName, module) {
-		var provideBlocks = $storage(module, blockName + "Block", []);
-		while(provideBlocks.length) {
-			var ret = invoke(module, provideBlocks.shift());
+	function controllerInvoker(module, factory, inject, stack) {
+		var args = [];
+		inject.forEach(function(name) {
+			args.push(require(module, name, stack));
+		});
 
-			for (var prop in ret) {
-				if (ret.hasOwnProperty(prop)) {
-					console.log(prop);
-					module.value(prop, ret[prop]);
-				}
-			}
-		}
+		return factory.apply(null, args);
 	}
 
-
-	var regex_args = /\([^)]*\)/m;
-	var regex_comma = /\s*,\s*/;
-	function parseDependenciesFromFactory(factory) {
-		var deps = factory.toString().match(regex_args())[0];
-		return deps.slice(1, -1).split(regex_comma);
-	}
-
-
-	function $module(name, deps) {
-		if (arguments.length === 1) {
-			if (!_modules[name]) throw new Error("Module " + name + "is not defined.");
-			return _modules[name];
-		}
-
-		if (arguments.length === 2) {
-			/// @TODO: deps가 있으면 초기화
-			deps = deps || [];
-			return (_modules[name] = new Module(name, deps));
-		}
-
-		throw SyntaxError("$module(name, deps): name is required.");
-	}
 
 	function Module(name, dependencies) {
 		this.name = name;
-		this.dependencies = dependencies || [];
+		this.dependencies = dependencies;
 	}
-
 	Module.prototype = {
 		require: function(name) {
-			for (var i = 0, len = this.dependencies.length; i < len; i++) {
-				var module = $module(this.dependencies[i]);
-				invokeBlocks("provide", module);
-			}
-			invokeBlocks("provide", this);
-
 			return require(this, name);
 		},
 
-		factory: function(name, deps, factory) {
-			return define(this, name, deps, factory);
+		factory: function(name, recipe) {
+			return define(this, name, recipe);
 		},
 
 		value: function(name, value) {
-			$storage(this, "components")[name] = value;
-			return this;
-		},
-
-		define: function(deps, factory) {
-			return block(this, "define", deps, factory);
-		},
-
-		provide: function(deps, factory) {
-			return block(this, "provide", deps, factory);
-		},
-
-		config: function(deps, factory) {
-			return block(this, "config", deps, factory);
+			return define(this, name, itself(value));
 		}
 	};
 
-	window.$module = $module;
+	function $module(name, dependencies, define) {
+		var module = _module[name] = _module[name] || new Module(name, []);
+		if (arguments.length === 1) {
+			return module;
+		}
 
-})(window);
-</script>
+		for (var i = 0, len = dependencies.length; i < len; i++) {
+			var name = dependencies[i];
+			if (!module.dependencies[name]) {
+				module.dependencies.push(name);
+			}
+			module.dependencies[name] = name;
+		}
+		if (typeof define === "function") {
+			define.call(null, module);
+		}
+
+		return module;
+	}
+
+	$module("1px", [], function(module) {
+		module.factory("hello", [function() {
+			return function() {
+				return "hello";
+			}
+		}]);
+	});
+
+	$module("rest", ["1px"], function(module) {
+		module.factory("hello", [function() {
+			return function() {
+				console.log("rest!!" + "http");
+			}
+		}]);
+
+		module.factory("http", ["hello", function(hello) {
+			return function() {
+				console.log(hello() + "http");
+			}
+		}]);
+	});
+
+	$module("rest2", ["1px", "rest"], function(module) {
+		module.factory("http2", ["hello", "http", function(hello, http) {
+			return function() {
+				console.log(hello() + http() + "http2");
+			}
+		}]);
+	});
 
 
-<script src="1px.core.js"></script>
-<script src="1px.dom.js"></script>
+	var http = $module("rest2").require("http2");
 
-
-<script>
-	var app = $module("1px", ["core", "dom"]);
-
-	var addEvent = app.require("addEvent");
-
-
-
-
-
+	console.log(http);
+	http();
 
 </script>
 

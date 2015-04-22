@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+	<meta charset="UTF-8">
+	<title></title>
+</head>
+<body>
+<template id="mimosa-window">
+	<div>
+		<h1>${title}</h1>
+		<button (click)="$closeWindow(el)"></button>
+	</div>
+	<content></content>
+</template>
+
+
+<mimosa-window>
+	<mimosa-toolbar></mimosa-toolbar>
+	<mimosa-content>
+		<table>
+			<tr>
+				<th></th>
+				<th></th>
+				<th></th>
+			</tr>
+			<tr>
+				<td></td>
+				<td></td>
+				<td></td>
+			</tr>
+		</table>
+	</mimosa-content>
+</mimosa-window>
+
+<script>
+function $component(){}
+
+$component("mimosa-window", {
+	selector: "mimosa-window",
+
+	scope: {
+		x: 100,
+		y: 200
+	},
+
+	controller: function() {
+		return {
+			init: function() {
+
+			},
+
+			$closeWindow: function() {
+
+			}
+		}
+	}
+});
+
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,106 @@
+* {
+  margin: 0;
+  padding: 0;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  font-size: 100%;
+  font-weight: normal;
+}
+body {
+  padding: 8px;
+}
+.insert-file {
+  position: relative;
+  font-size: 12px;
+  background: #f5f5f5;
+  height: 25px;
+}
+.insert-file .insert-file-row {
+  white-space: nowrap;
+  position: relative;
+  height: 25px;
+  line-height: 25px;
+  width: 100%;
+  margin: 20px 0;
+}
+.insert-file .insert-file-row>* {
+  display: inline-block;
+  height: 100%;
+  vertical-align: middle;
+}
+.insert-file .insert-file-row .icon {
+  margin-left: 18px;
+  margin-right: 8px;
+  width: 15px;
+  height: 15px;
+  background: #ccc url("") no-repeat center center;
+}
+.insert-file .insert-file-row .content {
+  white-space: nowrap;
+  padding-right: 180px;
+}
+.insert-file .insert-file-row .content>* {
+  display: inline-block;
+  height: 100%;
+  vertical-align: middle;
+}
+.insert-file .insert-file-row .content h1 span {
+  color: #787878;
+  margin: 0 10px;
+}
+.insert-file .insert-file-row .note {
+  white-space: nowrap;
+  position: absolute;
+  right: 0;
+  width: 115px;
+  padding-left: 40px;
+  padding-right: 25px;
+}
+.insert-file .insert-file-row .note>* {
+  display: inline-block;
+  height: 100%;
+  vertical-align: middle;
+}
+.insert-file .insert-file-row .button {
+  width: 50px;
+  text-align: center;
+}
+.insert-file .insert-file-row .button:active {
+  background: #f1f1f1;
+}
+.insert-file .insert-file-row .divider {
+  height: 10px;
+  width: 1px;
+  background: #ccc;
+  margin: 7px;
+}
+.insert-file .insert-file-popover {
+  position: absolute;
+  left: 130px;
+  right: 0;
+  bottom: 0;
+  max-width: 750px;
+  background: #fffeff;
+  border: 1px solid #999ea4;
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+.insert-file .insert-file-popover .insert-file-row {
+  height: 17px;
+  line-height: 17px;
+}
+.insert-file .insert-file-popover .close-button {
+  width: 16px;
+  height: 17px;
+  background: #333 url("") no-repeat center center;
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  border-radius: 3px;
+}

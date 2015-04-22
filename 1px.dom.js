@@ -1,7 +1,16 @@
-$module("1px").define(["foreach", "makeArray", "noop", "msie", function(foreach, makeArray, noop, msie) {
+$module("1px", function(module) {
+
+	var foreach = module.require("foreach");
+	var makeArray = module.require("makeArray");
 
 	var ELEMENT_NODE = 1;
 	var TEXT_NODE = 3;
+
+	var ua = navigator.userAgent;
+	var msie = +(/msie (\d+)/i.exec(ua) || [])[1];
+	msie = msie || (/trident/i.test(ua) ? 11 : NaN);
+
+	var ios = +(/iphone|ipad (\d+)/i.exec(ua) || [])[1];
 
 	var regexp_whitespace = /\s+/g;
 
@@ -14,7 +23,6 @@ $module("1px").define(["foreach", "makeArray", "noop", "msie", function(foreach,
 		if (type === "lineHeight") return value;
 		return value + "px";
 	}
-
 
 	var uuid = 0;
 	function nextid() {
@@ -32,17 +40,6 @@ $module("1px").define(["foreach", "makeArray", "noop", "msie", function(foreach,
 		el._1pxjs = id = id || nextid();
 		store = _cache[id] = _cache[id] || {};
 		store[key] = value;
-	}
-
-	function dealloc(node) {
-		if (node._1pxjs) {
-			delete _cache[node._1pxjs];
-			node._1pxjs = undefined;
-		}
-
-		for (var i = 0, children = node.childNodes || [], len = children.length; i < len; i++) {
-			dealloc(children[i]);
-		}
 	}
 
 	function removeNode(node) {
@@ -135,36 +132,6 @@ $module("1px").define(["foreach", "makeArray", "noop", "msie", function(foreach,
 		var fn = arguments[arguments.length-1];
 		for (var i = 1, len = arguments.length-1; i < len; i++) {
 			removeEvent(el, arguments[i], fn);
-		}
-	}
-
-	function traversal(node, fn, data) {
-		fn = fn || noop;
-		var stack = [];
-		while(node) {
-			node = fn(node, data) === false ? stack.pop() : node.firstChild || stack.pop();
-			node && node.nextSibling && stack.push(node.nextSibling);
-		}
-	}
-
-	function traversal2(node, fn, fn2, data) {
-		fn = fn || noop;
-		fn2 = fn2 || noop;
-
-		var stack = [];
-		while(node) {
-			if (node.nodeType === ELEMENT_NODE) {
-				stack.push(node);
-				stack.push(true);
-			}
-
-			node = fn(node, data) === false ? stack.pop() : node.firstChild || stack.pop();
-			while (node === true) {
-				fn2(stack.pop(), data);
-				node = stack.pop();
-			}
-
-			node && node.nextSibling && stack.push(node.nextSibling);
 		}
 	}
 
@@ -425,10 +392,12 @@ $module("1px").define(["foreach", "makeArray", "noop", "msie", function(foreach,
 		};
 	}
 
-	return {
+	module.value({
+		"msie": msie,
+		"ios": ios,
+
 		"cssValue": cssValue,
 		"expandoStore": expandoStore,
-		"dealloc": dealloc,
 		"removeNode": removeNode,
 		"show": show,
 		"hide": hide,
@@ -449,8 +418,5 @@ $module("1px").define(["foreach", "makeArray", "noop", "msie", function(foreach,
 
 		"bind": bind,
 		"unbind": unbind,
-
-		"traversal": traversal,
-		"traversal2": traversal2
-	}
-}]);
+	});
+});

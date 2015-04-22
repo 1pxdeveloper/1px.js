@@ -16,7 +16,6 @@
  */
 
 
-
 var app = $module("app", ["1px", "ui"]);
 
 $module("ui", []).factory("$popup", ["$rootScope", function($rootScope) {
@@ -34,7 +33,6 @@ $module("ui", []).factory("$popup", ["$rootScope", function($rootScope) {
 
 	return popup;
 }]);
-
 
 
 app.controller("ViewController", function(self, $rootScope, $popup, $timeout) {
@@ -61,5 +59,26 @@ app.controller("ViewController", function(self, $rootScope, $popup, $timeout) {
 });
 
 
+app.controller("ViewController", function($scope, $rootScope, $popup, $timeout) {
+	var self = $scope;
+	return {
+		init: function() {
+			$rootScope.hello2 = "HELLO2";
 
+			self.tabs = ["tab1", "tab2", "tab3"];
+			self.hello = "HELLO, WORLD";
+			self.color = "blue";
 
+			$popup("popup-test");
+
+			$timeout(function() {
+				$popup.close();
+			}, 1000)
+		},
+
+		click: function(msg) {
+			alert(msg);
+			self.color = "red";
+		}
+	}
+});

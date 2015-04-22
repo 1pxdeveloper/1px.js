@@ -22,288 +22,196 @@
  define Recipe(factory + injection + invoker) -> Invoke Factory -> create Component
 
  */
-"use strict";
+(function(window, document, undefined) { "use strict";
 
-(function(window, document, undefined) {
-	function noop(){}
+	var _module = {};
+	var _component = {};
+	var _recipe = {};
 
-	function foreach(collection, fn) {
-		if (typeof collection !== "object" || collection == null) {
-			return collection;
-		}
+	function noop() {}
 
-		if (+collection.length) {
-			for (var i = 0, len = collection.length; i < len; i++) {
-				if (fn(collection[i], i) === false) {
-					return collection;
-				}
-			}
-			return collection;
-		}
-
-		for (var key in collection) {
-			if (collection.hasOwnProperty(key)) {
-				if (fn(collection[key], key) === false) {
-					return collection;
-				}
-			}
-		}
-
-		return collection;
-	}
-
-	Object.freeze = Object.freeze || function(){};
-
-	var _modules = {};
-	var _storage = {};
-
-	function $storage(module, namespace, value) {
-		var ret = _storage[module.name] = _storage[module.name] || {};
-		ret = ret[namespace] = ret[namespace] || value || {};
-		return ret;
-	}
-
-	function $find(module, namespace, key) {
-		var ret = _storage[module.name];
-		if (!ret) return;
-		ret = ret[namespace];
-		if (!ret) return;
-		return key in ret && {value: ret[key]};
-	}
-
-	function $lookup(module, namespace, key) {
-		var ret = $find(module, namespace, key);
-		if (ret) return ret;
-
-		var i = module.dependencies.length;
-		while(i--) {
-			ret = $lookup($module(module.dependencies[i]), namespace, key);
-			if (ret) return ret;
+	function each(obj, fn) {
+		if (!obj) return;
+		for(var prop in obj) {
+			obj.hasOwnProperty(prop) && fn(obj[prop], prop);
 		}
 	}
 
+	function $component(name) {
+		return (_component[name] = _component[name] || {});
+	}
 
+	function $recipe(name) {
+		return (_recipe[name] = _recipe[name] || {});
+	}
+
+	function createRecipeFromFactory(factory) {
+		if (typeof factory !== "function") {
+			throw TypeError('factory is must be function.');
+		}
+
+		if (factory.length === 0) return [factory];
+		var deps = factory.toString().match(/\([^)]*\)/m)[0];
+		var recipe = deps.slice(1, -1).split(/\s*,\s*/);
+		recipe.push(factory);
+		return recipe;
+	}
 
 	function define(module, name, recipe, invoker) {
-		recipe.$invoker = invoker;
-		$storage(module, "recipe")[name] = recipe;
-		return module;
+		if (typeof recipe === "function") {
+			recipe = createRecipeFromFactory(recipe);
+		}
+		recipe.$invoker = invoker || defaultInvoker;
+		$recipe(module.name)[name] = recipe;
 	}
 
-	function block(module, name, deps, factory) {
-		factory.$inject = deps;
-		$storage(module, "block/" + name, []).push(factory);
-		return module;
+	function block(module, name, recipe) {
+//		var module = $block(module.name)["block/"+name] = recipe;
 	}
 
-	function setComponent(module, name, value) {
-		$storage(module, "components")[name] = value;
-		return module;
-	}
-
-
-	/// @TODO: Factory에서 Component로 바뀌면 해당 Factory는 삭제하는 걸로...
 	function require(module, name, stack) {
 		stack = stack || [];
 
-		/// Look up Component: return component.
-		var component = $lookup(module, "components", name);
-		if (component) {
-			component = component.value;
-			setComponent(module, name, component);
-			return component;
-		}
+		var modules = module.dependencies.concat([module.name]);
+		var index = modules.length;
+		while(index--) {
+			var module_name = modules[index];
+			var component = $component(module_name);
+			var recipe = $recipe(module_name);
 
-
-		/// Look up Recipe
-		var recipe = $lookup(module, "recipe", name);
-		if (!recipe) {
-			throw new Error(name + " is undefined.");
-		}
-		recipe = recipe.value;
-
-		var factory = recipe.pop();
-		factory.$inject = recipe;
-		factory.$invoker = recipe.$invoker;
-
-		/// Circular defined
-		if (stack.indexOf(name) >= 0) {
-			stack.unshift(name);
-
-			// Circular defined 문제를 exports로 해결함. @FIXME: 변수명 고민고민..
-			var Exports = function(){};
-			var exports = new Exports;
-			setComponent(module, name, exports);
-			var proto = invoke(module, factory, stack);
-			if (proto && typeof proto === "object") {
-				Exports.prototype = proto;
-				return exports;
+			if (component.hasOwnProperty(name)) {
+				return component[name];
 			}
 
-			throw new Error("Circular dependency found. " + stack.join(" <- "));
+			if (recipe.hasOwnProperty(name) === false) {
+				continue;
+			}
+
+			if (stack.indexOf(name) >= 0) {
+				stack.unshift(name);
+				throw Error("circurlar defined. " + stack.join(" <- "));
+			}
+
+			stack.unshift(name);
+			var result = component[name] = invoke(module, recipe[name], stack);
+			stack.pop();
+			return result;
 		}
 
-		/// Create Component from Recipe
-		stack.unshift(name);
-		var ret = $storage(module, "components")[name] = invoke(module, factory, stack);
-		stack.shift();
-		return ret;
+		throw Error("'" + name + "' is not defined. ");
 	}
 
+	function invoke(module, recipe, stack) {
+		stack = stack || [];
 
-	/// --- Invoker
-	function invoke(module, factory, stack) {
-		var args = [], inject = factory.$inject;
-		foreach(factory.$inject, function(inject) {
-			args.push(require(module, inject, stack));
+		var inject = recipe.slice();
+		var factory = inject.pop();
+
+		return recipe.$invoker(module, factory, inject, stack);
+	}
+
+	function defaultInvoker(module, factory, inject, stack) {
+		var args = [];
+		inject.forEach(function(name) {
+			args.push(require(module, name, stack));
 		});
 
-		return (factory.$invoker || defaultInvoker)(factory, args)
-	}
-
-	function defaultInvoker(factory, args) {
 		return factory.apply(null, args);
 	}
 
-	function controllerInvoker(factory, args) {
-		var controller = {};
-		args.unshift(controller);
+	function controllerInvoker(module, factory, inject, stack) {
+		var $scope = {};
+		$component(module.name)["self"] = $scope;
 
-		var ret = factory.apply(null, args);
-		foreach(ret, function(value, key) {
-			controller[key] = ret[key]
+		var args = [];
+		inject.forEach(function(name) {
+			args.push(require(module, name, stack));
 		});
 
-		if (typeof controller["init"] === "function") {
-			controller["init"]();
-		}
+		var methods = factory.apply(null, args);
 
-		return controller;
-	}
-
-
-	/// --- Blocks -> @NOTE: 그러고 보니 얘도 invoker네~
-	function invokeBlocks(module, blockName, providerHanlder) {
-		var provideBlocks = $storage(module, "block/"+blockName, []);
-		while(provideBlocks.length) {
-			providerHanlder(module, invoke(module, provideBlocks.shift()));
-		}
-	}
-
-	function invokeAllBlocks(module, blockName, providerHanlder) {
-		foreach(module.dependencies, function(dependency) {
-			invokeBlocks($module(dependency), blockName, providerHanlder);
+		each(methods, function(method, prop) {
+			$scope[prop] = method;
 		});
-
-		invokeBlocks(module, blockName, providerHanlder);
-	}
-
-	function defineBlockProvider(module, result) {
-		foreach(result, function(value, name) {
-			module.value(name, value);
-		});
-	}
-
-
-	var regex_args = /\([^)]*\)/m;
-	var regex_comma = /\s*,\s*/;
-
-	function parseDependenciesFromFactory(factory) {
-		var deps = factory.toString().match(regex_args)[0];
-		return deps.slice(1, -1).split(regex_comma);
-	}
-
-
-
-
-	/// Export Module
-	function $module(name, deps) {
-		if (arguments.length === 1) {
-			if (!_modules[name]) throw new Error("Module '" + name + "' is not defined.");
-			return _modules[name];
+		if (typeof $scope["init"] === "function") {
+			$scope["init"]();
 		}
 
-		if (arguments.length === 2) {
-			/// @TODO: deps가 있으면 초기화
-			deps = deps || [];
-			return (_modules[name] = new Module(name, deps));
-		}
+		delete $component(module.name)["self"];
 
-		throw new SyntaxError("$module(name, deps): name is required.");
+		return $scope;
 	}
+
 
 	function Module(name, dependencies) {
 		this.name = name;
-		this.dependencies = dependencies || [];
+		this.dependencies = dependencies;
 	}
-
 	Module.prototype = {
 		require: function(name) {
-			invokeAllBlocks(this, "define", defineBlockProvider);
 			return require(this, name);
 		},
 
-		// define
 		factory: function(name, recipe) {
 			return define(this, name, recipe);
 		},
 
 		value: function(name, value) {
-			return setComponent(this, name, value);
+			if (arguments.length === 1) {
+				var self = this;
+				each(name, function(value, name) {
+					self.value(name, value);
+				});
+				return self;
+			}
+
+			return $component(this.name)[name] = value;
 		},
 
-		constant: function(name, constant) {
-			Object.freeze(constant);
-			return setComponent(this, name, constant);
-		},
-
-		/// define with provider
 		directive: function(name, recipe) {
 			return define(this, "directive/" + name, recipe);
 		},
 
 		controller: function(name, recipe) {
-			if (typeof recipe === "function") {
-				var factory = recipe;
-				recipe = parseDependenciesFromFactory(factory);
-				recipe.shift();
-				recipe.push(factory);
-			}
-
 			return define(this, "controller/" + name, recipe, controllerInvoker);
-		},
-
-
-		/// blocks
-		define: function(recipe) {
-			var factory = recipe.pop();
-			return block(this, "define", recipe, factory);
-		},
-
-		config: function(recipe) {
-			var factory = recipe.pop();
-			return block(this, "config", recipe, factory);
-		},
-
-		run: function(recipe) {
-			var factory = recipe.pop();
-			return block(this, "run", recipe, factory);
 		}
 	};
 
+
+	function $module(name, dependencies, define) {
+		var module = _module[name] = _module[name] || new Module(name, ["1px"]);
+		if (arguments.length === 1) {
+			return module;
+		}
+
+		if (typeof dependencies === "function") {
+			define = dependencies;
+		}
+		else if (+dependencies.length) {
+			for (var i = 0, len = dependencies.length; i < len; i++) {
+				var name = dependencies[i];
+				if (!module.dependencies[name]) {
+					module.dependencies.push(name);
+				}
+				module.dependencies[name] = name;
+			}
+		}
+
+		if (typeof define === "function") {
+			define.call(null, module);
+		}
+
+		return module;
+	}
+
+	$module("1px", [], function(module) {
+		module.value({
+			"window": window,
+			"document": document,
+			"noop": noop
+		});
+	});
+
 	window.$module = $module;
-
-
-	setTimeout(function() {
-		console.log("modules", _modules);
-		console.log("storage", _storage);
-	}, 500);
-
-
-	var module = $module("1px", []);
-	module.value("window", window);
-	module.value("document", document);
-	module.value("noop", noop);
-	module.value("foreach", foreach);
 
 })(window, document);

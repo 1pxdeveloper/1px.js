@@ -1,0 +1,645 @@
+<script>
+	function error(t, message) {
+		t.name = "SyntaxError";
+		t.message = message;
+		throw t;
+	}
+
+	var tokenize = function() {
+
+		var regex = [
+			["ws", /\s+/],
+			["number", /[0-9]+|[0-9]*\.[0-9]+/],
+			["string", /"(?:\\.|[^"])*"/],
+			["string", /'(?:\\.|[^'])*'/],
+			["regexp", /\/(?:\\.|[^\/])*\//],
+			["operator", /[{}()\[\].:;?~,]|===|!==|\+\+|--|&&|\|\||(?:>>>|<<|>>|[-+*%=<>!&|^])=?/],
+			["name", /./],
+		];
+
+		var len = regex.length;
+
+		var regex_string = regex.map(function(row) { return "(" + row[1].source + ")" }).join("|");
+		var regexp = new RegExp(regex_string, "g");
+
+		return function(script) {
+			var result = [];
+			var token = {};
+
+			script.replace(regexp, function(value) {
+
+				/// skip ws
+				if (arguments[1] != undefined) {
+					token = {};
+					return value;
+				}
+
+				/// name
+				if (token.type === "name" && arguments[len] !== undefined) {
+					token.value += value;
+					return value;
+				}
+
+				for (var i = 1; i < len; i++) {
+					if (arguments[i + 1] === undefined) {
+						continue;
+					}
+
+					token = {};
+					token.type = regex[i][0];
+					if (token.type === "number") {
+						value = +value;
+					}
+
+					token.value = value;
+					result.push(token);
+					return value;
+				}
+
+				return value;
+			});
+
+			return result;
+		}
+	}();
+
+	// parse.js
+	// Parser for Simplified JavaScript written in Simplified JavaScript
+	// From Top Down Operator Precedence
+	// http://javascript.crockford.com/tdop/index.html
+	// Douglas Crockford
+	// 2010-06-26
+
+	var make_parse = function() {
+		var symbol_table = {};
+		var token;
+		var tokens;
+		var token_nr;
+		var scope;
+
+		var itself = function() {
+			return this;
+		};
+
+		var original_scope = {
+			find: function(n) {
+				var e = this, o;
+				while(true) {
+					o = e.def[n];
+					if (o && typeof o !== 'function') {
+						return e.def[n];
+					}
+					e = e.parent;
+					if (!e) {
+						o = symbol_table[n];
+						return o && typeof o !== 'function' ? o : symbol_table["(name)"];
+					}
+				}
+			},
+			reserve: function(n) {
+				if (n.arity !== "name" || n.reserved) {
+					return;
+				}
+				var t = this.def[n.value];
+				if (t) {
+					if (t.reserved) {
+						return;
+					}
+					if (t.arity === "name") {
+						error(n, "Already defined.");
+					}
+				}
+				this.def[n.value] = n;
+				n.reserved = true;
+			}
+		};
+
+		scope = Object.create(original_scope);
+		scope.def = {};
+
+		function advance(id) {
+			var a, o, t, v;
+			if (id && token.id !== id) {
+				error(token, "Expected '" + id + "'.");
+			}
+			if (token_nr >= tokens.length) {
+				token = symbol_table["(end)"];
+				return;
+			}
+			t = tokens[token_nr];
+			token_nr += 1;
+			v = t.value;
+			a = t.type;
+			if (a === "name") {
+				o = scope.find(v);
+			}
+			else if (a === "operator") {
+				o = symbol_table[v];
+				if (!o) {
+					error(t, "Unknown operator.");
+				}
+			}
+			else if (a === "string" || a === "number") {
+				o = symbol_table["(literal)"];
+				a = "literal";
+			}
+			else {
+				error(t, "Unexpected token.");
+			}
+			token = Object.create(o);
+			token.value = v;
+			token.arity = a;
+			return token;
+		}
+
+		function expression(rbp) {
+			var left;
+			var t = token;
+			advance();
+			left = t.nud();
+			while(rbp < token.lbp) {
+				t = token;
+				advance();
+				left = t.led(left);
+			}
+			return left;
+		}
+
+		var original_symbol = {
+			nud: function() {
+				error(this, "Undefined.");
+			},
+			led: function(left) {
+				error(this, "Missing operator.");
+			}
+		};
+
+		function symbol(id, bp) {
+			var s = symbol_table[id];
+			bp = bp || 0;
+			if (s) {
+				if (bp >= s.lbp) {
+					s.lbp = bp;
+				}
+			}
+			else {
+				s = Object.create(original_symbol);
+				s.id = s.value = id;
+				s.lbp = bp;
+				symbol_table[id] = s;
+			}
+			return s;
+		}
+
+		function constant(s, v) {
+			var x = symbol(s);
+			x.nud = function() {
+				scope.reserve(this);
+				this.value = symbol_table[this.id].value;
+				this.arity = "literal";
+				return this;
+			};
+			x.value = v;
+			return x;
+		}
+
+		function infix(id, bp, led) {
+			var s = symbol(id, bp);
+			s.led = led || function(left) {
+				this.first = left;
+				this.second = expression(bp);
+				this.arity = "binary";
+				return this;
+			};
+			return s;
+		}
+
+		function infixr(id, bp, led) {
+			var s = symbol(id, bp);
+			s.led = led || function(left) {
+				this.first = left;
+				this.second = expression(bp - 1);
+				this.arity = "binary";
+				return this;
+			};
+			return s;
+		}
+
+		function assignment(id) {
+			return infixr(id, 10, function(left) {
+				if (left.id !== "." && left.id !== "[" && left.arity !== "name") {
+					error(left, "Bad lvalue.");
+				}
+				this.first = left;
+				this.second = expression(9);
+				this.assignment = true;
+				this.arity = "binary";
+				return this;
+			});
+		}
+
+		function prefix(id, nud) {
+			var s = symbol(id);
+			s.nud = nud || function() {
+				scope.reserve(this);
+				this.first = expression(80);
+				this.arity = "unary";
+				return this;
+			};
+			return s;
+		}
+
+		symbol("(end)");
+		symbol("(name)").nud = itself;
+		symbol("(literal)").nud = itself;
+
+		symbol(":");
+		symbol(",");
+		symbol(")");
+		symbol("]");
+		symbol("}");
+
+		symbol("this").nud = function() {
+			scope.reserve(this);
+			this.arity = "this";
+			return this;
+		};
+
+		constant("undefined", undefined);
+		constant("null", null);
+		constant("true", true);
+		constant("false", false);
+		constant("Infinity", Infinity);
+		constant("NaN", NaN);
+
+		infixr("&&", 30);
+		infixr("||", 30);
+
+		infixr("===", 40);
+		infixr("!==", 40);
+		infixr("==", 40);
+		infixr("!=", 40);
+
+		infixr("<", 50);
+		infixr("<=", 50);
+		infixr(">", 50);
+		infixr(">=", 50);
+		infixr("in", 50);
+		infixr("instanceof", 50);
+
+		infix("+", 60);
+		infix("-", 60);
+		infix("*", 70);
+		infix("/", 70);
+		infix("%", 70);
+
+		infix(".", 90, function(left) {
+			this.first = left;
+			if (token.arity !== "name") {
+				error(token, "Expected a property name.");
+			}
+			token.arity = "literal";
+			this.second = token;
+			this.arity = "binary";
+			advance();
+			return this;
+		});
+
+		infix("[", 90, function(left) {
+			this.first = left;
+			this.second = expression(0);
+			this.arity = "binary";
+			advance("]");
+			return this;
+		});
+
+		infix("(", 90, function(left) {
+			var a = [];
+			if (left.id === "." || left.id === "[") {
+				this.arity = "ternary";
+				this.first = left.first;
+				this.second = left.second;
+				this.third = a;
+			}
+			else {
+				this.arity = "binary";
+				this.first = left;
+				this.second = a;
+				if ((left.arity !== "unary" || left.id !== "function") &&
+						left.arity !== "name" && left.id !== "(" &&
+						left.id !== "&&" && left.id !== "||" && left.id !== "?") {
+					error(left, "Expected a variable name.");
+				}
+			}
+			if (token.id !== ")") {
+				while(true) {
+					a.push(expression(0));
+					if (token.id !== ",") {
+						break;
+					}
+					advance(",");
+				}
+			}
+			advance(")");
+			return this;
+		});
+
+		infix("?", 20, function(left) {
+			this.first = left;
+			this.second = expression(0);
+			advance(":");
+			this.third = expression(0);
+			this.arity = "ternary";
+			return this;
+		});
+
+
+		prefix("(", function() {
+			var e = expression(0);
+			advance(")");
+			return e;
+		});
+
+		prefix("!");
+		prefix("~");
+		prefix("+");
+		prefix("-");
+		prefix("++");
+		prefix("--");
+		prefix("typeof");
+
+		prefix("[", function() {
+			var a = [];
+			if (token.id !== "]") {
+				while(true) {
+					a.push(expression(0));
+					if (token.id !== ",") {
+						break;
+					}
+					advance(",");
+				}
+			}
+			advance("]");
+			this.first = a;
+			this.arity = "unary";
+			return this;
+		});
+
+		prefix("{", function() {
+			var a = [], n, v;
+			if (token.id !== "}") {
+				while(true) {
+					n = token;
+					if (n.arity !== "name" && n.arity !== "literal") {
+						error(token, "Bad property name.");
+					}
+					advance();
+					advance(":");
+					v = expression(0);
+					v.key = n.value;
+					a.push(v);
+					if (token.id !== ",") {
+						break;
+					}
+					advance(",");
+				}
+			}
+			advance("}");
+			this.first = a;
+			this.arity = "unary";
+			return this;
+		});
+
+		assignment("=");
+		assignment("+=");
+		assignment("-=");
+		assignment("*=");
+		assignment("/=");
+		assignment("%=");
+		assignment("<<=");
+		assignment(">>=");
+		assignment(">>>=");
+		assignment("&=");
+		assignment("^=");
+		assignment("|=");
+
+		return function(source) {
+			tokens = tokenize(source);
+			token_nr = 0;
+			advance();
+			var s = expression(0);
+			advance("(end)");
+			return s;
+		};
+	};
+
+
+
+
+
+	var parse = make_parse();
+
+	function go(source) {
+		var string, tree;
+		try {
+			tree = parse(source);
+			string = JSON.stringify(tree, ['key', 'name', 'message',
+				'value', 'arity', 'first', 'second', 'third', 'fourth'], 4);
+		}
+		catch(e) {
+			string = JSON.stringify(e, ['name', 'message', 'from', 'to', 'key',
+				'value', 'arity', 'first', 'second', 'third', 'fourth'], 4);
+		}
+
+		return tree;
+	}
+
+	var $scope = {
+		stack: [],
+
+		index: function(name) {
+			var i = this.stack.length;
+			while(i--) {
+				if (name in this.stack[i]) {
+					return i;
+				}
+			}
+			return -1;
+		},
+
+		find: function(name) {
+			var index = this.index(name);
+			if (index === -1) return;
+			return this.stack[index][name];
+		},
+
+		assign: function(name, value) {
+			var index = this.index(name);
+			if (index === -1) return;
+			return this.stack[index][name] = value;
+		}
+	};
+
+	function $eval(expression, stack) {
+		$scope.stack = stack;
+		exec.$scope = $scope;
+		return exec(parse(expression));
+	}
+
+	function exec(tree, flag) {
+		if (tree.arity === "name") {
+			if (flag === "assign") {
+				return {object: exec.$scope.stack[0], key: tree.value};
+			}
+
+			/// @TODO: find_scope
+			return exec.$scope.find(tree.value);
+		}
+
+		if (tree.arity === "literal") {
+			return tree.value;
+		}
+
+		var $0 = tree.first;
+		var $1 = tree.second;
+		var $2 = tree.third;
+		var obj, value;
+
+		switch(tree.value) {
+			case ".":
+				if (flag === "assign") {
+					return {object: exec($0), key: exec($1)};
+				}
+
+				obj = exec($0);
+				if (obj) return obj[exec($1)];
+				return undefined;
+
+			case "[":
+				if (tree.arity === "unary") {
+					return $0.map(function(o) {
+						return exec(o);
+					});
+				}
+
+				obj = exec($0);
+				if (obj) return obj[exec($1)];
+				return undefined;
+
+
+			case "!":
+				return !exec($0);
+
+			case "~":
+				return exec($0);
+
+			case "typeof":
+				return typeof exec($0);
+
+
+			case "||":
+				return exec($0) || exec($1);
+
+			case "&&":
+				return exec($0) && exec($1);
+
+
+			case "+":
+				if (tree.arity === "unary") return +exec($0);
+				return exec($0) + exec($1);
+
+			case "-":
+				if (tree.arity === "unary") return -exec($0);
+				return exec($0) - exec($1);
+
+			case "/":
+				return exec($0) / exec($1);
+
+			case "*":
+				return exec($0) * exec($1);
+
+			case "%":
+				return exec($0) % exec($1);
+
+
+			case "===":
+				return exec($0) === exec($1);
+
+			case "!==":
+				return exec($0) !== exec($1);
+
+			case "==":
+				return exec($0) == exec($1);
+
+			case "!=":
+				return exec($0) != exec($1);
+
+			case "<":
+				return exec($0) < exec($1);
+
+			case "<=":
+				return exec($0) <= exec($1);
+
+			case ">":
+				return exec($0) > exec($1);
+
+			case ">=":
+				return exec($0) >= exec($1);
+
+			case "?":
+				return exec($0) ? exec($1) : exec($2);
+
+			case "=":
+				obj = exec($0, "assign");
+				value = exec($1);
+				return (obj.object[obj.key] = value);
+
+			case "+=":
+				obj = exec($0, "assign");
+				value = exec($1);
+				return (obj.object[obj.key] += value);
+
+			case "-=":
+				obj = exec($0, "assign");
+				value = exec($1);
+				return (obj.object[obj.key] -= value);
+		}
+	}
+
+
+//	{ } ( ) [ ]
+//			. ; , < > <=
+//	>= == != === !==
+//	+ - * % ++ --
+//	<< >> >>> & | ^
+//	! ~ && || ? :
+//			= += -= *= %= <<=
+//			>>= >>>= &= |= ^=
+//
+//	/ /=
+
+	var root = {
+		hello: "hello"
+	};
+
+	var data = {
+		x: 100,
+		y: 200,
+		o: {a: 100, b: 200, def: {hello: "hello"}}
+	};
+
+	var script = "Infinity";
+
+	var tree = go(script);
+	console.log(tree);
+
+	var c = $eval(script, [root, data]);
+	console.log(c);
+
+	var d = eval("with(root)with(data)" + script);
+	console.log(d);
+
+	console.log(data);
+
+
+</script>

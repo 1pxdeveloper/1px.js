@@ -1,8 +1,11 @@
-$module("1px").define(["foreach", "$cache", "noop", function(foreach, $cache, noop) {
+$module("1px", function(module) {
 
+	var _cache = {};
 	var regex_string = /"[^"]*"|'[^']*'/g;
 
-	function parse_expr(string, fn) {
+	function noop(){}
+
+	function $$parse_expr(string, fn) {
 		fn = fn || noop;
 		while(string) {
 			var index = string.indexOf("{");
@@ -38,7 +41,7 @@ $module("1px").define(["foreach", "$cache", "noop", function(foreach, $cache, no
 			return;
 		}
 
-		var cache = $cache("eval"),
+		var cache = _cache,
 			thisObj = scope[scope.length-1],
 			length = scope.length,
 			hash = length + script,
@@ -58,24 +61,20 @@ $module("1px").define(["foreach", "$cache", "noop", function(foreach, $cache, no
 			return fn.apply(thisObj, scope.concat(scope.local || {}));
 
 		} catch(e) {
-			console.error(e.stack);
+			console.debug("'" + script + "'", e.message);
 		}
 	}
 
 	function $parse(script, scope) {
 		var result = "";
-		parse_expr(script, function(text, isexpr) {
+		$$parse_expr(script, function(text, isexpr) {
 			result += isexpr ? $eval(text, scope) : text;
 		});
 		return result;
 	}
 
-	return {
-		"$eval": $eval,
-		"$parse": $parse,
 
-		/// @FIXME...
-		"parse_expr": parse_expr
-	}
-}]);
-
+	module.value("$eval", $eval);
+	module.value("$parse", $parse);
+	module.value("$$parse_expr", $$parse_expr);
+});

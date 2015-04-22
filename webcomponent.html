@@ -1,0 +1,96 @@
+<body>
+
+<script>
+	function $() {}
+
+	$.prototype = {
+		$attr: function(){},
+
+		$addClass: function(){},
+		$removeClass: function(){},
+		$hasClass: function(){},
+		$css: function(){},
+		$prop: function(){},
+
+		$children: function(){},
+
+		$first: function(){},
+		$last: function(){},
+
+		$append: function(){},
+		$appendTo: function(){},
+		$prepend: function(){},
+		$prependTo: function(){},
+		$after: function(){},
+		$insertAfter: function(){},
+		$before: function(){},
+		$insertBefore: function(){},
+		$remove: function(){},
+		$clone: function(){},
+
+		$width: function(){},
+		$height: function(){},
+		$offset: function(){},
+		$position: function(){},
+
+		$html: function(){},
+		$outerHtml: function(){},
+		$text: function(){},
+
+
+		$on: function(){},
+		$off: function(){},
+		$trigger: function(){}
+
+	}
+</script>
+
+
+
+<main>
+	<h1>{title}</h1>
+	<div></div>
+	<div *foreach="rows as row" (click)="foo(row)">{row.name}</div>
+	<div *template="id">
+		<h1>Title</h1>
+		<img [src]="`/path/to/{row.path}`"/>
+	</div>
+	<gallery [src]="rows"></gallery>
+</main>
+
+<template id="id">
+	<h1>dkfjaklfjkalsfsad</h1>
+	<content select="h1"></content>
+</template>
+
+
+
+
+<script>
+	var Main = $("main", function(self) {
+		return {
+			init: function() {
+				self.abc = "def";
+				self.hello = "abc";
+			},
+
+			foo: function() {
+				self.$append("abc");
+			},
+
+			bar: function() {
+
+			}
+		}
+	});
+
+//	var main = new Main();
+
+//	$("<main>").foo("hello");
+
+
+
+</script>
+
+
+</body>

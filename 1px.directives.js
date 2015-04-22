@@ -10,12 +10,92 @@
 
  3. directive FAST DOM!! read, write를 구분하는 법!!
  */
-(function(module, document, undefined) {
+$module("1px", function(module) {
+
+	module.directive("@controller", ["$controller", function($controller) {
+		return function(el, attrs, scope) {
+			return {
+				scope: $controller(attrs.controller)
+			}
+		}
+	}]);
+
+	module.directive("mimosa-window", function() {
+		return {
+			template: "template/gallery.html",
+
+			scope: {
+
+			},
+
+			controller: function() {
+
+			}
+		}
+	});
+
+
+	module.directive("@css", [function() {
+		return function(el, attrs) {
+			var initStyle = attrs.style;
+			attrs.$observe("css").$interpolate(function(value) {
+				el.style.cssText = initStyle + ";" + value;
+			});
+		}
+	}]);
+
+	module.directive("@template", [function() {
+		return function(el, attrs, scope, $template) {
+			attrs.$observe("template").$interpolate(function(value) {
+				$template.$import(value);
+			});
+		}
+	}]);
+
+	module.directive("@custom-button", [function() {
+		return function(el, attrs, scope, $template) {
+			$template("<div class='button'>" + el.html() + "</div>");
+			el.on("click", function() {
+
+			});
+
+			return {
+				template: "<button></button>",
+				scope: {
+
+				}
+			}
+		}
+	}]);
+
+	module.directive("@with", [function() {
+		return function(el, attrs, scope, $template) {
+			return {
+				scope: attrs.$eval("with")
+			}
+		}
+	}]);
+
+
+	module.directive("@item-expanable", [function() {
+		function slideToggle(el) {
+			// @TODO
+		}
+
+		return function(el, attrs) {
+			var $target = el.find("[item-expanable-target]");
+
+			el.find("[item-expanable-handle]").on("click", function(e) {
+				el.attr("item-expanded", true);
+			})
+		}
+	}]);
+
 
 	module.directive("controller", ["$controller", function($controller) {
 		return {
 			init: function(self) {
-				self.controller = $controller(self.script);
+				self.controller = $controller(self.script) || {};
 			},
 
 			value: function(self, el, scope) {
@@ -196,12 +276,12 @@
 	/// @TODO: nl2br을 적용한다. !! {text} 와는 다르다. {text} 와는...
 	module.directive("text", [function() {
 		function htmlEntities(str) {
-			return (""+str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+			return ("" + str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 		}
 
 		function nl2br(text) {
 			var breakTag = "<br/>";
-			return (""+text).replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1' + breakTag + '$2');
+			return ("" + text).replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1' + breakTag + '$2');
 		}
 
 		return {
@@ -244,7 +324,8 @@
 		}
 	}]);
 
-}($module("1px"), document));
+});
+
 
 
 /*
@@ -368,3 +449,4 @@ function __name() {
 	}
 }
 */
+

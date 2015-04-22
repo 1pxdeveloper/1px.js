@@ -1,0 +1,32 @@
+<div *foreach="rows as row">
+
+</div>
+
+<form #form (submit)="addTodo('1')" *with="product.monitoring.data as params">
+	<input type="text" [value]="params.abc"/>
+	<input type="checkbox" value="abc" [checked]="params.isOn"/>
+	<select>
+		<option *foreach="options as option">${value}</option>
+	</select>
+</form>
+
+
+<script>
+	var Foo = (function() {
+		function Foo(bar) {
+			this.bar = 'baz';
+		}
+		Foo.prototype = {
+
+		};
+		Foo.annotations = [
+			//new Component({ selector: app }),
+			//new Template({ url: 'todos.html' })
+		];
+		return Foo;
+	}());
+
+
+	console.log(Foo);
+
+</script>

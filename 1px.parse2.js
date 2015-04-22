@@ -710,6 +710,7 @@ $module("1px").define(["foreach", "msie", function(foreach, msie) {
 		var $0 = tree.first;
 		var $1 = tree.second;
 		var $2 = tree.third;
+		var obj, value;
 
 		switch(tree.value) {
 			case ".":
@@ -717,7 +718,7 @@ $module("1px").define(["foreach", "msie", function(foreach, msie) {
 					return {object: exec($0), key: exec($1)};
 				}
 
-				var obj = exec($0);
+				obj = exec($0);
 				if (obj) return obj[exec($1)];
 				return undefined;
 
@@ -728,7 +729,7 @@ $module("1px").define(["foreach", "msie", function(foreach, msie) {
 					});
 				}
 
-				var obj = exec($0);
+				obj = exec($0);
 				if (obj) return obj[exec($1)];
 				return undefined;
 
@@ -799,18 +800,18 @@ $module("1px").define(["foreach", "msie", function(foreach, msie) {
 
 
 			case "=":
-				var obj = exec($0, "assign");
-				var value = exec($1);
+				obj = exec($0, "assign");
+				value = exec($1);
 				return (obj.object[obj.key] = value);
 
 			case "+=":
-				var obj = exec($0, "assign");
-				var value = exec($1);
+				obj = exec($0, "assign");
+				value = exec($1);
 				return (obj.object[obj.key] += value);
 
 			case "-=":
-				var obj = exec($0, "assign");
-				var value = exec($1);
+				obj = exec($0, "assign");
+				value = exec($1);
 				return (obj.object[obj.key] -= value);
 		}
 	}
