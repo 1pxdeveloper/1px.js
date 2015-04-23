@@ -1,15 +1,16 @@
 <meta charset="utf-8"/>
-<script>
 
+<script>
 	var tokenize = function() {
 		var regex = [
 			["ws", /\s+/],
-			["name", /[^0-9\s!-#%-\/:-@\[-^`{-~][^\s!-#%-\/:-@\[-^`{-~]*/],
-			["operator", /[.\[\](){}:;?~,]|===|!==|\+\+|--|&&|\|\||(?:>>>|<<|>>|[-+*\/%=<>!&|^])=?/],
+			["name", /[^0-9\s\u0000-\u0023\u0025-\u002f\u003a-\u0040\u005b-\u005e\u0060\u007b-\u00a0\u200C\u200D][^\s\u0000-\u0023\u0025-\u002f\u003a-\u0040\u005b-\u005e\u0060\u007b-\u00a0\u200C\u200D]*/],
+			["operator", /===|!==|==|!=|<=|>=|&&|\|\|/],
+			["operator", /\+\+|--|(?:>>>|>>|<<|[-+*\/%&^|])=?/],
 			["number", /0[xX][0-9a-fA-F]+|[0-9]*\.[0-9]+|[0-9]+/],
 			["string", /"(?:\\.|[^"])*"|'(?:\\.|[^'])*'/],
 			["regexp", /\/(?:\\.|[^\/])+\/\w*/],
-			["unknown", /./]
+			["operator", /./]
 		];
 
 		var len = regex.length;
@@ -27,12 +28,6 @@
 					token = {};
 					return value;
 				}
-
-				/// name
-//				if (arguments[len] !== undefined && token.type === "name") {
-//					token.value += value;
-//					return value;
-//				}
 
 				for (var i = 1; i < len; i++) {
 					if (arguments[i + 1] === undefined) {
@@ -53,24 +48,20 @@
 		}
 	}();
 
-//	for (var i = 33; i < 200; i++) {
-//		console.log(i, String.fromCharCode(i));
-//	}
-
 	var symbol_table = {};
 	var token;
 	var tokens;
 	var token_nr;
 	var scope;
 
-	function itself() {
-		return this;
-	}
-
 	function error(t, message) {
 		t.name = "SyntaxError";
 		t.message = message;
 		throw t;
+	}
+
+	function itself() {
+		return this;
 	}
 
 	function advance(id) {
@@ -86,12 +77,11 @@
 		}
 
 		t = tokens[token_nr++];
-
-		v = t.value;
 		a = t.type;
+		v = t.value;
 
 		if (a === "name") {
-			o = symbol_table["(name)"];
+			o = symbol_table[v] || symbol_table["(name)"];
 		}
 		else if (a === "operator") {
 			o = symbol_table[v];
@@ -99,18 +89,23 @@
 				error(t, "Unknown operator.");
 			}
 		}
-		else if (a === "string" || a === "number") {
+		else if (a === "string") {
 			o = symbol_table["(literal)"];
 			a = "literal";
+		}
+		else if (a === "number") {
+			o = symbol_table["(literal)"];
+			a = "literal";
+			v = +v;
 		}
 		else {
 			error(t, "Unexpected token.");
 		}
 
 		token = Object.create(o);
-		token.type = t.type;
 		token.value = v;
 		token.arity = a;
+
 		return token;
 	}
 
@@ -136,7 +131,7 @@
 			error(this, "Missing operator.");
 		},
 		calc: function() {
-			return this.calcFn[this.arity].call(this, this.first, this.second);
+			return this.calcFn[this.arity].call(this, this.first, this.second, this.third);
 		}
 	};
 
@@ -161,16 +156,15 @@
 	function constant(s, v) {
 		var x = symbol(s);
 		x.nud = function() {
-//			scope.reserve(this);
-			this.value = symbol_table[this.id].value;
-			this.arity = "literal";
+			this.arity = "constant";
 			return this;
 		};
 		x.value = v;
+		x.calc = function() { return v; };
 		return x;
 	}
 
-	function infix(id, bp, led, calc) {
+	function infix(id, bp, led, calc, calc2) {
 		var s = symbol(id, bp);
 		s.led = led || function(left) {
 			this.first = left;
@@ -179,7 +173,9 @@
 			return this;
 		};
 
-		s.calcFn["binary"] = calc;
+		calc && (s.calcFn["binary"] = calc);
+		calc2 && (s.calcFn["ternary"] = calc2);
+
 		return s;
 	}
 
@@ -195,8 +191,6 @@
 		return this;
 	};
 
-
-
 	constant("undefined", undefined);
 	constant("null", null);
 	constant("true", true);
@@ -204,32 +198,30 @@
 	constant("Infinity", Infinity);
 	constant("-Infinity", -Infinity);
 	constant("NaN", NaN);
-	constant("Math", Math);
-
-	symbol("(end)");
-	symbol("(name)").nud = itself;
-	symbol("(name)").calcFn = {
-		"name": function() {
-			console.log(this);
-			return $scope[this.value];
-		}
-	};
-
-	symbol("(literal)").nud = itself;
-	symbol("(literal)").calcFn = {
-		"literal": function() {
-			console.log(this);
-
-			if (this.type === "number") return +this.value;
-			return this.value;
-		}
-	};
 
 	symbol(":");
 	symbol(",");
 	symbol(")");
 	symbol("]");
 	symbol("}");
+	symbol("(end)");
+
+	symbol("(name)").nud = itself;
+	symbol("(name)").calcFn = {
+		"name": function() {
+			return $scope[this.value];
+		},
+		"literal": function() {
+			return this.value;
+		}
+	};
+
+	symbol("(literal)").nud = itself;
+	symbol("(literal)").calcFn = {
+		"literal": function() {
+			return this.value;
+		}
+	};
 
 	symbol("this").nud = function() {
 		this.arity = "this";
@@ -257,12 +249,12 @@
 	});
 
 	infix(".", 90, function(left) {
-		this.first = left;
-
 		if (token.arity !== "name") {
 			error(token, "Expected a property name.");
 		}
 		token.arity = "literal";
+
+		this.first = left;
 		this.second = token;
 		this.arity = "binary";
 		advance();
@@ -271,6 +263,48 @@
 	}, function(a, b) {
 		var obj = a.calc();
 		return obj && obj[b.value];
+	});
+
+	infix("(", 90, function(left) {
+		var a = [];
+		if (left.id === "." || left.id === "[") {
+			this.arity = "ternary";
+			this.first = left.first;
+			this.second = left.second;
+			this.third = a;
+		}
+		else {
+			this.arity = "binary";
+			this.first = left;
+			this.second = a;
+			if ((left.arity !== "unary" || left.id !== "function")
+				&& left.arity !== "name" && left.id !== "("
+				&& left.id !== "&&" && left.id !== "||" && left.id !== "?") {
+				error(left, "Expected a variable name.");
+			}
+		}
+
+		if (token.id !== ")") {
+			while(true) {
+				a.push(expression(0));
+				if (token.id !== ",") {
+					break;
+				}
+				advance(",");
+			}
+		}
+
+		advance(")");
+		return this;
+
+	}, function(a, b) {
+		var thisObj = $scope;
+		return a.calc().apply(thisObj, b.map(calc));
+
+	}, function(a, b, c) {
+//		console.log(a.calc(), b.calc(), c);
+		var thisObj = a.calc();
+		return thisObj[b.calc()].apply(thisObj, c.map(calc));
 	});
 
 	prefix("+", null, function(a) {
@@ -285,10 +319,6 @@
 		return !a.calc();
 	});
 
-	prefix("~", null, function(a) {
-		return ~a.calc();
-	});
-
 	prefix("(", function() {
 		var e = expression(0);
 		advance(")");
@@ -296,10 +326,10 @@
 	});
 
 	prefix("[", function() {
-		var a = [];
+		var array = [];
 		if (token.id !== "]") {
-			while(true) {
-				a.push(expression(0));
+			for(;;) {
+				array.push(expression(0));
 				if (token.id !== ",") {
 					break;
 				}
@@ -307,7 +337,7 @@
 			}
 		}
 		advance("]");
-		this.first = a;
+		this.first = array;
 		this.arity = "unary";
 		return this;
 
@@ -315,60 +345,62 @@
 		return a.map(calc);
 	});
 
-	function calc(v) {
-		return v.calc();
+	function calc(token) {
+		return token.calc();
 	}
 
-/*
- 	+ - * / %
-	! ~
-
-	{}()[] . ; ,
-
- 	< > <= >= == != === !==
-
-	&& ||
-
-	++ --
-
-	? :
-
-	= += -= >>= >>>= &= /= *= %= <<= ^= |=
- */
-
-
-	function parse(source) {
+	// @TODO: parse는 cahce가능하게.. token도 cache가능하게 하자.
+	function $parse(source) {
 		tokens = tokenize(source);
 		token_nr = 0;
 		advance();
 		var s = expression(0);
 		advance("(end)");
-		return s;
+
+		return function(scope) {
+			$scope = scope;
+			console.log(JSON.stringify(s, null, "\t"));
+			return s.calc();
+		}
 	}
 
 	function value(a) {
 		return a.value;
 	}
 
-	var $scope = {
-		x: 200,
-		foo: {
-			bar: 500,
-			baz: {
-				x: 100,
-				y: 200
-			}
-		}
+	var $scope = {};
+
+	var source = "foo.bar(x)";
+	var root = $parse(source);
+
+	var scope1 = {x: 100, y: 200};
+	scope1.foo = function(x) {
+		return x * 2;
 	};
 
-	var source = "2 * x + abc.def + (100 + foo.baz.x * 2) / 1";
-	var root = parse(source);
-	console.log(root);
-	console.log(root.calc());
+	scope1.foo.a = 250;
 
+	scope1.foo.bar = function(x) {
+		return this.a * x;
+	};
+
+	console.log(root(scope1));
 	with($scope)console.log(eval(source));
 
 
+//	testOperator();
+
+	function testOperator() {
+		var a = "{ } ( ) [ ] . ; , < > <= >= == != === !== + - * % ++ -- << >> >>> & | ^ ! ~ && || ? : = += -= *= %= <<= >>= >>>= &= |= ^= / /=";
+
+		var script = document.getElementsByTagName("script")[0].innerText;
+		var $tokens = tokenize(a);
+		var b = a.split(/\s+/);
+
+		for (var i = 0; i < 100; i++) {
+			console.log($tokens[i].type, $tokens[i].value, b[i]);
+		}
+	}
 
 
 </script>
