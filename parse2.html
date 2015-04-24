@@ -64,6 +64,10 @@
 		return this;
 	}
 
+	function calc(token) {
+		return token.calc();
+	}
+
 	function advance(id) {
 		var a, o, t, v;
 
@@ -179,6 +183,21 @@
 		return s;
 	}
 
+	function infixr(id, bp, led, calc, calc2) {
+		var s = symbol(id, bp);
+		s.led = led || function(left) {
+			this.first = left;
+			this.second = expression(bp - 1);
+			this.arity = "binary";
+			return this;
+		};
+
+		calc && (s.calcFn["binary"] = calc);
+		calc2 && (s.calcFn["ternary"] = calc2);
+
+		return s;
+	}
+
 	function prefix(id, nud, calc) {
 		var s = symbol(id);
 		s.nud = nud || prefix.nud;
@@ -228,25 +247,12 @@
 		return this;
 	};
 
-	infix("+", 60, null, function(a, b) {
-		return a.calc() + b.calc();
-	});
 
-	infix("-", 60, null, function(a, b) {
-		return a.calc() - b.calc();
-	});
-
-	infix("*", 70, null, function(a, b) {
-		return a.calc() * b.calc();
-	});
-
-	infix("/", 70, null, function(a, b) {
-		return a.calc() / b.calc();
-	});
-
-	infix("%", 70, null, function(a, b) {
-		return a.calc() % b.calc();
-	});
+	infix("+", 60, null, function(a, b) { return a.calc() + b.calc(); });
+	infix("-", 60, null, function(a, b) { return a.calc() - b.calc(); });
+	infix("*", 70, null, function(a, b) { return a.calc() * b.calc(); });
+	infix("/", 70, null, function(a, b) { return a.calc() / b.calc(); });
+	infix("%", 70, null, function(a, b) { return a.calc() % b.calc(); });
 
 	infix(".", 90, function(left) {
 		if (token.arity !== "name") {
@@ -265,6 +271,17 @@
 		return obj && obj[b.value];
 	});
 
+	infix("[", 90, function(left) {
+		this.first = left;
+		this.second = expression(0);
+		this.arity = "binary";
+		advance("]");
+		return this;
+	}, function(a, b) {
+		var obj = a.calc();
+		return obj && obj[b.calc()];
+	});
+
 	infix("(", 90, function(left) {
 		var a = [];
 		if (left.id === "." || left.id === "[") {
@@ -278,8 +295,8 @@
 			this.first = left;
 			this.second = a;
 			if ((left.arity !== "unary" || left.id !== "function")
-				&& left.arity !== "name" && left.id !== "("
-				&& left.id !== "&&" && left.id !== "||" && left.id !== "?") {
+					&& left.arity !== "name" && left.id !== "("
+					&& left.id !== "&&" && left.id !== "||" && left.id !== "?") {
 				error(left, "Expected a variable name.");
 			}
 		}
@@ -302,22 +319,38 @@
 		return a.calc().apply(thisObj, b.map(calc));
 
 	}, function(a, b, c) {
-//		console.log(a.calc(), b.calc(), c);
 		var thisObj = a.calc();
 		return thisObj[b.calc()].apply(thisObj, c.map(calc));
 	});
 
-	prefix("+", null, function(a) {
-		return +a.calc();
+
+	infix("?", 20, function(left) {
+		this.first = left;
+		this.second = expression(0);
+		advance(":");
+		this.third = expression(0);
+		this.arity = "ternary";
+		return this;
+	}, null, function(a, b, c) {
+		return a.calc() ? b.calc() : c.calc();
 	});
 
-	prefix("-", null, function(a) {
-		return -a.calc();
-	});
 
-	prefix("!", null, function(a) {
-		return !a.calc();
-	});
+	infixr("&&", 30, null, function(a, b) { return a.calc() && b.calc(); });
+	infixr("||", 30, null, function(a, b) { return a.calc() || b.calc(); });
+	infixr("===", 40, null, function(a, b) { return a.calc() === b.calc(); });
+	infixr("!==", 40, null, function(a, b) { return a.calc() !== b.calc(); });
+	infixr("==", 40, null, function(a, b) { return a.calc() == b.calc(); });
+	infixr("!=", 40, null, function(a, b) { return a.calc() != b.calc(); });
+	infixr("<", 50, null, function(a, b) { return a.calc() < b.calc(); });
+	infixr("<=", 50, null, function(a, b) { return a.calc() <= b.calc(); });
+	infixr(">", 50, null, function(a, b) { return a.calc() > b.calc(); });
+	infixr(">=", 50, null, function(a, b) { return a.calc() >= b.calc(); });
+
+
+	prefix("+", null, function(a) { return +a.calc(); });
+	prefix("-", null, function(a) { return -a.calc(); });
+	prefix("!", null, function(a) { return !a.calc(); });
 
 	prefix("(", function() {
 		var e = expression(0);
@@ -328,7 +361,7 @@
 	prefix("[", function() {
 		var array = [];
 		if (token.id !== "]") {
-			for(;;) {
+			for (;;) {
 				array.push(expression(0));
 				if (token.id !== ",") {
 					break;
@@ -345,9 +378,38 @@
 		return a.map(calc);
 	});
 
-	function calc(token) {
-		return token.calc();
-	}
+	prefix("{", function() {
+		var a = [], n, v;
+		if (token.id !== "}") {
+			for(;;) {
+				n = token;
+				if (n.arity !== "name" && n.arity !== "literal") {
+					error(token, "Bad property name.");
+				}
+				advance();
+				advance(":");
+				v = expression(0);
+				v.key = n.value;
+				a.push(v);
+				if (token.id !== ",") {
+					break;
+				}
+				advance(",");
+			}
+		}
+		advance("}");
+		this.first = a;
+		this.arity = "unary";
+		return this;
+	}, function(a) {
+		var ret = {};
+		a.forEach(function(v) {
+			ret[v.key] = v.calc();
+		});
+		return ret;
+	});
+
+
 
 	// @TODO: parse는 cahce가능하게.. token도 cache가능하게 하자.
 	function $parse(source) {
@@ -364,13 +426,18 @@
 		}
 	}
 
+
+
+
+
+
 	function value(a) {
 		return a.value;
 	}
 
 	var $scope = {};
 
-	var source = "foo.bar(x)";
+	var source = "{x: 100}";
 	var root = $parse(source);
 
 	var scope1 = {x: 100, y: 200};
@@ -388,8 +455,7 @@
 	with($scope)console.log(eval(source));
 
 
-//	testOperator();
-
+	//	testOperator();
 	function testOperator() {
 		var a = "{ } ( ) [ ] . ; , < > <= >= == != === !== + - * % ++ -- << >> >>> & | ^ ! ~ && || ? : = += -= *= %= <<= >>= >>>= &= |= ^= / /=";
 
