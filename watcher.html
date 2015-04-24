@@ -82,6 +82,13 @@
 		}
 
 		$hashmap.get(object).$next = noop;
+		for (var prop in object) {
+			if (object.hasOwnProperty(prop)) {
+				var value = object[prop];
+				$unobserve(value);
+			}
+		}
+
 		$hashmap["delete"](object);
 	}
 
