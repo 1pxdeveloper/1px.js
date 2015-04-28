@@ -8,11 +8,15 @@
 <pre id="output"></pre>
 
 <script>
-
+(function(window, document) {
 	var $setImmediate = window.requestAnimationFrame;
 	var $hashmap = new WeakMap();
 
 	function noop(){}
+
+	function $nextProcess() {
+		$setImmediate(this);
+	}
 
 	/// @TODO: 이거 옛날 브라우저에 돌아가는 방법 고려해보자.
 	function isDOM(o) {
@@ -20,10 +24,6 @@
 				typeof Node === "object" ? o instanceof Node :
 				o && typeof o === "object" && typeof o.nodeType === "number" && typeof o.nodeName === "string"
 		);
-	}
-
-	function $nextProcess() {
-		$setImmediate(this);
 	}
 
 	function $createPathObserver(props, shadow, object) {
@@ -69,7 +69,14 @@
 
 		$hashmap.set(object, $watcher);
 		$watcher.$next();
-		return $createPathObserver(props, shadow, object);
+
+		var ret = {
+
+		};
+
+		return {
+			addPath: $createPathObserver(props, shadow, object)
+		};
 	}
 
 	function $unobserve(object) {
@@ -91,6 +98,14 @@
 
 		$hashmap["delete"](object);
 	}
+
+
+	window.$observe = $observe;
+	window.$unobserve = $unobserve;
+
+}(window, document));
+
+
 
 
 	var $output = document.getElementById("output");

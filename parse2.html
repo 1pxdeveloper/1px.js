@@ -131,9 +131,11 @@
 		nud: function() {
 			error(this, "Undefined.");
 		},
+
 		led: function() {
 			error(this, "Missing operator.");
 		},
+
 		calc: function() {
 			return this.calcFn[this.arity].call(this, this.first, this.second, this.third);
 		}
