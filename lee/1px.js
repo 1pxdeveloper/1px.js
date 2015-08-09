@@ -960,6 +960,7 @@ Date.prototype.toISOString || (Date.prototype.toISOString = function() {
 			var node = binding.node;
 			var script = binding.script;
 			var value = handler.value(binding, el, node, script);
+
 			if (!binding.hasOwnProperty("value") || binding.value !== value) {
 				binding.value = value;
 

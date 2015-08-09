@@ -1,0 +1,117 @@
+<script>
+
+	var tokens = [];
+	var token;
+	var index;
+
+	function next() {
+		return tokens[index++];
+	}
+
+	function tokenize(str) {
+		var ret = [];
+		var a = /([0-9]+)|([-+*/])|\s|.]/g
+
+		str.replace(a, function(value, number, operator) {
+			if (number) {
+				ret.push(createToken("(literal)", value));
+				return a;
+			}
+
+			if (operator) {
+				ret.push(createToken(value, value));
+				return a;
+			}
+
+			return a;
+		});
+
+		ret.push(createToken("(end)"));
+
+		tokens = ret;
+		index = 0;
+		token = next();
+
+		return ret;
+	}
+
+	function expression(rbp) {
+		rbp = rbp || 0;
+		var t = token;
+		token = next();
+		var left = t.nud();
+
+		while(rbp < token.lbp) {
+			t = token;
+			token = next();
+			left = t.led(left);
+		}
+
+		return left;
+	}
+
+
+	var stack = [];
+
+	var symbol = {};
+
+	symbol["(end)"] = {
+		lbp: 0
+	};
+
+	symbol["(literal)"] = {
+		nud: function() {
+			return +this.value;
+		}
+	};
+
+	symbol["+"] = {
+		lbp: 10,
+
+		nud: function() {
+			return expression(100);
+		},
+
+		led: function(left) {
+			return left + expression(10);
+		}
+	};
+
+	symbol["-"] = {
+		lbp: 10,
+		nud: function() {
+			return -expression(100);
+		},
+		led: function(left) {
+			return left - expression(10);
+		}
+	};
+
+	symbol["*"] = {
+		lbp: 20,
+		led: function(left) {
+			return left * expression(20);
+		}
+	};
+
+	function createToken(type, value) {
+		return {
+			type: type,
+			value: value,
+			lbp: symbol[type].lbp,
+			nud: symbol[type].nud,
+			led: symbol[type].led
+		}
+	}
+
+
+	var expr = "1 + 2 + 3";
+	tokenize(expr);
+
+	var e = expression();
+
+	console.log(e);
+
+
+</script>
+

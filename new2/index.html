@@ -1,0 +1,97 @@
+<meta charset="utf-8"/>
+
+<div id="output"></div>
+
+<pre>
+<section>x.toString(x.length)</section>
+<section>foo(x) + foo.x - x</section>
+<section>foo() + foo.x - x</section>
+<section>foo</section>
+<section>custom</section>
+<section>object</section>
+
+<!-- <section>x</section>
+<section>foo.a</section>
+<section>foo.x</section>
+<section>x + foo.x + x</section>
+<section>x === foo.x</section>
+<section>x === foo.bar.x</section>
+<section>foo[foo.x].a</section>
+<section>foo(x)</section> -->
+</pre>
+
+
+<script src="watchtower.js"></script>
+<script src="parse.js"></script>
+<script>
+
+
+/*
+(OK) parse.js에서 $watch로 거는 개별 콜백이 동일한 형태(self.uncahce) 이므로 callbacks를 제거할 수 있다.
+ (OK): self.path를 생성하는 과정에서 old_path를 체크할수 있고 map삭제가 가능하다는 것을 의미한다.
+ (OK): self.path를 생성하는 과정에서 {path: token} 형태의 테이블을 생성하고 new path에 대해서 uncache()하는 형태로 callback을 제거한다.
+ @TODO: map, {path:token}, $scope를 한 큐에 처리하는 방법을 고민한다.
+ @TODO: [$scope, $scope, $scope, $local] 등의 $scope Stack을 처리하는 방법을 고민 할 것!
+
+ @TODO: Object, Array, Function 등의 notEqual은 어디까지 어떻게 처리 할거?
+ => Text는 String이니까 toString()을 비교하는 것만 추가하도록 하면 되겠음.
+ => DOM property는 Object, Array 등을 넣는게 없음
+
+
+*/
+	function foreach(arr, fn) {
+		for(var i = 0, len = arr.length; i < len; i++) {
+			fn(arr[i], i);
+		}
+	}
+
+	function value(a) {
+		return a.value;
+	}
+
+
+	var $scope = {x: 100, y: 200};
+	$scope.foo = function(x) {
+		return Math.random();
+	};
+
+	$scope.foo.a = 250;
+	$scope.foo.x = "bar";
+	$scope.foo.bar = {};
+	$scope.foo.bar.a = 3000;
+
+	$scope.foo.baz = {};
+	$scope.foo.baz.a = 300;
+
+	$scope.custom = {};
+	$scope.custom.toString = function() {
+		return "Custom!!";
+	};
+
+	$scope.object = {};
+
+
+
+
+	var map = {};
+
+	var els = document.querySelectorAll("section");
+	foreach(els, function(el) {
+		var fn = $parse(el.innerText);
+		var textNode = document.createTextNode("");
+		el.appendChild(textNode);
+
+		/// @TODO: map과 $scope를 한번에 같이 정의하는 형태로 가져간다.
+		var scope = $watchTower(map, function() {
+			console.log("$update()");
+			var ret = fn(scope);
+			textNode.nodeValue = " : " + ret;
+		});
+
+		scope.$scope = $scope;
+
+		fn(scope);
+	});
+
+
+</script>
