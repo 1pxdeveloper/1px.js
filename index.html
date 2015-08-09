@@ -1,119 +1,584 @@
-<!DOCTYPE html>
-<html>
-<head lang="en">
-	<meta charset="UTF-8">
-	<title></title>
-	<script src="1px.js"></script>
-<style>
-img:not([src]) { opacity: 0 }
+<div>
+	<h1>hello, x + y = {{x + y}}</h1>
+	<h2>{{ foo.x * 2}}</h2>
+	<h2>{{ title }}</h2>
+	<h3>{{ foo.title }}</h3>
+	<h3>2 * (3 + 7) : {{ 2 * (3 + 7) }}</h3>
+	<h3 [src]="title + '.png'">2 * 3 * 7 : {{ 2 * 3 + 7 }}</h3>
+</div>
 
-* {
-	box-sizing: border-box;
-	-webkit-user-select: none;
-}
-
-wux-button {
-	width: 200px;
-	height: 56px;
-	border: 1px solid #ccc;
-	position: relative;
-	overflow: hidden;
-	display: block;
-	padding: 16px;
-	-webkit-transition: all .5s;
-	text-align: center;
-	border-radius: 56px 56px;
-	-webkit-transform: translateZ(0);
-	-webkit-mask-image: -webkit-radial-gradient(circle, white 100%, black 100%);
-}
-wux-button:active {
-	-webkit-transition: none;
-	background: rgba(0,0,0,.1);
-}
-
-
-wux-ripple-container {
-	pointer-events: none;
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-}
-
-wux-ripple-container wux-ripple {
-	width: 100%;
-	padding-bottom: 100%;
-	background: rgba(0,0,0,.1);
-	position: absolute;
-	top: 0;
-	left: 0;
-	display: block;
-	border-radius: 50%;
-	-webkit-transform: translate3d(-50%,-50%,0) scale3d(0,0,0);
-	opacity: 1;
-}
-
-wux-ripple-container.active wux-ripple {
-	transition: all 1.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-	-webkit-transform: translate3d(-50%,-50%,0) scale3d(2,2,2);
-	opacity: 0;
-}
-</style>
-</head>
-
-<body app="app" controller="ViewController">
-
-
-<wux-button>BUTTON 1</wux-button>
-<wux-button>BUTTON 1</wux-button>
-<wux-button>BUTTON 1</wux-button>
-
-<wux-ripple-container id="ripple"><wux-ripple></wux-ripple></wux-ripple-container>
 
 <script>
-	$module("app", function(app) {
-		app.controller("ViewController", function(self, $rootScope) {
-			return {
-				init: function() {
-					self.title = "asdkfjakslfdsad";
-				},
+	function noop() {}
 
-				"bob": "밥",
+	/// Tokenizer
+	var re = /([a-zA-Z]+)|([0-9]+)|(===|!==|==|!=|<=|>=|\|\||&&|[-+*/.<>\(\)!])|./g;
 
-				"hello": function() {
+	var tokens;
+	var token;
 
+	var TOKEN_TYPES = [
+		"",
+		"(name)",
+		"(number)",
+		"(operator)"
+	];
+
+	function tokenize(script) {
+
+		tokens = [];
+		tokens.index = 0;
+
+		script.replace(re, function(value, name, number, operator) {
+			var type;
+			for (var i = 1, len = arguments.length; i < len; i++) {
+				if (arguments[i]) {
+					type = TOKEN_TYPES[i];
+					break;
 				}
 			}
-		});
-	});
 
-	var ripple = document.getElementById("ripple");
-	ripple.parentNode.removeChild(ripple);
+			if (!type) {
+				return value;
+			}
 
-	document.onmousedown = function(e) {
-		var el = e.target;
-		console.log(el);
+			var token = createToken(type, value);
+			tokens.push(token);
 
-		ripple = ripple.cloneNode(true);
-
-		var x = e.offsetX;
-		var y = e.offsetY;
-		ripple.style["-webkit-transform"] = "translate3d("+x+"px,"+y+"px,0)";
-		ripple.className = "";
-		ripple.addEventListener("webkitTransitionEnd", function(e) {
-			var ripple = e.target.parentNode;
-			ripple.parentNode.removeChild(ripple);
+			return value;
 		});
 
-		el.appendChild(ripple);
+		token = createToken("(end)");
+		tokens.push(token);
 
-		setTimeout(function() {
-			ripple.className = "active";
-		}, 0);
+		next();
+	}
+
+	function next() {
+		token = tokens[tokens.index++];
+		return token;
+	}
+
+
+	function createToken(type, value) {
+		var id = type;
+
+		if (type === "(number)") {
+			id = "(literal)";
+			value = +value;
+		}
+		else if (type === "(string)") {
+			id = "(literal)";
+		}
+		else if (type === "(operator)") {
+			id = value;
+		}
+
+		if (!symbol_table[id]) {
+			throw "has not defined symbol: " + id;
+		}
+
+		var token = Object.create(symbol_table[id]);
+		token.value = value;
+
+		return token;
+	}
+
+
+	/// Symbol
+	function expression(rbp) {
+		rbp = rbp || 0;
+
+		var t = token;
+		next();
+		var left = t.nud();
+
+		while(rbp < token.lbp) {
+			t = token;
+			next();
+			left = t.led(left);
+		}
+
+		return left;
+	}
+
+	var original_symbol = {
+		lbp: 0,
+		nbp: 0,
+		arity: 0,
+		cached: false,
+		callback: noop,
+
+		nud: function() {
+			this.error("nud error!!");
+		},
+
+		led: function(left) {
+			this.error("led error.");
+		},
+
+		push: function(key, value) {
+			this[key] = value;
+			value.parent = this;
+			this.arity++;
+		},
+
+		error: function(e) {
+			throw e;
+		}
+	};
+
+	var symbol_table = {};
+
+	function symbol(id, bp) {
+		var s = symbol_table[id] = symbol_table[id] || Object.create(original_symbol);
+		s.id = id;
+		s.lbp = bp || s.lbp;
+		return s;
+	}
+
+	function constant(id, value) {
 
 	}
+
+	function prefix(id, bp, nud) {
+		var s = symbol(id);
+		s.nbp = bp;
+		s.nud = nud || prefix_nud;
+		return s;
+	}
+
+	function prefix_nud() {
+		this.push("a", expression(this.nbp));
+		return this;
+	}
+
+	function infix(id, bp, led) {
+		var s = symbol(id, bp);
+		s.led = led || infix_led;
+		return s;
+	}
+
+	function infix_led(left) {
+		this.push("a", left);
+		this.push("b", expression(this.lbp));
+		return this;
+	}
+
+	function infixr(id, bp, led) {
+		var s = symbol(id, bp);
+		s.led = led || infixr_led;
+		return s;
+	}
+
+	function infixr_led(left) {
+		this.push("a", left);
+		this.push("b", expression(this.lbp - 1));
+		return this;
+	}
+
+
+	/// Calc
+	function calcRule(id, arity, fn) {
+		var s = symbol(id);
+		s.exec = s.exec || {};
+		s.exec[arity] = fn;
+		return s;
+	}
+
+	function calc(token) {
+		if (token.cached) {
+			return token.cache;
+		}
+
+		token.cache = token.exec[token.arity](token, token.a, token.b, token.c);
+		token.cached = true;
+
+		return token.cache;
+	}
+
+
+
+
+	symbol("(end)");
+	symbol(":");
+	symbol(")");
+	symbol("]");
+	symbol("}");
+	symbol(",");
+
+	symbol("(name)").nud = function() {
+		this.push("a", this.value);
+		pushDirtyCheckList(this);
+		return this;
+	};
+
+	symbol("(literal)").nud = function() {
+		this.push("a", this.value);
+		return this;
+	};
+
+	infixr("&&", 30);
+	infixr("||", 30);
+
+	infixr("===", 40);
+	infixr("!==", 40);
+	infixr("==", 40);
+	infixr("!=", 40);
+	infixr("<", 40);
+	infixr("<=", 40);
+	infixr(">", 40);
+	infixr(">=", 40);
+
+	infix("+", 50);
+	infix("-", 50);
+
+	infix("*", 60);
+	infix("/", 60);
+
+	prefix("+", 70);
+	prefix("-", 70);
+	prefix("!", 70);
+
+	prefix("(", 70, function() {
+		var e = expression(0);
+		next(")");
+		return e;
+	});
+
+	infix(".", 80, function(left) {
+		if (token.id !== "(name)") {
+			this.error("SyntaxError name!!!");
+		}
+
+		this.push("a", left);
+		this.push("b", token);
+		next();
+
+		pushDirtyCheckList(this);
+
+		return this;
+	});
+
+
+	calcRule("(name)", 1, function(token, a) {
+		token.object = scope;
+		token.prop = a;
+		return scope[a];
+	});
+
+	calcRule("(literal)", 1, function(token, a) {
+		return a;
+	});
+
+	calcRule("+", 1, function(token, a) { return +calc(a); });
+	calcRule("-", 1, function(token, a) { return -calc(a); });
+	calcRule("!", 1, function(token, a) { return !calc(a); });
+
+	calcRule("&&", 2, function(token, a, b) { return calc(a) && calc(b); });
+	calcRule("||", 2, function(token, a, b) { return calc(a) || calc(b); });
+
+	calcRule("===", 2, function(token, a, b) { return calc(a) === calc(b); });
+	calcRule("!==", 2, function(token, a, b) { return calc(a) !== calc(b); });
+	calcRule("==", 2, function(token, a, b) { return calc(a) == calc(b); });
+	calcRule("!=", 2, function(token, a, b) { return calc(a) != calc(b); });
+	calcRule("<", 2, function(token, a, b) { return calc(a) < calc(b); });
+	calcRule("<=", 2, function(token, a, b) { return calc(a) <= calc(b); });
+	calcRule(">", 2, function(token, a, b) { return calc(a) > calc(b); });
+	calcRule(">=", 2, function(token, a, b) { return calc(a) >= calc(b); });
+
+	calcRule("+", 2, function(token, a, b) { return calc(a) + calc(b); });
+	calcRule("-", 2, function(token, a, b) { return calc(a) - calc(b); });
+	calcRule("*", 2, function(token, a, b) { return calc(a) * calc(b); });
+	calcRule("/", 2, function(token, a, b) { return calc(a) / calc(b); });
+
+	calcRule(".", 2, function(token, a, b) {
+		a = calc(a) || {};
+		token.object = a;
+		token.prop = b.value;
+
+		return a[b.value];
+	});
+
+
+	/// Dirty Check Process
+	var $rAF = window.requestAnimationFrame;
+
+	var dirtyCheckList = [];
+
+	function flush(token) {
+		while(token.parent) {
+			token.cached = false;
+			token = token.parent;
+		}
+
+		token.cached = false;
+		return token;
+	}
+
+	function pushDirtyCheckList(token) {
+		if (dirtyCheckList.indexOf(token) === -1) {
+			dirtyCheckList.push(token);
+		}
+	}
+
+	var d = 0;
+
+	function dirtyCheck() {
+		var t = performance.now();
+
+		for (var i = 0, len = dirtyCheckList.length; i < len; i++) {
+			var token = dirtyCheckList[i];
+			var a = token.object[token.prop];
+			var b = token.cache;
+
+			if (a === a ? a !== b : b === b) {
+				var oldValue = token.cache;
+				var root = flush(token);
+				var newValue = calc(root);
+				console.log(root, newValue, oldValue);
+				root.callback(newValue, oldValue);
+			}
+		}
+
+		d = Math.max(d, performance.now() - t);
+
+		$rAF(dirtyCheck);
+	}
+	dirtyCheck();
+
+
+
+
+	/// Test Code
+	function watch(script, args, callback) {
+
+		tokenize(script);
+//		console.log(tokens);
+
+		var e = expression(0);
+//		console.log(e);
+
+//		var a = JSON.stringify(e, ["a", "b", "c", "arity", "value", "type"], "\t");
+//		console.log(a);
+
+		e.callback = callback;
+
+		var result = calc(e);
+
+		console.log(result);
+
+		callback(result);
+	}
+
+
+	var scope = {};
+	scope.x = 10;
+	scope.foo = {};
+	scope.foo.x = 200;
+	scope.foo.bar = {};
+	scope.foo.bar.y = 15;
+
 </script>
 
-</body>
-</html>
+
+
+<script>
+	function foreach(arr, fn) {
+		if (!arr) {
+			return arr;
+		}
+
+		for (var i = 0; i < arr.length; i++) {
+			fn(arr[i], i);
+		}
+		return arr;
+	}
+
+	function $dashToCamelCase(str) {
+		return str.replace(/-([a-z])/g, function(a, b) {
+			return b.toUpperCase();
+		});
+	}
+
+	function $interpolate(str, fn) {
+		fn = fn || noop;
+
+		var ret = "";
+		var regexp = /\{\{[^}]+\}\}/g;
+		var startIndex = 0;
+
+		str.replace(regexp, function(a, index) {
+			ret += fn(str.substring(startIndex, index), false);
+			ret += fn(a, true);
+			startIndex = index + a.length;
+			return a;
+		});
+
+		if (startIndex === 0) {
+			return str;
+		}
+
+		ret += fn(str.substring(startIndex), false, true);
+		return ret;
+	}
+
+	function $traversal(node, fn, fn2, data) {
+
+		fn = fn || noop;
+		fn2 = fn2 || noop;
+
+		var test = 0;
+
+		var stack = [];
+		var nextSibling;
+		var ret;
+
+		if (fn(node) === false) {
+			return;
+		}
+		node = node.firstChild;
+
+
+		while(node) {
+
+			if (test++ > 1000) {
+				console.error("something wrong!!");
+				break;
+			}
+
+			nextSibling = node.nextSibling;
+			ret = fn(node, data);
+			stack.push(node);
+
+			if (node.parentNode && node.firstChild && ret !== false) {
+				node = node.firstChild;
+				continue;
+			}
+
+			while(node = stack.pop()) {
+				nextSibling = node.nextSibling || nextSibling;
+				fn2(node, data);
+
+				if (nextSibling) {
+					node = nextSibling;
+					break;
+				}
+			}
+		}
+	}
+
+	function $compile(node) {
+		$traversal(node, $compile_process, $compile_process_done);
+	}
+
+	function $compile_process(node, data) {
+		if (node.nodeName === "SCRIPT") {
+			return false;
+		}
+
+		if (node.nodeType === 1) {
+			return $compile_process_element(node, data);
+		}
+
+		if (node.nodeType === 3) {
+			return $compile_process_textNode(node, data);
+		}
+	}
+
+	function $compile_process_done(node) {
+//	console.log("/", node);
+	}
+
+	function $compile_process_element(el) {
+
+		foreach(el.attributes, function(attr) {
+
+			var attrName = attr.name;
+			var attrValue = attr.value;
+
+			console.log($dashToCamelCase(attrName), attrValue);
+
+			var directive = $$directiveTable[attrName];
+			if (directive) {
+				return $createBinding(el, attrValue, directive);
+			}
+
+			if (attrName.charAt(0) === "[" && attrName.slice(-1) === "]") {
+				var prop = $dashToCamelCase(attrName.slice(1,-1));
+				el[prop] = attrValue;
+			}
+		});
+	}
+
+	function $compile_process_textNode(textNode) {
+		var value = textNode.nodeValue;
+
+		$interpolate(value, function(text, isExpr, isLast) {
+			if (isLast) {
+				textNode.nodeValue = text;
+				return;
+			}
+
+			var _textNode = document.createTextNode(text);
+			textNode.parentNode.insertBefore(_textNode, textNode);
+
+			if (isExpr) {
+				var script = text.slice(2, -2);
+
+				watch(script, [_textNode], function(value) {
+					if (value === null || value === undefined) {
+						value = "";
+					}
+
+					_textNode.nodeValue = value;
+				});
+			}
+		});
+	}
+
+	var __nodeValue = {
+		update: function(self, node, value) {
+			node.nodeValue = value;
+		}
+	};
+
+	var __repeatItem = {
+		update: function(self, node, length) {
+			for (var i = 0; i < length; i++) {
+				var repeatNode = self.repeatNode.cloneNode(true);
+				$compile(repeatNode);
+				self.placeholder.parentNode.insertBefore(repeatNode, self.placeholder);
+			}
+		}
+	};
+
+
+	var $$directiveTable = {
+		"repeat": {
+			compile: function(self, el) {
+				var repeatNode = el.cloneNode(true);
+				repeatNode.removeAttribute("repeat");
+
+				var placeholderStart = document.createComment("repeat");
+				var placeholderEnd = document.createComment("end repeat");
+				el.parentNode.insertBefore(placeholderStart, el);
+				el.parentNode.insertBefore(placeholderEnd, el);
+				el.parentNode.removeChild(el);
+
+				var b = $createBinding(placeholderStart, "rows.length", __repeatItem);
+				b.repeatNode = repeatNode;
+				b.placeholder = placeholderEnd;
+			}
+		}
+	};
+
+
+
+</script>
+
+
+<script>
+	$compile(document, scope);
+</script>
+

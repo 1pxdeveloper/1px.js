@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+	<meta charset="UTF-8">
+	<title></title>
+	<script src="1px.js"></script>
+<style>
+img:not([src]) { opacity: 0 }
+
+* {
+	box-sizing: border-box;
+	-webkit-user-select: none;
+}
+
+wux-button {
+	width: 200px;
+	height: 56px;
+	border: 1px solid #ccc;
+	position: relative;
+	overflow: hidden;
+	display: block;
+	padding: 16px;
+	-webkit-transition: all .5s;
+	text-align: center;
+	border-radius: 56px 56px;
+	-webkit-transform: translateZ(0);
+	-webkit-mask-image: -webkit-radial-gradient(circle, white 100%, black 100%);
+}
+wux-button:active {
+	-webkit-transition: none;
+	background: rgba(0,0,0,.1);
+}
+
+
+wux-ripple-container {
+	pointer-events: none;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+}
+
+wux-ripple-container wux-ripple {
+	width: 100%;
+	padding-bottom: 100%;
+	background: rgba(0,0,0,.1);
+	position: absolute;
+	top: 0;
+	left: 0;
+	display: block;
+	border-radius: 50%;
+	-webkit-transform: translate3d(-50%,-50%,0) scale3d(0,0,0);
+	opacity: 1;
+}
+
+wux-ripple-container.active wux-ripple {
+	transition: all 1.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+	-webkit-transform: translate3d(-50%,-50%,0) scale3d(2,2,2);
+	opacity: 0;
+}
+</style>
+</head>
+
+<body app="app" controller="ViewController">
+
+
+<wux-button>BUTTON 1</wux-button>
+<wux-button>BUTTON 1</wux-button>
+<wux-button>BUTTON 1</wux-button>
+
+<wux-ripple-container id="ripple"><wux-ripple></wux-ripple></wux-ripple-container>
+
+<script>
+	$module("app", function(app) {
+		app.controller("ViewController", function(self, $rootScope) {
+			return {
+				init: function() {
+					self.title = "asdkfjakslfdsad";
+				},
+
+				"bob": "밥",
+
+				"hello": function() {
+
+				}
+			}
+		});
+	});
+
+	var ripple = document.getElementById("ripple");
+	ripple.parentNode.removeChild(ripple);
+
+	document.onmousedown = function(e) {
+		var el = e.target;
+		console.log(el);
+
+		ripple = ripple.cloneNode(true);
+
+		var x = e.offsetX;
+		var y = e.offsetY;
+		ripple.style["-webkit-transform"] = "translate3d("+x+"px,"+y+"px,0)";
+		ripple.className = "";
+		ripple.addEventListener("webkitTransitionEnd", function(e) {
+			var ripple = e.target.parentNode;
+			ripple.parentNode.removeChild(ripple);
+		});
+
+		el.appendChild(ripple);
+
+		setTimeout(function() {
+			ripple.className = "active";
+		}, 0);
+
+	}
+</script>
+
+</body>
+</html>
