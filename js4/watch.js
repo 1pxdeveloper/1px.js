@@ -45,12 +45,6 @@ function watch$(object, prop) {
 		return Observable.empty;
 	}
 
-	if (Array.isArray(object)) {
-
-		console.log("asdklsadjljasklads", object.length, prop);
-	}
-
-
 	if (Array.isArray(object) && +prop >= object.length) {
 		return Observable.empty;
 	}
