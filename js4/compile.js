@@ -19,6 +19,10 @@ Scope.prototype = {
 		return new Scope(this.context, Object.assign(this.local, local));
 	},
 
+	on$(el, type, useCapture) {
+		return Observable.fromEvent(el, type, useCapture);
+	},
+
 	watch$(script, fn) {
 		let self = this;
 		let o = $parse(script).watch$(this.context, this.local);//.filter(function() { return self.enable; }).takeUntil(self.stop$);
@@ -52,6 +56,10 @@ const nextFrame = function() {
 	}
 
 	return function nextFrame(fn) {
+
+		return fn();
+
+
 		if (queue.length === 0) {
 			window.requestAnimationFrame(enterFrame);
 		}
@@ -149,19 +157,45 @@ function _prop(scope, el, script, prop) {
 }
 
 function _event(scope, el, script, event) {
-//	console.log("event", arguments);
 
-//		scope.eval(script, {event: event})
+	event = event.split(".");
 
-//	scope.on$(event).subscribe(function(event) {
-//
-//
-//	});
+	scope.on$(el, event[0]).subscribe(function(event) {
 
+		$parse(script)(scope.context, scope.local);
+
+		console.log(event);
+	});
 }
 
-function _twoway(scope, el, script, name) {
+function _twoway(scope, el, script, prop) {
 
+	console.log(script, el);
+
+	scope.watch$(script, value => el[prop] = value);
+
+	el.addEventListener("change", function() {
+		$parse(script).assign(scope.context, scope.local, el[prop]);
+
+		console.log("sadlkfjaslfjalskfasd", el[prop]);
+
+	});
+
+	el.addEventListener("input", function() {
+
+		$parse(script).assign(scope.context, scope.local, el[prop]);
+
+		console.log("sadlkfjaslfjalskfasd", el[prop]);
+
+	});
+
+
+	scope.on$(el, "input").subscribe(function(value) {
+
+		console.log("sadlkfjaslfjalskfasd", el[prop]);
+
+		$parse(script).assign(scope.context, scope.local, el[prop]);
+	});
 }
 
 function _attr(scope, el, script, attr) {
@@ -181,7 +215,7 @@ function _style_list(scope, el, script) {
 }
 
 function _class(scope, el, script, name) {
-
+	scope.watch$(script, value => { nextFrame(() => { value ? el.classList.add(name) : el.classList.remove(name) }) });
 }
 
 function _class_list(scope, el, script) {
@@ -223,9 +257,6 @@ function compile_text_node(textNode, scope) {
 /// Directive: "*repeat"
 module.directive("*repeat", function() {
 	return function(scope, el, script) {
-
-		let container = [];
-
 		let placeholder = document.createComment("repeat: " + script);
 		let placeholderEnd = document.createComment("end");
 		let repeatNode = el.cloneNode(true);
@@ -234,43 +265,49 @@ module.directive("*repeat", function() {
 		el.before(placeholder);
 		el.replaceWith(placeholderEnd);
 
-		scope.watch$("rows", function(rows) {
-			let length = +rows.length || 0;
+		let container = [];
+		let lastIndex = 0;
 
-			console.log(length);
+		scope.watch$(script).subscribe({
+			next(value, i, row, index) {
 
+				console.log("next!!!", value, i, row, index);
 
-			/// Remove
-			for (let i = length; i < container.length; i++) {
-				container[i].nodes.forEach(node => node.remove());
-				container[i].subscription.unsubscribe();
-			}
+				/// @TODO: 같은 Object일 경우 재사용할 수 있도록 sort하는 로직 추가 할것!!!
 
-			/// Add
-			for (let i = container.length; i < length; i++) {
+				if (!container[i]) {
+					let node = repeatNode.cloneNode(true);
+					let _scope = scope.fork();
 
-				let _scope = scope.fork({
-					index: i,
-					row: rows[i]
-				});
+					row && (_scope.local[row] = value);
+					index && (_scope.local[index] = i);
 
-				let subscription = watch$(rows, i).subscribe(function(value) {
-					_scope.local.row = value;
-				});
+					compile(node, _scope);
+					placeholderEnd.before(node);
 
-				let r = repeatNode.cloneNode(true);
-				compile(r, _scope);
-
-				placeholderEnd.before(r);
-
-				container[i] = {
-					nodes: [r],
-					scope: _scope,
-					subscription: subscription
+					container[i] = {
+						nodes: [node],
+						scope: _scope,
+						value: value,
+					};
 				}
-			}
+				else {
+					let _scope = container[i].scope;
+					row && (_scope.local[row] = value);
+					index && (_scope.local[index] = i);
+				}
 
-			container.length = length;
+				lastIndex = i + 1;
+			},
+
+			complete() {
+				for (let i = lastIndex, len = container.length; i < len; i++) {
+					container[i].nodes.forEach(node => node.remove());
+					container[i].scope.stop();
+				}
+
+				container.length = lastIndex;
+			}
 		});
 	}
 });

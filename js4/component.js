@@ -20,16 +20,16 @@ class WebComponent extends HTMLElement {
 		let o = WebComponentDefine.map[this.tagName];
 		let template = document.importNode(o.template.content, true);
 
-		this.init();
 
 		console.log("init");
 
 		let scope = new Scope(this);
+
+		this.watch$ = scope.watch$.bind(scope);
+		this.on$ = scope.on$.bind(scope);
+		this.init();
+
 		compile(template, scope);
-
-//			this.watch$ = scope.watch$.bind(scope);
-//			this.on$ = scope.on$.bind(scope);
-
 
 		/// Attach Shady DOM!!
 		let contents = DocumentFragment.from(this.childNodes);

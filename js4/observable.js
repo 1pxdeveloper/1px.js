@@ -1,4 +1,4 @@
-(function(window) {
+const Observable = (function() {
 
 	Object.defineProperty(Symbol, "observable", {value: Symbol("observable")});
 
@@ -23,7 +23,7 @@
 		}
 
 		[Symbol.observable]() {
-			return this
+			return this;
 		}
 
 		static from(x) {
@@ -160,137 +160,151 @@
 		}
 	}
 
-
-	/// Operators
-	Observable.prototype.pipe = function(fn) {
-		return new Observable(observer => {
-			let o = fn(observer) || {};
-			o.next = o.next || observer.next.bind(observer);
-			o.error = o.error || observer.error.bind(observer);
-			o.complete = o.complete || observer.complete.bind(observer);
-
-			return this.subscribe(o);
-		});
-	};
+	return Observable;
+}());
 
 
-	Observable.prototype.map = function(fn) {
-		return this.pipe(observer => {
-			return {
+/// Operators
+Observable.prototype.pipe = function(fn) {
+	return new Observable(observer => {
+		let o = fn(observer) || {};
+		o.next = o.next || observer.next.bind(observer);
+		o.error = o.error || observer.error.bind(observer);
+		o.complete = o.complete || observer.complete.bind(observer);
+
+		return this.subscribe(o);
+	});
+};
+
+
+Observable.prototype.count = function(fn) {
+	let count = 0;
+
+	return this.pipe(observer => {
+		return {
+			next() {
+				count++;
+			},
+
+			complete() {
+				observer.next(count);
+				count = 0;
+			}
+		}
+	});
+};
+
+
+Observable.prototype.map = function(fn) {
+	return this.pipe(observer => {
+		return {
+			next() {
+				observer.next(fn.apply(observer, arguments));
+			}
+		}
+	});
+};
+
+
+Observable.prototype.filter = function(fn) {
+	return this.pipe(observer => {
+		return {
+			next() {
+				fn.apply(observer, arguments) && observer.next.apply(observer, arguments);
+			}
+		}
+	});
+};
+
+Observable.prototype.takeUntil = function(observable$) {
+	return this.pipe(function(observer) {
+		function complete() {
+			observer.complete();
+		}
+
+		observable$.subscribe(complete, complete, complete);
+	});
+};
+
+
+Observable.prototype.share = function() {
+	let observers = [];
+	let subscription;
+
+	return new Observable(observer => {
+
+		observers.push(observer);
+
+		subscription = subscription || this.subscribe({
 				next() {
-					observer.next(fn.apply(observer, arguments));
+					observers.forEach((observer) => observer.next.apply(observer, arguments));
+				},
+
+				error() {
+					observers.forEach((observer) => observer.error.apply(observer, arguments));
+				},
+
+				complete() {
+					observers.forEach((observer) => observer.complete());
 				}
-			}
-		});
-	};
-
-
-	Observable.prototype.filter = function(fn) {
-		return this.pipe(observer => {
-			return {
-				next() {
-					fn.apply(observer, arguments) && observer.next.apply(observer, arguments);
-				}
-			}
-		});
-	};
-
-	Observable.prototype.takeUntil = function(observable$) {
-		return this.pipe(function(observer) {
-			function complete() {
-				observer.complete();
-			}
-
-			observable$.subscribe(complete, complete, complete);
-		});
-	};
-
-
-	Observable.prototype.share = function() {
-		let observers = [];
-		let subscription;
-
-		return new Observable(observer => {
-
-			observers.push(observer);
-
-			subscription = subscription || this.subscribe({
-					next() {
-						observers.forEach((observer) => observer.next.apply(observer, arguments));
-					},
-
-					error() {
-						observers.forEach((observer) => observer.error.apply(observer, arguments));
-					},
-
-					complete() {
-						observers.forEach((observer) => observer.complete());
-					}
-				});
-
-			return function() {
-				observers.splice(observers.indexOf(observer), 1);
-				if (observers.length === 0) {
-					subscription.unsubscribe();
-				}
-			}
-		});
-	};
-
-
-	/// Static
-	Observable.empty = new Observable(function() {});
-	Observable.never = new Observable(observer => observer.complete());
-
-	Observable.interval = function(delay) {
-		let i = 0;
-		return new Observable(observer => {
-			let id = setInterval(() => observer.next(i++), delay);
-			return () => clearInterval(id);
-		});
-	};
-
-	Observable.timeout = function(delay) {
-		return new Observable(observer => {
-			setTimeout(() => observer.next(0), delay);
-		});
-	};
-
-
-	Observable.fromEvent = function(el, type, useCapture) {
-		return new Observable(observer => {
-			function handler(event) {
-				observer.next(event);
-			}
-
-			el.addEventListener(type, handler, useCapture);
-			return () => el.removeEventListener(type, handler, useCapture);
-		});
-	};
-
-
-	Observable.zip = function(...observables) {
-
-		let result = new Array(observables.length);
-
-		return new Observable(observer => {
-
-			let s = observables.map((observable, index) => {
-				return observable.subscribe(function(value) {
-					result[index] = value;
-					observer.next.apply(observer, result);
-				});
 			});
 
-			return function() {
-				s.forEach(subscription => subscription.unsubscribe());
+		return function() {
+			observers.splice(observers.indexOf(observer), 1);
+			if (observers.length === 0) {
+				subscription.unsubscribe();
 			}
+		}
+	});
+};
+
+
+/// Static
+Observable.empty = new Observable(function() {});
+Observable.never = new Observable(observer => observer.complete());
+
+Observable.interval = function(delay) {
+	let i = 0;
+	return new Observable(observer => {
+		let id = setInterval(() => observer.next(i++), delay);
+		return () => clearInterval(id);
+	});
+};
+
+Observable.timeout = function(delay) {
+	return new Observable(observer => {
+		setTimeout(() => observer.next(0), delay);
+	});
+};
+
+
+Observable.fromEvent = function(el, type, useCapture) {
+	return new Observable(observer => {
+		function handler(event) {
+			observer.next(event);
+		}
+
+		el.addEventListener(type, handler, useCapture);
+		return () => el.removeEventListener(type, handler, useCapture);
+	});
+};
+
+
+Observable.zip = function(...observables) {
+
+	let result = new Array(observables.length);
+
+	return new Observable(observer => {
+
+		let s = observables.map((observable, index) => {
+			return observable.subscribe(function(value) {
+				result[index] = value;
+				observer.next.apply(observer, result);
+			});
 		});
-	};
 
-
-	window.Observable = Observable;
-
-})(window);
-
-
+		return function() {
+			s.forEach(subscription => subscription.unsubscribe());
+		}
+	});
+};

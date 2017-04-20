@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>1px.js • TodoMVC</title>
+	<link rel="stylesheet" href="node_modules/todomvc-common/base.css">
+	<link rel="stylesheet" href="node_modules/todomvc-app-css/index.css">
+	<!-- CSS overrides - remove if you don't need it -->
+	<link rel="stylesheet" href="css/app.css">
+	
+	<script src="../js4/observable.js"></script>
+	<script src="../js4/module.js"></script>
+	<script src="../js4/watch.js"></script>
+	<script src="../js4/expression.js"></script>
+	<script src="../js4/compile.js"></script>
+	<script src="../js4/component.js"></script>
+
+</head>
+<body>
+
+<web-component name="todo-app">
+	<template>
+		<section class="todoapp">
+			<header class="header">
+				<h1>todos</h1>
+				<form (submit)="addTodo('aaa')">
+					<input name="newTodo" class="new-todo" placeholder="What needs to be done?" autofocus>
+				</form>
+			</header>
+			
+			<!-- This section should be hidden by default and shown when there are todos -->
+			<section class="main" [hidden]="todos.length === 0">
+				<input id="toggle-all" class="toggle-all" type="checkbox" [(checked)]="allMarked" (change)="toggleAll(allMarked)">
+				<label for="toggle-all">Mark all as complete</label>
+				<ul class="todo-list">
+					<li *repeat="todos as todo, index" [class.completed]="todo.completed" [class.editing]="todo === editingTodo">
+						<div class="view">
+							<input class="toggle" type="checkbox" [(checked)]="todo.completed">
+							<label (dblclick)="setEditingTodo(todo)">{{ todo.title }}</label>
+							<button class="destroy" (click)="removeTodoByIndex(index)"></button>
+						</div>
+						<form #form (submit)="applyTodo(todo, title)">
+							<input name="title" class="edit" [(value)]="tempTitle" (blur)="form.submit()" focus()="todo === editingTodo">
+						</form>
+					</li>
+				</ul>
+			</section>
+			
+			<!-- This footer should hidden by default and shown when there are todos -->
+			<footer class="footer">
+				<!-- This should be `0 items left` by default -->
+				<span class="todo-count"><strong>{{ num_items_left$ }}</strong> item{{'s' | if: num_items_left$ > 1}} left</span>
+				<!-- Remove this if you don't implement routing -->
+				<ul class="filters">
+					<li>
+						<a class="selected" href="#/">All</a>
+					</li>
+					<li>
+						<a href="#/active">Active</a>
+					</li>
+					<li>
+						<a href="#/completed">Completed</a>
+					</li>
+				</ul>
+				<!-- Hidden if no completed items are left ↓ -->
+				<button class="clear-completed" [hidden]="num_completed_items$ === 0" (click)="clearCompleted()">Clear completed</button>
+			</footer>
+		</section>
+	</template>
+	<script>module.component("todo-app", function() {
+		return {
+			init: function() {
+				this.todos = [
+					{
+						title: "123",
+						completed: true,
+					},
+					{
+						title: "Taste JavaScript 345",
+						completed: true,
+					},
+					{
+						title: "JavaScript",
+						completed: false
+					}
+				];
+				
+				this.allMarked = false;
+				this.editingTodo = null;
+				
+				this.num_items_left$ = this.watch$("todos as todo if !todo.completed").count();
+				this.num_completed_items$ = this.watch$("todos.length - num_items_left");
+			},
+			
+			addTodo: function(title) {
+//				this.todos.push({
+//					title: "Taste JavaScript",
+//					completed: false,
+//				});
+			},
+			
+			toggleAll: function(allMarked) {
+				this.todos.forEach(function(todo) {
+					todo.completed = allMarked;
+				});
+			},
+			
+			removeTodoByIndex: function(index) {
+				this.todos.splice(index, 1);
+			},
+			
+			setEditingTodo: function(todo) {
+				this.editingTodo = todo;
+			},
+			
+			applyTodo: function(todo, title) {
+				todo.title = title;
+			},
+			
+			clearCompleted: function() {
+				this.todos = this.todos.filter(function(todo) {
+					return !todo.completed;
+				});
+			}
+		}
+	})</script>
+</web-component>
+
+<todo-app></todo-app>
+
+<!-- Scripts here. Don't remove ↓ -->
+<script src="node_modules/todomvc-common/base.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -13,61 +13,42 @@
 <body>
 
 <web-component name="my-app">
-	<http GET="/albums" [(res)]="albums"></http>
-	
 	<template>
-		<h1>Hello, world</h1>
+		<h1>Hello, world {{ a$ }} {{ l }} {{ count$ }}</h1>
 		
-		<p [style.color]="color">This is {{ a }}</p>
+		<ul>
+			<li *repeat="rows as row">{{ row }}</li>
+		</ul>
 		
-		<div *repeat="albums as row, index">
-			{{ index }} / {{ row }}
-		</div>
-		
-		<h2 *if="color == 'orange'">Hello if {{ a }}</h2>
-		<h4 *else>Hello if {{ a }}</h4>
-		
-		<footer>adkfj slkdfj lkasd jklfja klsd jkl</footer>
 	</template>
 </web-component>
 
+<script>
+app.component("my-app", function() {
+	return {
+		init() {
+			this.rows = ["A","B","C"];
+			
+			this.count$ = this.watch$("rows as row").count();
 
-<web-component name="album-details" route="/observerable/:id" route.name="main">
-	
-	<http GET="asdlkajsdlasd" [(res)]="albums"></http>
-	
-	<template>
-		<h1 (click)="hello(row)">Hello Route /observerable</h1>
-	</template>
-	
-	<script>module.component("my-app", function() {
-		return {
-			init() {
-				this.a = 100;
-				this.color = "orange";
-				this.rows = ["A", "B", "C", "D", "E"];
-				this.color = "red";
+			this.watch$("rows").subscribe(function(value) {
+				console.log("rows", value);
+			});
 
-				window.$scope = this;
-			}
+			this.watch$("rows as row, index").subscribe(function(value, index) {
+				console.log(arguments);
+			});
+
+			window.$scope = this;
 		}
-	});
-	</script>
-</web-component>
+	}
+})
+</script>
 
 
-<div>
-	<header></header>
-	
-	<main>
-		<router-outlet name="main"></router-outlet>
-	</main>
-	
-	<my-app>
-		<h1>This is Light DOM</h1>
-	</my-app>
-</div>
-
+<my-app>
+	<h1>This is Light DOM</h1>
+</my-app>
 
 </body>
 </html>

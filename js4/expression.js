@@ -15,6 +15,10 @@ function next(id) {
 	return t;
 }
 
+function lookahead(id) {
+
+}
+
 function expression(rbp) {
 	rbp = rbp || 0;
 
@@ -50,10 +54,10 @@ let $symbol_prototype = {
 	},
 
 	push() {
-		foreach(arguments, function(token) {
+		for (let token of arguments) {
 			this[this.length++] = token;
 			token.parent = this;
-		}, this);
+		}
 
 		return arguments[arguments.length - 1];
 	},
@@ -162,6 +166,19 @@ symbol("(literal)").nud = noop;
 symbol("(name)").nud = function() {
 	this.push(this.value);
 };
+
+infix(10, "as", function(left) {
+	this.push(left, next("(name)"));
+
+	if ($token.id === ",") {
+		next(",");
+		this.push(next("(name)"));
+	}
+	else {
+		this.push({});
+	}
+});
+
 
 infix(20, "?", function(left) {
 	this.push(left, expression());
@@ -285,30 +302,12 @@ let token_types = [
 	"(unknown)"
 ];
 
-function tokenize(script, def) {
+function tokenize(script) {
 	let tokens = [];
 
 	script.replace(re, function(value) {
 		let type;
 		let token;
-
-		if (def) {
-			let o = def[value];
-			if (o && o.type === "macro") {
-				let prev = tokens[tokens.length - 1];
-				if (!prev || prev.value !== ".") {
-					tokens = tokens.concat(tokenize(o.value, def));
-					return value;
-				}
-			}
-
-			if (o && o.type === "value") {
-				token = Object.create($symbol_table["(literal)"]);
-				token.value = o.value;
-				tokens.push(token);
-				return value;
-			}
-		}
 
 		for (let i = 1; i < arguments.length; i++) {
 			if (arguments[i]) {
@@ -408,8 +407,6 @@ evaluateRule("?", 3, (a, b, c) => evaluate(a) ? evaluate(b) : evaluate(c));
 
 evaluateRule("(name)", 1, function(a) {
 
-	console.log(this.local);
-
 	if (a in this.local) {
 		return this.setObjectProp(this.local, a);
 	}
@@ -436,6 +433,31 @@ evaluateRule("(", 3, function(a, b, c) {
 });
 
 
+evaluateRule("as", 3, function(a, b, c) {
+
+	let observable = evaluate(a);
+
+	return Observable.from(observable).pipe(observer => {
+		let index = 0;
+
+		return {
+			next: function(value) {
+
+
+//				$watch(observable, index)
+
+				observer.next(value, index++, b.value, c.value);
+			},
+
+			complete: function() {
+				observer.complete();
+				index = 0;
+			}
+		}
+	});
+});
+
+
 function foreach(arr, fn, thisObj) {
 	for (let i = 0, len = arr.length; i < len; i++) {
 		fn.call(thisObj, arr[i], i);
@@ -451,7 +473,7 @@ function setScope(tokens, scope, local) {
 	});
 }
 
-function $parse(script, def) {
+function $parse(script) {
 	$tokens = tokenize(script);
 	let tokens = $tokens.slice();
 
@@ -467,9 +489,25 @@ function $parse(script, def) {
 		return evaluate(root);
 	}
 
+	$eval.assign = function(context, local, value) {
+
+		setScope(tokens, context, local);
+		evaluate(root);
+
+		if (!root.object || !root.prop) {
+			return false;
+		}
+
+		root.object[root.prop] = value;
+		return true;
+	};
+
+
 	$eval.watch$ = function(context, local) {
 
 		setScope(tokens, context, local);
+
+		let subscription = null;
 
 		return new Observable(function(observer) {
 			function callback() {
@@ -479,12 +517,17 @@ function $parse(script, def) {
 					}
 				});
 
-				let cache = root.cache;
+				if (subscription) {
+					subscription.unsubscribe();
+				}
+
 				let value = evaluate(root);
-
-				console.log("token.callback: ", script, cache, value);
-
-				observer.next(value);
+				if (value instanceof Observable) {
+					subscription = value.subscribe(observer);
+				}
+				else {
+					observer.next(value);
+				}
 			}
 
 			tokens.forEach(function(token) {
@@ -508,9 +551,26 @@ function $parse(script, def) {
 				}
 			});
 
-			observer.next(evaluate(root));
+			let value = evaluate(root);
+			if (value instanceof Observable) {
+				subscription = value.subscribe(observer);
+			}
+			else {
+				observer.next(value);
+			}
+
 
 			return function() {
+				console.log("clean up??");
+
+				if (subscription) {
+					if (subscription.closed) {
+						return;
+					}
+
+					subscription.unsubscribe();
+				}
+
 				tokens.forEach(function(self) {
 					if (self.subscription) {
 						self.subscription.unsubscribe();
