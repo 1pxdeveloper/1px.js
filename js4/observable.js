@@ -144,12 +144,12 @@ const Observable = (function() {
 
 		next() {
 			if (this.closed) return;
-			this._subscription._observer.next && this._subscription._observer.next.apply(this._subscription._observer, arguments);
+			this._subscription._observer.next && this._subscription._observer.next(...arguments);
 		}
 
 		error(value) {
 			if (this.closed) return;
-			this._subscription._observer.error && this._subscription._observer.error.apply(this._subscription._observer, arguments);
+			this._subscription._observer.error && this._subscription._observer.error(...arguments);
 			cleanupSubscription(this._subscription);
 		}
 
@@ -210,7 +210,7 @@ Observable.prototype.filter = function(fn) {
 	return this.pipe(observer => {
 		return {
 			next() {
-				fn.apply(observer, arguments) && observer.next.apply(observer, arguments);
+				fn.apply(observer, arguments) && observer.next(...arguments);
 			}
 		}
 	});
@@ -237,15 +237,15 @@ Observable.prototype.share = function() {
 
 		subscription = subscription || this.subscribe({
 				next() {
-					observers.forEach((observer) => observer.next.apply(observer, arguments));
+					observers.forEach(observer => observer.next(...arguments));
 				},
 
 				error() {
-					observers.forEach((observer) => observer.error.apply(observer, arguments));
+					observers.forEach(observer => observer.error(...arguments));
 				},
 
 				complete() {
-					observers.forEach((observer) => observer.complete());
+					observers.forEach(observer => observer.complete());
 				}
 			});
 
@@ -257,6 +257,33 @@ Observable.prototype.share = function() {
 		}
 	});
 };
+
+
+Observable.prototype.skip = function(count) {
+	let index = 0;
+
+	return this.pipe(observer => {
+		return {
+			next() {
+				if (index++ < count) {
+					return;
+				}
+				observer.next(...arguments);
+			},
+
+			error() {
+				index = 0;
+			},
+
+			complete() {
+				index = 0;
+			}
+		}
+	});
+};
+
+
+
 
 
 /// Static
