@@ -36,22 +36,22 @@ function mutationObservableFromClass$(object, cls, methods) {
 function mutationObservable$(object) {
 	if (Array.isArray(object)) return mutationObservableFromClass$(object, Array.prototype, ARRAY_METHODS);
 	if (object instanceof Date) return mutationObservableFromClass$(object, Date.prototype, DATE_METHODS);
-	return Observable.naver;
+	return Observable.never;
 }
 
 
 function watch$(object, prop) {
 	if (Object(object) !== object) {
-		return Observable.naver;
+		return Observable.never;
 	}
 
 	if (Array.isArray(object) && +prop >= object.length) {
-		return Observable.naver;
+		return Observable.never;
 	}
 
 	let desc = Object.getOwnPropertyDescriptor(object, prop);
 	if (desc && (desc.configurable === false || desc.writable === false || (desc.get && !desc.set))) {
-		return Observable.naver;
+		return Observable.never;
 	}
 
 	if (desc && desc.set && desc.set.observable$) {
