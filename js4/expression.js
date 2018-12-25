@@ -2,7 +2,8 @@
 let $tokens;
 let $token;
 
-function noop() {}
+function noop() {
+}
 
 function next(id) {
 	if (id && $token && $token.id !== id) {
@@ -164,7 +165,7 @@ symbol("(end)").nud = noop;
 symbol("(literal)").nud = noop;
 
 symbol("(name)").nud = function() {
-	this.push(this.value);
+	this.push({value: this.value});
 };
 
 infix(10, "as", function(left) {
@@ -173,10 +174,42 @@ infix(10, "as", function(left) {
 	if ($token.id === ",") {
 		next(",");
 		this.push(next("(name)"));
-	}
-	else {
+	} else {
 		this.push({});
 	}
+});
+
+
+infix(10, "|", function(left) {
+	if ($token.id !== "(name)") {
+		this.error("Unexpected token " + $token.id);
+	}
+
+	this.push("a", left);
+	this.push("b", $token);
+	next();
+
+	var args = this.push("c", []);
+
+	if ($token.id === ":") {
+		next(":");
+
+		for (; ;) {
+			if ($token.id !== "(name)" && $token.id !== "(literal)") {
+				this.error("Unexpected token " + $token.id);
+			}
+
+			var o = expression(0);
+			args.push(o);
+
+			if ($token.id !== ",") {
+				break;
+			}
+			next(",");
+		}
+
+	}
+	return this;
 });
 
 
@@ -267,8 +300,7 @@ infix(80, "(", function(left) {
 
 	if (left.id === "." || left.id === "[") {
 		this.push(left.a, left.b, args);
-	}
-	else {
+	} else {
 		this.push(left, args);
 	}
 
@@ -290,7 +322,7 @@ infix(80, "(", function(left) {
 
 
 /// Tokenizer
-let re = /([_$a-zA-Z가-힣][_$a-zA-Z0-9가-힣]*)|((?:\d*\.\d+)|\d+)|('[^']*'|"[^"]*")|(===|!==|==|!=|<=|>=|&&|\|\||[-+*/!?:.,<>\[\]\(\){}])|(\s)|./g;
+let re = /([_$a-zA-Z가-힣][_$a-zA-Z0-9가-힣]*)|((?:\d*\.\d+)|\d+)|('[^']*'|"[^"]*")|(===|!==|==|!=|<=|>=|&&|\|\||[-|+*/!?:.,<>\[\]\(\){}])|(\s)|./g;
 
 let token_types = [
 	"",
@@ -372,8 +404,12 @@ function evaluateRule(id, length, fn) {
 }
 
 evaluateRule("(end)", 0, () => undefined);
-evaluateRule("(literal)", 0, function() { return this.value; });
-evaluateRule("(array)", 0, function() { return this.value.map(evaluate); });
+evaluateRule("(literal)", 0, function() {
+	return this.value;
+});
+evaluateRule("(array)", 0, function() {
+	return this.value.map(evaluate);
+});
 
 evaluateRule("{", 1, function(a) {
 	return a.reduce(function(object, o) {
@@ -406,6 +442,7 @@ evaluateRule("%", 2, (a, b) => evaluate(a) % evaluate(b));
 evaluateRule("?", 3, (a, b, c) => evaluate(a) ? evaluate(b) : evaluate(c));
 
 evaluateRule("(name)", 1, function(a) {
+	a = a.value;
 
 	if (a in this.local) {
 		return this.setObjectProp(this.local, a);
@@ -524,8 +561,7 @@ function $parse(script) {
 				let value = evaluate(root);
 				if (value instanceof Observable) {
 					subscription = value.subscribe(observer);
-				}
-				else {
+				} else {
 					observer.next(value);
 				}
 			}
@@ -554,8 +590,7 @@ function $parse(script) {
 			let value = evaluate(root);
 			if (value instanceof Observable) {
 				subscription = value.subscribe(observer);
-			}
-			else {
+			} else {
 				observer.next(value);
 			}
 

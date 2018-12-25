@@ -287,8 +287,8 @@ Observable.prototype.skip = function(count) {
 
 
 /// Static
-Observable.empty = new Observable(function() {});
-Observable.never = new Observable(observer => observer.complete());
+Observable.naver = new Observable(function() {});
+Observable.empty = new Observable(observer => observer.complete());
 
 Observable.interval = function(delay) {
 	let i = 0;

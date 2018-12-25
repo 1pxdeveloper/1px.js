@@ -36,22 +36,22 @@ function mutationObservableFromClass$(object, cls, methods) {
 function mutationObservable$(object) {
 	if (Array.isArray(object)) return mutationObservableFromClass$(object, Array.prototype, ARRAY_METHODS);
 	if (object instanceof Date) return mutationObservableFromClass$(object, Date.prototype, DATE_METHODS);
-	return Observable.empty;
+	return Observable.naver;
 }
 
 
 function watch$(object, prop) {
 	if (Object(object) !== object) {
-		return Observable.empty;
+		return Observable.naver;
 	}
 
 	if (Array.isArray(object) && +prop >= object.length) {
-		return Observable.empty;
+		return Observable.naver;
 	}
 
 	let desc = Object.getOwnPropertyDescriptor(object, prop);
 	if (desc && (desc.configurable === false || desc.writable === false || (desc.get && !desc.set))) {
-		return Observable.empty;
+		return Observable.naver;
 	}
 
 	if (desc && desc.set && desc.set.observable$) {
@@ -59,7 +59,6 @@ function watch$(object, prop) {
 	}
 
 	let observable$ = new Observable(function(observer) {
-		let changed = false;
 		let value = object[prop];
 		let subscription = mutationObservable$(value).subscribe(observer);
 
@@ -69,7 +68,6 @@ function watch$(object, prop) {
 			}
 
 			value = newValue;
-			changed = true;
 			subscription.unsubscribe();
 			subscription = mutationObservable$(value).subscribe(observer);
 			observer.next(value);
@@ -80,23 +78,18 @@ function watch$(object, prop) {
 		Object.defineProperty(object, prop, {
 			enumerable: true,
 			configurable: true,
-			get: function() { return value; },
+			get: function() {
+				return value;
+			},
 			set: set
 		});
 
 		/// cleanup!
 		return function() {
-			delete set.observable$;
 			subscription.unsubscribe();
-
-			if (Array.isArray(object) && +prop >= object.length) {
-				return;
-			}
-
-			if (value === undefined && !changed) {
-				delete object[prop];
-			}
-			else {
+			delete set.observable$;
+			delete object[prop];
+			if (value !== undefined) {
 				object[prop] = value;
 			}
 		}

@@ -13,7 +13,8 @@ function Scope(context, local) {
 }
 
 Scope.prototype = {
-	stop() {},
+	stop() {
+	},
 
 	fork(local) {
 		return new Scope(this.context, Object.assign(this.local, local));
@@ -100,25 +101,35 @@ function compile_element_node(el, scope) {
 			return false;
 	}
 
-	let attr;
-	if (attr = el.getAttribute("*repeat")) {
-		module.directive.get("*repeat")(scope, el, attr);
+	let attrValue = el.getAttribute("*repeat");
+	if (attrValue) {
+		module.directive.get("*repeat")(scope, el, attrValue);
 		return false;
 	}
 
-	if (attr = el.getAttribute("*if")) {
-		module.directive.get("*if")(scope, el, attr);
+	attrValue = el.getAttribute("*if");
+	if (attrValue) {
+		module.directive.get("*if")(scope, el, attrValue);
 		return false;
 	}
 
-	if (el.hasAttribute("*else")) {
-		module.directive.get("*else")(scope, el, el.getAttribute("*else"));
+	attrValue = el.hasAttribute("*else");
+	if (attrValue) {
+		module.directive.get("*else")(scope, el, attrValue);
 		return false;
 	}
 
 
 	for (let attr of Array.from(el.attributes)) {
 		// @TODO: directive => directive call
+
+		let directive = module.directive.get(attr.nodeName);
+		if (typeof directive === "function") {
+			directive(scope, el, attr.nodeValue);
+			continue;
+		}
+
+		if (syntax(scope, el, attr, "$", _ref, "")) continue;
 		if (syntax(scope, el, attr, "(", _event, ")")) continue;
 		if (syntax(scope, el, attr, "[(", _twoway, ")]")) continue;
 		if (syntax(scope, el, attr, "[attr.", _attr, "]")) continue;
@@ -136,7 +147,12 @@ function syntax(scope, el, attr, start, fn, end) {
 	let name = attr.nodeName;
 	let value = attr.nodeValue;
 
-	if (end && name.startsWith(start) && name.endsWith(end)) {
+	if (end === "" && name.startsWith(start) && name.endsWith(end)) {
+		fn(scope, el, value, name.slice(start.length));
+		return true;
+	}
+
+	if (end !== undefined && name.startsWith(start) && name.endsWith(end)) {
 		fn(scope, el, value, name.slice(start.length, -end.length));
 		return true;
 	}
@@ -148,65 +164,51 @@ function syntax(scope, el, attr, start, fn, end) {
 }
 
 function _prop(scope, el, script, prop) {
-//	console.log("prop", arguments);
-
 	// @TODO: 1) prop이 reactive setter면 바로 적용. 아니면 nextFrame (id, hidden, visible 등... 때문)
-
-
-	scope.watch$(script, value => { el[prop] = value });
+	scope.watch$(script, value => el[prop] = value);
 }
 
-function _event(scope, el, script, event) {
+function _event(scope, el, script, events) {
 
-	event = event.split(".");
+	events = events.split(".");
+	let eventType = events[0];
 
-	scope.on$(el, event[0]).subscribe(function(event) {
+	scope.on$(el, eventType).subscribe(function(event) {
+		// console.log(event);
 
+		/// form.submit prevent
+		if (eventType === "submit" && !el.hasAttribute("method")) {
+			event.preventDefault();
+		}
+
+		scope.local.event = event;
 		$parse(script)(scope.context, scope.local);
-
-		console.log(event);
 	});
 }
 
 function _twoway(scope, el, script, prop) {
 
-	console.log(script, el);
-
-	scope.watch$(script, value => el[prop] = value);
-
-	el.addEventListener("change", function() {
-		$parse(script).assign(scope.context, scope.local, el[prop]);
-
-		console.log("sadlkfjaslfjalskfasd", el[prop]);
-
+	scope.watch$(script, function(value) {
+		// console.log(el, prop, value);
+		el[prop] = value;
 	});
-
-	el.addEventListener("input", function() {
-
-		$parse(script).assign(scope.context, scope.local, el[prop]);
-
-		console.log("sadlkfjaslfjalskfasd", el[prop]);
-
-	});
-
 
 	scope.on$(el, "input").subscribe(function(value) {
-
-		console.log("sadlkfjaslfjalskfasd", el[prop]);
+		// console.log("sadlkfjaslfjalskfasd", el[prop]);
 
 		$parse(script).assign(scope.context, scope.local, el[prop]);
 	});
 }
 
 function _attr(scope, el, script, attr) {
-	scope.watch$(script, value => { nextFrame(() => { el.setAttribute(attr, value) }) });
+	scope.watch$(script, value => {
+		el.setAttribute(attr, value)
+	});
 }
 
 function _style(scope, el, script, name) {
 	scope.watch$(script, value => {
-		nextFrame(() => {
-			el.style[name] = value;
-		})
+		el.style[name] = value;
 	});
 }
 
@@ -215,11 +217,20 @@ function _style_list(scope, el, script) {
 }
 
 function _class(scope, el, script, name) {
-	scope.watch$(script, value => { nextFrame(() => { value ? el.classList.add(name) : el.classList.remove(name) }) });
+	scope.watch$(script, value => {
+		value ? el.classList.add(name) : el.classList.remove(name);
+	});
 }
 
 function _class_list(scope, el, script) {
 
+}
+
+function _ref(scope, el, script, name) {
+
+	console.log("name111", name);
+
+	scope.context["$" + name] = el;
 }
 
 
@@ -258,7 +269,7 @@ function compile_text_node(textNode, scope) {
 module.directive("*repeat", function() {
 	return function(scope, el, script) {
 		let placeholder = document.createComment("repeat: " + script);
-		let placeholderEnd = document.createComment("end");
+		let placeholderEnd = document.createComment("endrepeat");
 		let repeatNode = el.cloneNode(true);
 		repeatNode.removeAttribute("*repeat");
 
@@ -268,7 +279,7 @@ module.directive("*repeat", function() {
 		let container = [];
 		let lastIndex = 0;
 
-		scope.watch$(script).subscribe({
+		scope.watch$(script, {
 			next(value, i, row, index) {
 
 				console.log("next!!!", value, i, row, index);
@@ -290,8 +301,7 @@ module.directive("*repeat", function() {
 						scope: _scope,
 						value: value,
 					};
-				}
-				else {
+				} else {
 					let _scope = container[i].scope;
 					row && (_scope.local[row] = value);
 					index && (_scope.local[index] = i);
@@ -301,6 +311,10 @@ module.directive("*repeat", function() {
 			},
 
 			complete() {
+
+				console.log("compltete!!!");
+
+
 				for (let i = lastIndex, len = container.length; i < len; i++) {
 					container[i].nodes.forEach(node => node.remove());
 					container[i].scope.stop();
@@ -326,12 +340,11 @@ module.directive("*if", function() {
 				if (placeholder.parentNode) {
 					placeholder.replaceWith(el);
 				}
-			}
-			else {
+			} else {
 				el.replaceWith(placeholder);
 			}
 
-			console.log("if", script, bool);
+			// console.log("if", script, bool);
 		});
 	}
 });
@@ -356,14 +369,14 @@ module.directive("*else", function() {
 			prev = prev.previousSibling;
 			if (prev._ifScript) {
 				script = prev._ifScript;
-				console.log("#############", prev, prev.ifScript);
+				// console.log("#############", prev, prev.ifScript);
 				break;
 			}
 		}
 
 		script = "!(" + script + ")";
 
-		console.log(script);
+		// console.log(script);
 
 
 		scope.watch$(script, function(bool) {
@@ -372,12 +385,11 @@ module.directive("*else", function() {
 				if (placeholder.parentNode) {
 					placeholder.replaceWith(el);
 				}
-			}
-			else {
+			} else {
 				el.replaceWith(placeholder);
 			}
 
-			console.log("if", script, bool);
+			// console.log("if", script, bool);
 		});
 	}
 });
