@@ -2,11 +2,18 @@
 
 	let module = {};
 
-	let $values = {};
-	let $factories = {};
 
-	module.$values = $values;
-	module.$factories = $factories;
+	/// Module - Value
+	let $values = {};
+
+	module.value = function(name, obj) {
+		$values[name] = obj;
+		return this;
+	};
+
+
+	/// Module - Factory
+	let $factories = {};
 
 	function createFactoryFromArray(array) {
 		let factory = array.pop();
@@ -59,12 +66,6 @@
 
 		let factory = $factories[name];
 
-		/// no module factory
-		if (factory.$inject.length === 0) {
-			$values[name] = factory.apply(null);
-			return Observable.of($values[name]);
-		}
-
 		/// Dependancy
 		return Observable.from(factory.$inject).mergeMap(name => {
 			return factory.$inject.values[name] || $values[name] || invokeFactory$(name);
@@ -79,16 +80,12 @@
 		return this;
 	};
 
-	module.value = function(name, obj) {
-		$values[name] = obj;
-		return this;
-	};
-
 	module.get$ = function(name) {
 		return $values[name] ? Observable.of($values[name]) : invokeFactory$(name);
 	};
 
 
+	/// Short Cuts
 	function createPrefixFactory(fn) {
 		function create(name, factory) {
 			$factories[fn(name)] = createFactory(factory);
@@ -101,11 +98,14 @@
 		return create;
 	}
 
-
 	module.directive = createPrefixFactory(name => "@" + name);
 	module.pipe = createPrefixFactory(name => "|" + name);
 	module.component = createPrefixFactory(name => "<" + name.toUpperCase() + ">");
 
+
+	/// @FIXME: 임시 확인용
+	module.$values = $values;
+	module.$factories = $factories;
 
 	window.module = module;
 })(this);

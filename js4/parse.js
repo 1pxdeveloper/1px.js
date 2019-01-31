@@ -16,10 +16,6 @@ function next(id) {
 	return t;
 }
 
-function lookahead(id) {
-
-}
-
 function expression(rbp) {
 	rbp = rbp || 0;
 
@@ -322,7 +318,7 @@ infix(80, "(", function(left) {
 
 
 /// Tokenizer
-let re = /([_$a-zA-Z가-힣][_$a-zA-Z0-9가-힣]*)|((?:\d*\.\d+)|\d+)|('[^']*'|"[^"]*")|(===|!==|==|!=|<=|>=|&&|\|\||[-|+*/!?:.,<>\[\]\(\){}])|(\s)|./g;
+tokenize.re = /([_$a-zA-Z가-힣][_$a-zA-Z0-9가-힣]*)|((?:\d*\.\d+)|\d+)|('[^']*'|"[^"]*")|(===|!==|==|!=|<=|>=|&&|\|\||[-|+*/!?:.,<>\[\]\(\){}])|(\s)|./g;
 
 let token_types = [
 	"",
@@ -334,13 +330,39 @@ let token_types = [
 	"(unknown)"
 ];
 
-function tokenize(script) {
+function tokenize(script, macro) {
+	macro = macro || Object.create(null);
 	let tokens = [];
 
-	script.replace(re, function(value) {
+	String(script).replace(tokenize.re, function(value) {
 		let type;
 		let token;
 
+		/// Macro
+		let o = macro[value];
+		if (o !== undefined) {
+			let prev = tokens[tokens.length - 1];
+			if (!prev || prev.value !== ".") {
+				tokens = tokens.concat(tokenize(o, macro));
+				return value;
+			}
+		}
+
+		// value
+
+
+		/// Constanst
+		// let o = macro[value];
+		// if (o !== undefined) {
+		// 	let prev = tokens[tokens.length - 1];
+		// 	if (!prev || prev.value !== ".") {
+		// 		tokens = tokens.concat(tokenize(o, macro));
+		// 		return value;
+		// 	}
+		// }
+
+
+		/// parse Type
 		for (let i = 1; i < arguments.length; i++) {
 			if (arguments[i]) {
 				type = token_types[i];
@@ -510,8 +532,8 @@ function setScope(tokens, scope, local) {
 	});
 }
 
-function $parse(script) {
-	$tokens = tokenize(script);
+function $parse(script, macro) {
+	$tokens = tokenize(script, macro);
 	let tokens = $tokens.slice();
 
 
@@ -540,74 +562,46 @@ function $parse(script) {
 	$eval.watch$ = function(context, local) {
 
 		setScope(tokens, context, local);
+		tokens.forEach(function(token) {
+			token.setObjectProp = function(object, prop) {
+				this.obserable$ = watch$(object, prop);
+				this.object = object;
+				this.prop = prop;
+				return this.object && this.object[this.prop];
+			}
+		});
 
-		let subscription = null;
+
+		// let subscription = null;
 
 		return new Observable(function(observer) {
-			function callback() {
-				tokens.forEach(function(self) {
-					if (self.subscription) {
-						self.subscription.unsubscribe();
-					}
-				});
 
-				if (subscription) {
-					subscription.unsubscribe();
-				}
+			let s = [];
 
+			function nextValue() {
 				let value = evaluate(root);
-				if (value instanceof Observable) {
-					subscription = value.subscribe(observer);
-				} else {
-					observer.next(value);
-				}
-			}
-
-			tokens.forEach(function(token) {
-				token.setObjectProp = function(object, prop) {
-					this.object = object;
-					this.prop = prop;
-
-					if (this.subscription) {
-						this.subscription.unsubscribe();
-					}
-
-					this.subscription = watch$(object, prop).subscribe((value) => {
-						this.makeDirty();
-
-						if (nextTick.queue.indexOf(callback) === -1) {
-							nextTick(callback);
-						}
-					});
-
-					return this.object && this.object[this.prop];
-				}
-			});
-
-			let value = evaluate(root);
-			if (value instanceof Observable) {
-				subscription = value.subscribe(observer);
-			} else {
 				observer.next(value);
+
+				let first = false;
+
+				s = tokens.filter(t => t.obserable$).map(token => {
+					return token.obserable$.subscribe(v => {
+						if (first) return;
+
+						first = true;
+						nextTick(function() {
+							token.makeDirty();
+							nextValue();
+						});
+					});
+				});
 			}
 
+			nextValue();
 
 			return function() {
-				console.log("clean up??");
-
-				if (subscription) {
-					if (subscription.closed) {
-						return;
-					}
-
-					subscription.unsubscribe();
-				}
-
-				tokens.forEach(function(self) {
-					if (self.subscription) {
-						self.subscription.unsubscribe();
-					}
-				});
+				console.log("scope watch clean up!!!");
+				s.forEach(s => s.unsubscribe());
 			}
 		});
 	};

@@ -24,7 +24,7 @@
 	<template>
 		<section class="todoapp">
 			<header class="header">
-				<h1>todos</h1>
+				<h1>todos {{ todos.length }}</h1>
 				<form (submit)="addTodo($form.newTodo.value)" $form>
 					<input name="newTodo" class="new-todo" placeholder="What needs to be done?" autofocus>
 				</form>
@@ -32,20 +32,19 @@
 
 			<!-- This section should be hidden by default and shown when there are todos -->
 			<section class="main" [hidden]="todos.length === 0">
-				<input id="toggle-all" class="toggle-all" type="checkbox" [(checked)]="allMarked"
-					   (change)="toggleAll(allMarked)">
+				<input id="toggle-all" class="toggle-all" type="checkbox" [(checked)]="allMarked" (change)="toggleAll(allMarked)">
 				<label for="toggle-all">Mark all as complete</label>
 				<ul class="todo-list">
 					<li *repeat="todos as todo, index" [class.completed]="todo.completed"
-						[class.editing]="todo === editingTodo">
+							[class.editing]="todo === editingTodo">
 						<div class="view">
 							<input class="toggle" type="checkbox" [(checked)]="todo.completed">
-							<label (dblclick)="setEditingTodo(todo)">{{ todo.title }}</label>
+							<label (dblclick)="setEditingTodo(todo)">{{ todo.completed }} {{ todo.title }}</label>
 							<button class="destroy" (click)="removeTodoByIndex(index)"></button>
 						</div>
 						<form $form2 (submit)="applyTodo(todo, editingTodo.title)">
 							<input name="title" class="edit" [(value)]="editingTodo.title" (blur)="$form2.submit()"
-								   focus()="todo === editingTodo">
+									focus()="todo === editingTodo">
 						</form>
 					</li>
 				</ul>
@@ -98,12 +97,12 @@
 				this.allMarked = false;
 				this.editingTodo = null;
 
-				this.watch$("todos as todo if !todo.completed").count();
-				this.num_completed_items$ = this.watch$("todos.length - num_items_left");
+				// this.watch$("todos as todo if !todo.completed").count();
+				// this.num_completed_items$ = this.watch$("todos.length - num_items_left");
 			},
 
 			addTodo: function(title) {
-				this.todos.push({
+				this.todos.unshift({
 					title: title,
 					completed: false,
 				});

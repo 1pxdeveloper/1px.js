@@ -1,10 +1,11 @@
 function Scope(context, local) {
 	let self = this;
 
-	this.context = context;
-	this.local = Object.assign(Object.create(null), local);
-	this.enable = true;
+	this.context = context || {};
+	this.local = local || {};
 
+
+	this.enable = true;
 	this.stop$ = new Observable(function(observer) {
 		self.stop = function() {
 			observer.complete();
@@ -14,10 +15,11 @@ function Scope(context, local) {
 
 Scope.prototype = {
 	stop() {
+
 	},
 
-	fork(local) {
-		return new Scope(this.context, Object.assign(this.local, local));
+	fork() {
+		return new Scope(this.context, Object.create(this.local));
 	},
 
 	on$(el, type, useCapture) {
@@ -25,15 +27,15 @@ Scope.prototype = {
 	},
 
 	eval(script) {
-		return $parse(script)(this.context, this.local);
+		return $parse(script, this.local)(this.context, null);
 	},
 
 	assign(script, value) {
-		return $parse(script).assign(this.context, this.local, value);
+		return $parse(script, this.local).assign(this.context, null, value);
 	},
 
 	watch$(script, fn) {
-		let o = $parse(script).watch$(this.context, this.local);//.filter(function() { return self.enable; }).takeUntil(self.stop$);
+		let o = $parse(script, this.local).watch$(this.context, null).takeUntil(this.stop$);
 		return fn ? o.subscribe(fn) : o;
 	}
 };
@@ -164,7 +166,10 @@ function _twoway(scope, el, script, prop) {
 		el[prop] = value;
 	});
 
-	scope.on$(el, "input").subscribe(function(value) {
+	scope.on$(el, "input").subscribe(function(event) {
+
+		console.log("!!!", script, el[prop]);
+
 		scope.assign(script, el[prop]);
 	});
 }
@@ -221,7 +226,7 @@ function compile_text_node(textNode, scope) {
 		scope.watch$(script, function(value) {
 
 
-//			console.log(script, value);
+			console.log(script, value);
 
 
 			this.nodeValue = value === undefined ? "" : value;
@@ -271,15 +276,17 @@ module.directive("*repeat", function() {
 
 		scope.watch$(rows, array => {
 
-			/// @TODO: 같은 Object일 경우 재사용할 수 있도록 sort하는 로직 추가 할것!!!
+			/// @TODO: 같은 Object일 경우 DOM을 재사용할 수 있도록 sort하는 로직 추가 할것!!!
 			foreach(array, (value, i) => {
+
+				console.log(value, i);
 
 				if (!container[i]) {
 					let node = repeatNode.cloneNode(true);
 					let _scope = scope.fork();
 
-					// row && (_scope.local[row] = value);
-					// index && (_scope.local[index] = i);
+					row && (_scope.local[row] = rows + "[" + i + "]");
+					index && (_scope.local[index] = i);
 
 					$compile(node, _scope);
 					placeholderEnd.before(node);
@@ -288,17 +295,11 @@ module.directive("*repeat", function() {
 						nodes: [node],
 						scope: _scope
 					};
-
-				} else {
-					let _scope = container[i].scope;
-					// row && (_scope.local[row] = value);
-					// index && (_scope.local[index] = i);
 				}
-
-				lastIndex = i + 1;
 			});
 
 
+			lastIndex = array.length;
 			for (let i = lastIndex, len = container.length; i < len; i++) {
 				container[i].nodes.forEach(node => node.remove());
 				container[i].scope.stop();
