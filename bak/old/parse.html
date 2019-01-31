@@ -63,7 +63,7 @@
 		}
 	}();
 
-	// parse.js
+	// expression.js
 	// Parser for Simplified JavaScript written in Simplified JavaScript
 	// From Top Down Operator Precedence
 	// http://javascript.crockford.com/tdop/index.html
@@ -152,7 +152,7 @@
 			return token;
 		}
 
-		function expression(rbp) {
+		function parse(rbp) {
 			var left;
 			var t = token;
 			advance();
@@ -480,7 +480,7 @@
 		}
 	};
 
-	function $eval(expression, stack) {
+	function $eval(parse, stack) {
 		$scope.stack = stack;
 		exec.$scope = $scope;
 		return exec(parse(expression));

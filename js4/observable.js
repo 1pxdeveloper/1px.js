@@ -14,8 +14,7 @@ const Observable = (function() {
 		subscribe(observer, error, complete) {
 			if (typeof observer === "function") {
 				observer = {next: observer, error, complete};
-			}
-			else if (typeof observer !== "object") {
+			} else if (typeof observer !== "object") {
 				observer = {};
 			}
 
@@ -106,12 +105,13 @@ const Observable = (function() {
 				let cleanup = subscriber.call(undefined, observer);
 
 				if (cleanup instanceof Subscription)
-					this._cleanup = function() { cleanup.unsubscribe() };
+					this._cleanup = function() {
+						cleanup.unsubscribe()
+					};
 
 				else if (typeof cleanup === "function")
 					this._cleanup = cleanup;
-			}
-			catch (e) {
+			} catch (e) {
 				observer.error(e);
 				return;
 			}
@@ -205,6 +205,47 @@ Observable.prototype.map = function(fn) {
 	});
 };
 
+Observable.prototype.do = function(fn) {
+	return this.pipe(observer => {
+		return {
+			next() {
+				fn.apply(observer, arguments);
+				observer.next(...arguments);
+			}
+		}
+	});
+};
+
+
+Observable.prototype.mergeMap = function(fn) {
+	return this.pipe(observer => {
+		return {
+			next() {
+				Observable.of(fn.apply(observer, arguments)).subscribe(value => {
+					observer.next(value);
+				});
+			}
+		}
+	});
+};
+
+
+Observable.prototype.mergeAll = function() {
+	return new Observable(observer => {
+		let ret = [];
+
+		this.subscribe({
+			next(value) {
+				ret.push(value)
+			},
+
+			complete() {
+				observer.next(ret);
+			}
+		})
+	});
+};
+
 
 Observable.prototype.filter = function(fn) {
 	return this.pipe(observer => {
@@ -236,18 +277,18 @@ Observable.prototype.share = function() {
 		observers.push(observer);
 
 		subscription = subscription || this.subscribe({
-				next() {
-					observers.forEach(observer => observer.next(...arguments));
-				},
+			next() {
+				observers.forEach(observer => observer.next(...arguments));
+			},
 
-				error() {
-					observers.forEach(observer => observer.error(...arguments));
-				},
+			error() {
+				observers.forEach(observer => observer.error(...arguments));
+			},
 
-				complete() {
-					observers.forEach(observer => observer.complete());
-				}
-			});
+			complete() {
+				observers.forEach(observer => observer.complete());
+			}
+		});
 
 		return function() {
 			observers.splice(observers.indexOf(observer), 1);
@@ -283,11 +324,9 @@ Observable.prototype.skip = function(count) {
 };
 
 
-
-
-
 /// Static
-Observable.never = new Observable(function() {});
+Observable.never = new Observable(function() {
+});
 Observable.empty = new Observable(observer => observer.complete());
 
 Observable.interval = function(delay) {
@@ -334,4 +373,10 @@ Observable.zip = function(...observables) {
 			s.forEach(subscription => subscription.unsubscribe());
 		}
 	});
+};
+
+
+Observable.race = function(array) {
+
+	let subscription = array.map(o => o.subscribe({}))
 };

@@ -1,8 +1,12 @@
 (function(self) {
 
-	///////////// Modules
-	let $modules = {};
+	let module = {};
+
+	let $values = {};
 	let $factories = {};
+
+	module.$values = $values;
+	module.$factories = $factories;
 
 	function createFactoryFromArray(array) {
 		let factory = array.pop();
@@ -48,67 +52,60 @@
 		throw SyntaxError(object);
 	}
 
-	function invokeFactory(factory) {
-		let args = [];
-		for (let i = 0; i < factory.$inject.length; i++) {
-			let name = factory.$inject[i];
-			let module = factory.$inject.values[name] || getModule(name);
-			if (!module) {
-				throw "no module: " + name;
-			}
-			args.push(module);
-		}
-
-		return factory.apply(window, args);
-	}
-
-	function getModule(name) {
-		if ($modules[name]) {
-			return $modules[name];
+	function invokeFactory$(name) {
+		if (!$factories[name]) {
+			return watch$($factories, "name").map(_ => invokeFactory$(name));
 		}
 
 		let factory = $factories[name];
-		if (factory) {
-			$modules[name] = invokeFactory(factory);
-			return $modules[name];
+
+		/// no module factory
+		if (factory.$inject.length === 0) {
+			$values[name] = factory.apply(null);
+			return Observable.of($values[name]);
 		}
+
+		/// Dependancy
+		return Observable.from(factory.$inject).mergeMap(name => {
+			return factory.$inject.values[name] || $values[name] || invokeFactory$(name);
+		}).mergeAll().map(args => {
+			$values[name] = factory.apply(null, args);
+			return $values[name];
+		});
 	}
 
-	let module = {};
-
-	module.get = getModule;
-
-	module.value = function(name, value) {
-		$modules[name] = value;
+	module.factory = function(name, mixed) {
+		$factories[name] = createFactory(mixed);
 		return this;
 	};
 
-	module.factory = function(name, factory) {
-		$factories[name] = createFactory(factory);
+	module.value = function(name, obj) {
+		$values[name] = obj;
 		return this;
 	};
+
+	module.get$ = function(name) {
+		return $values[name] ? Observable.of($values[name]) : invokeFactory$(name);
+	};
+
 
 	function createPrefixFactory(fn) {
 		function create(name, factory) {
 			$factories[fn(name)] = createFactory(factory);
 		}
 
-		create.get = function(name) {
-			return getModule(fn(name));
+		create.get$ = function(name) {
+			return module.get$(fn(name));
 		};
 
 		return create;
 	}
 
-	module.directive = createPrefixFactory((name) => "@" + name);
-	module.pipe = createPrefixFactory((name) => "|" + name);
-	module.component = createPrefixFactory((name) => "<" + name.toUpperCase() + ">");
 
-	module.require = function(factory) {
-		invokeFactory(createFactory(factory));
-	};
+	module.directive = createPrefixFactory(name => "@" + name);
+	module.pipe = createPrefixFactory(name => "|" + name);
+	module.component = createPrefixFactory(name => "<" + name.toUpperCase() + ">");
 
 
-	self.app = self.module = module;
-
+	window.module = module;
 })(this);

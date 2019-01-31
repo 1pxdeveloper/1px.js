@@ -168,16 +168,16 @@ symbol("(name)").nud = function() {
 	this.push({value: this.value});
 };
 
-infix(10, "as", function(left) {
-	this.push(left, next("(name)"));
-
-	if ($token.id === ",") {
-		next(",");
-		this.push(next("(name)"));
-	} else {
-		this.push({});
-	}
-});
+// infix(10, "as", function(left) {
+// 	this.push(left, next("(name)"));
+//
+// 	if ($token.id === ",") {
+// 		next(",");
+// 		this.push(next("(name)"));
+// 	} else {
+// 		this.push({});
+// 	}
+// });
 
 
 infix(10, "|", function(left) {
@@ -470,29 +470,29 @@ evaluateRule("(", 3, function(a, b, c) {
 });
 
 
-evaluateRule("as", 3, function(a, b, c) {
-
-	let observable = evaluate(a);
-
-	return Observable.from(observable).pipe(observer => {
-		let index = 0;
-
-		return {
-			next: function(value) {
-
-
-//				$watch(observable, index)
-
-				observer.next(value, index++, b.value, c.value);
-			},
-
-			complete: function() {
-				observer.complete();
-				index = 0;
-			}
-		}
-	});
-});
+// evaluateRule("as", 3, function(a, b, c) {
+//
+// 	let observable = evaluate(a);
+//
+// 	return Observable.from(observable).pipe(observer => {
+// 		let index = 0;
+//
+// 		return {
+// 			next: function(value) {
+//
+//
+// //				$watch(observable, index)
+//
+// 				observer.next(value, index++, b.value, c.value);
+// 			},
+//
+// 			complete: function() {
+// 				observer.complete();
+// 				index = 0;
+// 			}
+// 		}
+// 	});
+// });
 
 
 function foreach(arr, fn, thisObj) {
@@ -517,9 +517,6 @@ function $parse(script) {
 
 	next();
 	let root = expression();
-
-//	console.log(script, root);
-
 
 	function $eval(context, local) {
 		setScope(tokens, context, local);

@@ -389,7 +389,7 @@ module.directive("*repeat", function($compile) {
 
 	function $repeat(element, scope, script) {
 
-		/// parse => repeat="rows as row, index"
+		/// expression => repeat="rows as row, index"
 		var rows, row, index, lastIndex;
 		rows = script;
 		lastIndex = rows.lastIndexOf(" as ");

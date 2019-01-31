@@ -252,7 +252,7 @@ Number.format = function(number) {
 				date = undefined;
 			}
 
-			// Passing date through Date applies Date.parse, if necessary
+			// Passing date through Date applies Date.expression, if necessary
 			date = date ? new Date(date) : new Date;
 			if (isNaN(date)) return "";
 

@@ -669,7 +669,7 @@ Date.prototype.toISOString || (Date.prototype.toISOString = function() {
 		script = "" + script;
 		if (script.indexOf("{") === -1) return script;
 
-		var cache = $cache("parse"),
+		var cache = $cache("expression"),
 			snippet = cache[script] = cache[script] || $parse_expr(script),
 			ret = "";
 
@@ -874,7 +874,7 @@ Date.prototype.toISOString || (Date.prototype.toISOString = function() {
 		bindings[node.nodeName] = true;
 
 		handler.init && handler.init(binding, el, node, binding.script);
-		handler.value = handler.value || "parse";
+		handler.value = handler.value || "expression";
 		if (typeof handler.value === "string") {
 			handler.value = $createBinding[handler.value];
 		}
@@ -901,7 +901,7 @@ Date.prototype.toISOString || (Date.prototype.toISOString = function() {
 		return !!$eval(script, self.scope);
 	}
 
-	$createBinding["parse"] = $value_type_parse;
+	$createBinding["expression"] = $value_type_parse;
 	$createBinding["ident"] = $value_type_ident;
 	$createBinding["expr"] = $value_type_expr;
 	$createBinding["expr-nocache"] = $value_type_expr_nocache;
@@ -1120,7 +1120,7 @@ Date.prototype.toISOString || (Date.prototype.toISOString = function() {
 
 		var repeatHandler = {
 			init: function(self, el, node, script) {
-				/// parse Script "{expr} as {none}, {none}";
+				/// expression Script "{expr} as {none}, {none}";
 				var rows, row, index, lastIndex;
 				rows = script;
 				lastIndex = rows.lastIndexOf(" as ");

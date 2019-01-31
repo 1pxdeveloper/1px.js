@@ -17,6 +17,7 @@ function mutationObservableFromClass$(object, cls, methods) {
 			o[method] = function() {
 				let result = cls[method].apply(this, arguments);
 				observer.next(this);
+				observer.complete();
 				return result;
 			}
 		}
@@ -28,7 +29,7 @@ function mutationObservableFromClass$(object, cls, methods) {
 			Object.setPrototypeOf(object, prototype);
 		}
 
-	}).share();
+	});
 
 	return observable$;
 }
@@ -71,6 +72,7 @@ function watch$(object, prop) {
 			subscription.unsubscribe();
 			subscription = mutationObservable$(value).subscribe(observer);
 			observer.next(value);
+			observer.complete();
 		}
 
 		set.observable$ = observable$;
@@ -93,8 +95,7 @@ function watch$(object, prop) {
 				object[prop] = value;
 			}
 		}
-
-	}).share();
+	});
 
 	return observable$;
 }

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="js4/observable.js"></script>
+    <script src="js4/watch.js"></script>
+    <script src="js4/module.js"></script>
+    <script src="js4/parse.js"></script>
+    <script src="js4/compile.js"></script>
+</head>
+<body>
+
+
+<h1>{{ title }}</h1>
+
+<ul>
+    <li *repeat="arr as a, index">hello~~ {{ a }} {{ index }}</li>
+</ul>
+
+<script>
+    let b = document.body;
+
+    b.title = "asdflkjaslkdfjlksadfas";
+
+    b.arr = ["A", "B", "C", "D", "E"];
+
+    $compile(b);
+
+
+
+
+
+</script>
+
+</body>
+</html>

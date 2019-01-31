@@ -8,9 +8,10 @@ class WebComponent extends HTMLElement {
 		super();
 
 		/// Link Component
-		let component = module.component.get(this.tagName) || {};
-		Object.setPrototypeOf(component, WebComponent.prototype);
-		Object.setPrototypeOf(this, component);
+		module.component.get$(this.tagName).subscribe(component => {
+			Object.setPrototypeOf(component, WebComponent.prototype);
+			Object.setPrototypeOf(this, component);
+		});
 	}
 
 	connectedCallback() {
@@ -29,7 +30,7 @@ class WebComponent extends HTMLElement {
 		this.on$ = scope.on$.bind(scope);
 		this.init();
 
-		compile(template, scope);
+		$compile(template, scope);
 
 		/// Attach Shady DOM!!
 		let contents = DocumentFragment.from(this.childNodes);
@@ -52,7 +53,9 @@ class WebComponent extends HTMLElement {
 		this.destroy = function() {
 			scope.stop();
 			let node;
-			while (node = this.lastChild) { node.remove(); }
+			while (node = this.lastChild) {
+				node.remove();
+			}
 			this.appendChild(DocumentFragment.from(originalContent));
 			delete this.destroy;
 		};
@@ -62,10 +65,13 @@ class WebComponent extends HTMLElement {
 		this.destroy();
 	}
 
-	init() {}
+	init() {
+	}
 
-	destroy() {}
+	destroy() {
+	}
 }
+
 
 class WebComponentDefine extends HTMLElement {
 	constructor() {
@@ -81,7 +87,8 @@ class WebComponentDefine extends HTMLElement {
 		};
 
 		if (!window.customElements.get(name)) {
-			window.customElements.define(name, class extends WebComponent {});
+			window.customElements.define(name, class extends WebComponent {
+			});
 		}
 	}
 
@@ -89,6 +96,7 @@ class WebComponentDefine extends HTMLElement {
 		this.remove();
 	}
 }
+
 WebComponentDefine.map = {};
 
 

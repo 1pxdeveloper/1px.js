@@ -12,7 +12,7 @@
 	<script src="../js4/observable.js"></script>
 	<script src="../js4/module.js"></script>
 	<script src="../js4/watch.js"></script>
-	<script src="../js4/expression.js"></script>
+	<script src="../js4/parse.js"></script>
 	<script src="../js4/compile.js"></script>
 	<script src="../js4/component.js"></script>
 	<script src="../js4/util.js"></script>
@@ -32,17 +32,20 @@
 
 			<!-- This section should be hidden by default and shown when there are todos -->
 			<section class="main" [hidden]="todos.length === 0">
-				<input id="toggle-all" class="toggle-all" type="checkbox" [(checked)]="allMarked" (change)="toggleAll(allMarked)">
+				<input id="toggle-all" class="toggle-all" type="checkbox" [(checked)]="allMarked"
+					   (change)="toggleAll(allMarked)">
 				<label for="toggle-all">Mark all as complete</label>
 				<ul class="todo-list">
-					<li *repeat="todos as todo, index" [class.completed]="todo.completed" [class.editing]="todo === editingTodo">
+					<li *repeat="todos as todo, index" [class.completed]="todo.completed"
+						[class.editing]="todo === editingTodo">
 						<div class="view">
 							<input class="toggle" type="checkbox" [(checked)]="todo.completed">
 							<label (dblclick)="setEditingTodo(todo)">{{ todo.title }}</label>
 							<button class="destroy" (click)="removeTodoByIndex(index)"></button>
 						</div>
 						<form $form2 (submit)="applyTodo(todo, editingTodo.title)">
-							<input name="title" class="edit" [(value)]="editingTodo.title" (blur)="$form2.submit()" focus()="todo === editingTodo">
+							<input name="title" class="edit" [(value)]="editingTodo.title" (blur)="$form2.submit()"
+								   focus()="todo === editingTodo">
 						</form>
 					</li>
 				</ul>
@@ -65,11 +68,14 @@
 					</li>
 				</ul>
 				<!-- Hidden if no completed items are left ↓ -->
-				<button class="clear-completed" [hidden]="num_items_left$ > 0" (click)="clearCompleted()">Clear completed</button>
+				<button class="clear-completed" [hidden]="num_items_left$ > 0" (click)="clearCompleted()">Clear
+					completed
+				</button>
 			</footer>
 		</section>
 	</template>
-	<script>module.component("todo-app", function() {
+
+	<script>module.component("todo-app", function(self) {
 		return {
 			init: function() {
 				window.app = this;

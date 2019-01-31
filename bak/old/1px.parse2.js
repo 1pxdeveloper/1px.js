@@ -270,7 +270,7 @@ $module("1px").define(["foreach", "msie", function(foreach, msie) {
 	};
 
 
-// parse.js
+// expression.js
 // Parser for Simplified JavaScript written in Simplified JavaScript
 // From Top Down Operator Precedence
 // http://javascript.crockford.com/tdop/index.html

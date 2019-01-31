@@ -24,50 +24,19 @@ Scope.prototype = {
 		return Observable.fromEvent(el, type, useCapture);
 	},
 
-	watch$(script, fn) {
-		let self = this;
-		let o = $parse(script).watch$(this.context, this.local);//.filter(function() { return self.enable; }).takeUntil(self.stop$);
-		return fn ? o.subscribe(fn) : o;
+	eval(script) {
+		return $parse(script)(this.context, this.local);
 	},
 
-	watchGroup$(scripts, fn) {
-		let self = this;
+	assign(script, value) {
+		return $parse(script).assign(this.context, this.local, value);
+	},
 
-		let o = scripts.map(script => {
-			return $parse(script).watch$(this.context, this.local);
-		});
-
-		o = Observable.zip.apply(null, o);
-
+	watch$(script, fn) {
+		let o = $parse(script).watch$(this.context, this.local);//.filter(function() { return self.enable; }).takeUntil(self.stop$);
 		return fn ? o.subscribe(fn) : o;
 	}
 };
-
-
-const nextFrame = function() {
-
-	let queue = [];
-
-	function enterFrame() {
-		let index = 0, fn;
-		while (fn = queue[index++]) {
-			fn();
-		}
-		queue = [];
-	}
-
-	return function nextFrame(fn) {
-
-		return fn();
-
-
-		if (queue.length === 0) {
-			window.requestAnimationFrame(enterFrame);
-		}
-
-		queue.push(fn);
-	}
-}();
 
 
 function traverse(node, fn) {
@@ -80,7 +49,10 @@ function traverse(node, fn) {
 	}
 }
 
-function compile(el, scope) {
+function $compile(el, scope) {
+
+	scope = scope || new Scope(el);
+
 	traverse(el, node => {
 		switch (node.nodeType) {
 			case Node.ELEMENT_NODE:
@@ -101,45 +73,46 @@ function compile_element_node(el, scope) {
 			return false;
 	}
 
+	/// @FIXME:... default directive
 	let attrValue = el.getAttribute("*repeat");
 	if (attrValue) {
-		module.directive.get("*repeat")(scope, el, attrValue);
+		module.directive.get$("*repeat").subscribe(f => f(scope, el, attrValue));
 		return false;
 	}
 
 	attrValue = el.getAttribute("*if");
 	if (attrValue) {
-		module.directive.get("*if")(scope, el, attrValue);
+		module.directive.get$("*if").subscribe(f => f(scope, el, attrValue));
 		return false;
 	}
 
 	attrValue = el.hasAttribute("*else");
 	if (attrValue) {
-		module.directive.get("*else")(scope, el, attrValue);
+		module.directive.get$("*else").subscribe(f => f(scope, el, attrValue));
 		return false;
 	}
 
 
+	/// Attribute directive
 	for (let attr of Array.from(el.attributes)) {
+		if (syntax(scope, el, attr, "$", _ref, "")) ;
+		else if (syntax(scope, el, attr, "(", _event, ")")) ;
+		else if (syntax(scope, el, attr, "[(", _twoway, ")]")) ;
+		else if (syntax(scope, el, attr, "[attr.", _attr, "]")) ;
+		else if (syntax(scope, el, attr, "[style.", _style, "]")) ;
+		else if (syntax(scope, el, attr, "[style]", _style_list)) ;
+		else if (syntax(scope, el, attr, "[class.", _class, "]")) ;
+		else if (syntax(scope, el, attr, "[class]", _class_list)) ;
+		else if (syntax(scope, el, attr, "[", _prop, "]")) ;
+
+
+		/// Custom directive
 		// @TODO: directive => directive call
-
-		let directive = module.directive.get(attr.nodeName);
-		if (typeof directive === "function") {
-			directive(scope, el, attr.nodeValue);
-			continue;
-		}
-
-		if (syntax(scope, el, attr, "$", _ref, "")) continue;
-		if (syntax(scope, el, attr, "(", _event, ")")) continue;
-		if (syntax(scope, el, attr, "[(", _twoway, ")]")) continue;
-		if (syntax(scope, el, attr, "[attr.", _attr, "]")) continue;
-		if (syntax(scope, el, attr, "[style.", _style, "]")) continue;
-		if (syntax(scope, el, attr, "[style]", _style_list)) continue;
-		if (syntax(scope, el, attr, "[class.", _class, "]")) continue;
-		if (syntax(scope, el, attr, "[class]", _class_list)) continue;
-		if (syntax(scope, el, attr, "[", _prop, "]")) continue;
-
-		// @TODO: if, elif, else
+		module.directive.get$(attr.nodeName).subscribe(directive => {
+			if (typeof directive === "function") {
+				directive(scope, el, attr.nodeValue);
+			}
+		});
 	}
 }
 
@@ -174,7 +147,6 @@ function _event(scope, el, script, events) {
 	let eventType = events[0];
 
 	scope.on$(el, eventType).subscribe(function(event) {
-		// console.log(event);
 
 		/// form.submit prevent
 		if (eventType === "submit" && !el.hasAttribute("method")) {
@@ -182,21 +154,18 @@ function _event(scope, el, script, events) {
 		}
 
 		scope.local.event = event;
-		$parse(script)(scope.context, scope.local);
+		scope.eval(script);
 	});
 }
 
 function _twoway(scope, el, script, prop) {
 
 	scope.watch$(script, function(value) {
-		// console.log(el, prop, value);
 		el[prop] = value;
 	});
 
 	scope.on$(el, "input").subscribe(function(value) {
-		// console.log("sadlkfjaslfjalskfasd", el[prop]);
-
-		$parse(script).assign(scope.context, scope.local, el[prop]);
+		scope.assign(script, el[prop]);
 	});
 }
 
@@ -267,7 +236,27 @@ function compile_text_node(textNode, scope) {
 
 /// Directive: "*repeat"
 module.directive("*repeat", function() {
+
 	return function(scope, el, script) {
+
+		/// expression => *repeat="rows as row, index"
+		let rows, row, index, lastIndex;
+		rows = script;
+		lastIndex = rows.lastIndexOf(" as ");
+		if (lastIndex !== -1) {
+			rows = rows.substring(0, lastIndex);
+			row = script.substring(lastIndex + 4).trim();
+
+			lastIndex = row.lastIndexOf(",");
+			if (lastIndex !== -1) {
+				index = row.substring(lastIndex + 1).trim();
+				row = row.substring(0, lastIndex).trim();
+			}
+		}
+		rows = "(" + rows + ")";
+
+
+		/// Prepare Placeholder
 		let placeholder = document.createComment("repeat: " + script);
 		let placeholderEnd = document.createComment("endrepeat");
 		let repeatNode = el.cloneNode(true);
@@ -276,52 +265,46 @@ module.directive("*repeat", function() {
 		el.before(placeholder);
 		el.replaceWith(placeholderEnd);
 
+
+		////
 		let container = [];
-		let lastIndex = 0;
 
-		scope.watch$(script, {
-			next(value, i, row, index) {
+		scope.watch$(rows, array => {
 
-				console.log("next!!!", value, i, row, index);
-
-				/// @TODO: 같은 Object일 경우 재사용할 수 있도록 sort하는 로직 추가 할것!!!
+			/// @TODO: 같은 Object일 경우 재사용할 수 있도록 sort하는 로직 추가 할것!!!
+			foreach(array, (value, i) => {
 
 				if (!container[i]) {
 					let node = repeatNode.cloneNode(true);
 					let _scope = scope.fork();
 
-					row && (_scope.local[row] = value);
-					index && (_scope.local[index] = i);
+					// row && (_scope.local[row] = value);
+					// index && (_scope.local[index] = i);
 
-					compile(node, _scope);
+					$compile(node, _scope);
 					placeholderEnd.before(node);
 
 					container[i] = {
 						nodes: [node],
-						scope: _scope,
-						value: value,
+						scope: _scope
 					};
+
 				} else {
 					let _scope = container[i].scope;
-					row && (_scope.local[row] = value);
-					index && (_scope.local[index] = i);
+					// row && (_scope.local[row] = value);
+					// index && (_scope.local[index] = i);
 				}
 
 				lastIndex = i + 1;
-			},
-
-			complete() {
-
-				console.log("compltete!!!");
+			});
 
 
-				for (let i = lastIndex, len = container.length; i < len; i++) {
-					container[i].nodes.forEach(node => node.remove());
-					container[i].scope.stop();
-				}
-
-				container.length = lastIndex;
+			for (let i = lastIndex, len = container.length; i < len; i++) {
+				container[i].nodes.forEach(node => node.remove());
+				container[i].scope.stop();
 			}
+
+			container.length = lastIndex;
 		});
 	}
 });
