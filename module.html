@@ -13,30 +13,48 @@
 
 
 <h1>{{ title }}</h1>
-<h1>{{ title }}</h1>
-<h1>{{ title }}</h1>
 
 <h2>{{ c$ }}</h2>
-
 
 <ul>
     <li *repeat="arr as a, index">hello~~ {{ a }} {{ index }}</li>
 </ul>
 
 <script>
-    let b = document.body;
+	let b = document.body;
 
-    b.title = "asdflkjaslkdfjlksadfas";
+	b.title = "asdflkjaslkdfjlksadfas";
 
-    b.arr = ["A", "B", "C", "D", "E"];
+	b.arr = ["A"];
 
-    b.c$ = Observable.interval(500).map(i => i);
-
-
-    $compile(b);
+	// b.c$ = Observable.interval(500).map(i => i);
 
 
+	$compile(b);
 
+
+
+
+
+    let A = "abcdefg";
+	let B = "abcdekdjasdkfaldsg";
+
+	let c = LCS(A, B);
+
+    let d = B.split("").map(x => {
+
+    	if (c[0] === x) {
+    		c.shift();
+    		return "유지:" + x;
+        }
+
+    	return x;
+    });
+
+    console.log(d.join("\n"));
+
+
+	console.log(c);
 
 
 </script>

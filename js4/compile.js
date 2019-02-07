@@ -27,15 +27,15 @@ Scope.prototype = {
 	},
 
 	eval(script) {
-		return $parse(script, this.local)(this.context, null);
+		return $parse(script)(this.context, this.local);
 	},
 
 	assign(script, value) {
-		return $parse(script, this.local).assign(this.context, null, value);
+		return $parse(script).assign(this.context, this.local, value);
 	},
 
 	watch$(script, fn) {
-		let o = $parse(script, this.local).watch$(this.context, null).takeUntil(this.stop$);
+		let o = $parse(script).watch$(this.context, this.local);//.takeUntil(this.stop$);
 		return fn ? o.subscribe(fn) : o;
 	}
 };
@@ -276,36 +276,88 @@ module.directive("*repeat", function() {
 
 		scope.watch$(rows, array => {
 
-			/// @TODO: 같은 Object일 경우 DOM을 재사용할 수 있도록 sort하는 로직 추가 할것!!!
-			foreach(array, (value, i) => {
+			let prev = container.map(v => v.value);
+			let lcs = LCS(prev, array);
 
-				console.log(value, i);
+			let oldContainer = container.slice();
 
-				if (!container[i]) {
-					let node = repeatNode.cloneNode(true);
-					let _scope = scope.fork();
+			let _placeholder = placeholder.nextSibling;
 
-					row && (_scope.local[row] = rows + "[" + i + "]");
+
+			console.log("lcs", lcs);
+
+
+			container = array.map((value, i) => {
+
+				if (lcs[0] === value) {
+					lcs.shift();
+
+					let pIndex = prev.indexOf(value);
+					prev[pIndex] = NaN;
+
+					let _scope = oldContainer[pIndex].scope;
 					index && (_scope.local[index] = i);
-
-					$compile(node, _scope);
-					placeholderEnd.before(node);
-
-					container[i] = {
-						nodes: [node],
-						scope: _scope
-					};
+					_placeholder = oldContainer[pIndex].nextSibling;
+					return oldContainer[pIndex];
 				}
+
+
+				_placeholder = _placeholder || placeholderEnd;
+
+				let node = repeatNode.cloneNode(true);
+				let _scope = scope.fork();
+
+				row && (_scope.local[row] = value);
+				index && (_scope.local[index] = i);
+
+				$compile(node, _scope);
+				_placeholder.before(node);
+
+				return {
+					nodes: [node],
+					value: value,
+					scope: _scope
+				};
 			});
 
 
-			lastIndex = array.length;
-			for (let i = lastIndex, len = container.length; i < len; i++) {
-				container[i].nodes.forEach(node => node.remove());
-				container[i].scope.stop();
-			}
+			// console.log(_container);
+			//
+			//
+			// /// @TODO: 같은 Object일 경우 DOM을 재사용할 수 있도록 sort하는 로직 추가 할것!!!
+			// foreach(array, (value, i) => {
+			//
+			// 	console.log(value, i);
+			//
+			// 	if (!container[i]) {
+			// 		let node = repeatNode.cloneNode(true);
+			// 		let _scope = scope.fork();
+			//
+			// 		row && (_scope.local[row] = value);
+			// 		index && (_scope.local[index] = i);
+			//
+			// 		$compile(node, _scope);
+			// 		placeholderEnd.before(node);
+			//
+			// 		container[i] = {
+			// 			nodes: [node],
+			// 			value: value,
+			// 			scope: _scope
+			// 		};
+			// 	} else {
+			// 		let _scope = container[i].scope;
+			// 		row && (_scope.local[row] = value);
+			// 		index && (_scope.local[index] = i);
+			// 	}
+			// });
 
-			container.length = lastIndex;
+
+			console.log(container, oldContainer);
+
+			for (let i = array.length, len = oldContainer.length; i < len; i++) {
+				oldContainer[i].nodes.forEach(node => node.remove());
+				oldContainer[i].scope.stop();
+			}
 		});
 	}
 });
@@ -379,8 +431,43 @@ module.directive("*else", function() {
 });
 
 
+function LCS(s1, s2) {
+	let M = [];
+	for (let i = 0; i <= s1.length; i++) {
+		M.push([]);
 
+		for (let j = 0; j <= s2.length; j++) {
+			let currValue = 0;
+			if (i === 0 || j === 0) {
+				currValue = 0;
+			} else if (s1[i - 1] === s2[j - 1]) {
+				currValue = M[i - 1][j - 1] + 1;
+			} else {
+				currValue = Math.max(M[i][j - 1], M[i - 1][j]);
+			}
 
+			M[i].push(currValue);
+		}
+	}
 
+	let i = s1.length;
+	let j = s2.length;
+
+	let s3 = [];
+
+	while (M[i][j] > 0) {
+		if (s1[i - 1] === s2[j - 1] && (M[i - 1][j - 1] + 1 === M[i][j])) {
+			s3 = [].concat(s1[i - 1], s3);
+			i--;
+			j--;
+		} else if (M[i - 1][j] > M[i][j - 1]) {
+			i--;
+		} else {
+			j--;
+		}
+	}
+
+	return s3;
+}
 
 

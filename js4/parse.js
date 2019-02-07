@@ -62,7 +62,7 @@ let $symbol_prototype = {
 	setObjectProp(object, prop) {
 		this.object = object;
 		this.prop = prop;
-		return this.object && this.object[this.prop];
+		return object && object[prop];
 	},
 
 	makeDirty() {
@@ -339,19 +339,16 @@ function tokenize(script, macro) {
 		let token;
 
 		/// Macro
-		let o = macro[value];
-		if (o !== undefined) {
-			let prev = tokens[tokens.length - 1];
-			if (!prev || prev.value !== ".") {
-				tokens = tokens.concat(tokenize(o, macro));
-				return value;
-			}
-		}
+		// let o = macro[value];
+		// if (o !== undefined) {
+		// 	let prev = tokens[tokens.length - 1];
+		// 	if (!prev || prev.value !== ".") {
+		// 		tokens = tokens.concat(tokenize(o, macro));
+		// 		return value;
+		// 	}
+		// }
 
-		// value
-
-
-		/// Constanst
+		/// Literals
 		// let o = macro[value];
 		// if (o !== undefined) {
 		// 	let prev = tokens[tokens.length - 1];
@@ -465,12 +462,7 @@ evaluateRule("?", 3, (a, b, c) => evaluate(a) ? evaluate(b) : evaluate(c));
 
 evaluateRule("(name)", 1, function(a) {
 	a = a.value;
-
-	if (a in this.local) {
-		return this.setObjectProp(this.local, a);
-	}
-
-	return this.setObjectProp(this.scope, a);
+	return this.setObjectProp(a in this.local ? this.local : this.scope, a);
 });
 
 evaluateRule(".", 2, function(a, b) {
@@ -564,36 +556,27 @@ function $parse(script, macro) {
 		setScope(tokens, context, local);
 		tokens.forEach(function(token) {
 			token.setObjectProp = function(object, prop) {
-				this.obserable$ = watch$(object, prop);
+				this.subscription && this.subscription.unsubscribe();
+				this.subscription = watch$(object, prop).subscribe(() => {
+					token.makeDirty();
+				});
+
 				this.object = object;
 				this.prop = prop;
 				return this.object && this.object[this.prop];
 			}
 		});
 
-
-		// let subscription = null;
-
 		return new Observable(function(observer) {
-
-			let s = [];
 
 			function nextValue() {
 				let value = evaluate(root);
-				observer.next(value);
+				value instanceof Observable ? value.subscribe(observer) : observer.next(value);
 
-				let first = false;
-
-				s = tokens.filter(t => t.obserable$).map(token => {
-					return token.obserable$.subscribe(v => {
-						if (first) return;
-
-						first = true;
-						nextTick(function() {
-							token.makeDirty();
-							nextValue();
-						});
-					});
+				watch$(root, "cached").subscribe(cached => {
+					if (cached === false) {
+						nextTick(nextValue);
+					}
 				});
 			}
 
@@ -601,7 +584,7 @@ function $parse(script, macro) {
 
 			return function() {
 				console.log("scope watch clean up!!!");
-				s.forEach(s => s.unsubscribe());
+				// s.forEach(s => s.unsubscribe());
 			}
 		});
 	};

@@ -1,4 +1,5 @@
 (function() {
+
 	const ARRAY_METHODS = ["reverse", "splice", "push", "pop", "unshift", "shift", "sort"];
 	const DATE_METHODS = ["setDate", "setFullYear", "setHours", "setMilliseconds", "setMonth", "setSeconds", "setTime", "setUTCDate", "setUTCFullYear", "setUTCHours", "setUTCMilliseconds", "setUTCMinutes", "setUTCSeconds", "setYear"];
 
@@ -6,7 +7,7 @@
 		let key = methods[0];
 
 		if (object[key].observable$) {
-			return object[key].observable$.share();
+			return object[key].observable$;
 		}
 
 		let observable$ = new Observable(function(observer) {
@@ -29,6 +30,7 @@
 				delete o[key].observable$;
 				Object.setPrototypeOf(object, prototype);
 			}
+
 		}).share();
 
 		return observable$;
@@ -41,13 +43,10 @@
 	}
 
 	function watch$(object, prop) {
+
 		if (Object(object) !== object) {
 			return Observable.never;
 		}
-
-		// if (Array.isArray(object) && +prop >= object.length) {
-		// 	return Observable.never;
-		// }
 
 		if (Array.isArray(object) && +prop === prop) {
 			return Observable.never;
