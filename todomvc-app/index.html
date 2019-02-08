@@ -39,7 +39,7 @@
 							[class.editing]="todo === editingTodo">
 						<div class="view">
 							<input class="toggle" type="checkbox" [(checked)]="todo.completed">
-							<label (dblclick)="setEditingTodo(todo)">{{ todo.completed }} {{ todo.title }}</label>
+							<label (dblclick)="setEditingTodo(todo)">#{{index}} {{ todo.completed }} {{ todo.title }}</label>
 							<button class="destroy" (click)="removeTodoByIndex(index)"></button>
 						</div>
 						<form $form2 (submit)="applyTodo(todo, editingTodo.title)">

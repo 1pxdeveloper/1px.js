@@ -30,31 +30,98 @@
 	// b.c$ = Observable.interval(500).map(i => i);
 
 
-	$compile(b);
+	// $compile(b);
 
 
+	let A = "abcde".split("");
+
+	let container = A.map(v => {
+		let ret = document.createElement("span");
+		ret.innerText = v;
+
+		return {
+			node: ret,
+			value: v
+		}
+	});
+
+	container.forEach(b => {
+		document.body.appendChild(b.node);
+	});
+
+	let placehodlerEnd = document.createComment("");
+	document.body.appendChild(placehodlerEnd);
 
 
+	let B = "abde".split("");
 
-    let A = "abcdefg";
-	let B = "abcdekdjasdkfaldsg";
-
-	let c = LCS(A, B);
-
-    let d = B.split("").map(x => {
-
-    	if (c[0] === x) {
-    		c.shift();
-    		return "유지:" + x;
-        }
-
-    	return x;
-    });
-
-    console.log(d.join("\n"));
+	let [c, d, e] = LCS(A, B);
 
 
-	console.log(c);
+	console.log(c, d, e);
+
+	// console.log(c, d, e);
+
+
+	let dels = [];
+	let placeholders = [];
+	let _container = [];
+
+	A.forEach((value, index) => {
+		if (!d[index]) {
+			_container[index] = value;
+			dels.push(container[index]);
+			container[index].node.remove();
+		} else {
+			placeholders.push(container[index].node);
+		}
+	});
+	placeholders.push(placehodlerEnd);
+
+
+	console.log("dels", dels);
+	console.log("placeholders", placeholders);
+
+
+	////
+	let placeholder_index = 0;
+	let placeholder = placeholders[placeholder_index];
+
+	let _new_container = B.map((value, index) => {
+		if (!e[index]) {
+			let idx = _container.indexOf(value);
+
+			let r = container[idx];
+			if (r) {
+				r = r.node;
+				r.style.color = "red";
+				delete container[idx];
+			}
+
+			if (!r) {
+				r = document.createElement("strong");
+				r.innerText = value;
+			}
+
+			placeholder.before(r);
+			return {
+				node: r,
+				value: value,
+				index: index
+			}
+		}
+
+		placeholder = placeholders[++placeholder_index];
+		return {
+			node: placeholder,
+			value: value,
+			index: index
+		}
+	});
+
+
+	console.log("_container", _container);
+	console.log("_new_container", _new_container);
 
 
 </script>

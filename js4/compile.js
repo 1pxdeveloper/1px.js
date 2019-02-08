@@ -4,7 +4,6 @@ function Scope(context, local) {
 	this.context = context || {};
 	this.local = local || {};
 
-
 	this.enable = true;
 	this.stop$ = new Observable(function(observer) {
 		self.stop = function() {
@@ -75,7 +74,7 @@ function compile_element_node(el, scope) {
 			return false;
 	}
 
-	/// @FIXME:... default directive
+	/// @FIXME:... default template directive
 	let attrValue = el.getAttribute("*repeat");
 	if (attrValue) {
 		module.directive.get$("*repeat").subscribe(f => f(scope, el, attrValue));
@@ -97,24 +96,28 @@ function compile_element_node(el, scope) {
 
 	/// Attribute directive
 	for (let attr of Array.from(el.attributes)) {
-		if (syntax(scope, el, attr, "$", _ref, "")) ;
-		else if (syntax(scope, el, attr, "(", _event, ")")) ;
-		else if (syntax(scope, el, attr, "[(", _twoway, ")]")) ;
-		else if (syntax(scope, el, attr, "[attr.", _attr, "]")) ;
-		else if (syntax(scope, el, attr, "[style.", _style, "]")) ;
-		else if (syntax(scope, el, attr, "[style]", _style_list)) ;
-		else if (syntax(scope, el, attr, "[class.", _class, "]")) ;
-		else if (syntax(scope, el, attr, "[class]", _class_list)) ;
-		else if (syntax(scope, el, attr, "[", _prop, "]")) ;
 
-
-		/// Custom directive
-		// @TODO: directive => directive call
+		/// Custom directives
+		let customDefaultPrevent = false;
 		module.directive.get$(attr.nodeName).subscribe(directive => {
 			if (typeof directive === "function") {
-				directive(scope, el, attr.nodeValue);
+				let ret = directive(scope, el, attr.nodeValue);
+				customDefaultPrevent = ret === false;
 			}
 		});
+		if (customDefaultPrevent) continue;
+
+
+		/// Basic directives
+		if (syntax(scope, el, attr, "$", _ref, "")) continue;
+		if (syntax(scope, el, attr, "(", _event, ")")) continue;
+		if (syntax(scope, el, attr, "[(", _twoway, ")]")) continue;
+		if (syntax(scope, el, attr, "[attr.", _attr, "]")) continue;
+		if (syntax(scope, el, attr, "[style.", _style, "]")) continue;
+		if (syntax(scope, el, attr, "[style]", _style_list)) continue;
+		if (syntax(scope, el, attr, "[class.", _class, "]")) continue;
+		if (syntax(scope, el, attr, "[class]", _class_list)) continue;
+		if (syntax(scope, el, attr, "[", _prop, "]")) continue;
 	}
 }
 
@@ -157,6 +160,7 @@ function _event(scope, el, script, events) {
 
 		scope.local.event = event;
 		scope.eval(script);
+		delete scope.local.event;
 	});
 }
 
@@ -168,7 +172,7 @@ function _twoway(scope, el, script, prop) {
 
 	scope.on$(el, "input").subscribe(function(event) {
 
-		console.log("!!!", script, el[prop]);
+		// console.log("!!!", script, el[prop]);
 
 		scope.assign(script, el[prop]);
 	});
@@ -202,7 +206,7 @@ function _class_list(scope, el, script) {
 
 function _ref(scope, el, script, name) {
 
-	console.log("name111", name);
+	// console.log("name111", name);
 
 	scope.context["$" + name] = el;
 }
@@ -226,7 +230,7 @@ function compile_text_node(textNode, scope) {
 		scope.watch$(script, function(value) {
 
 
-			console.log(script, value);
+			// console.log(script, value);
 
 
 			this.nodeValue = value === undefined ? "" : value;
@@ -242,20 +246,82 @@ function compile_text_node(textNode, scope) {
 /// Directive: "*repeat"
 module.directive("*repeat", function() {
 
+	function LCS(s1, s2) {
+		let M = [];
+		for (let i = 0; i <= s1.length; i++) {
+			M.push([]);
+
+			for (let j = 0; j <= s2.length; j++) {
+				let currValue = 0;
+				if (i === 0 || j === 0) {
+					currValue = 0;
+				} else if (s1[i - 1] === s2[j - 1]) {
+					currValue = M[i - 1][j - 1] + 1;
+				} else {
+					currValue = Math.max(M[i][j - 1], M[i - 1][j]);
+				}
+
+				M[i].push(currValue);
+			}
+		}
+
+		let i = s1.length;
+		let j = s2.length;
+
+		// let s3 = [];
+		let s4 = [];
+		let s5 = [];
+
+		while (M[i][j] > 0) {
+			if (s1[i - 1] === s2[j - 1] && (M[i - 1][j - 1] + 1 === M[i][j])) {
+				// s3.unshift(s1[i - 1]);
+
+				s4[i - 1] = s1[i - 1];
+				s5[j - 1] = s1[i - 1];
+
+				i--;
+				j--;
+			} else if (M[i - 1][j] > M[i][j - 1]) {
+				i--;
+			} else {
+				j--;
+			}
+		}
+
+		return [s4, s5];
+	}
+
+	function createRepeatNode(repeatNode, scope, row, index, value, i) {
+		let node = repeatNode.cloneNode(true);
+		let _scope = scope.fork();
+
+		row && (_scope.local[row] = value);
+		index && (_scope.local[index] = i);
+
+		$compile(node, _scope);
+
+		return {
+			index: i,
+			value: value,
+			node: node,
+			scope: _scope,
+		}
+	}
+
 	return function(scope, el, script) {
 
 		/// expression => *repeat="rows as row, index"
-		let rows, row, index, lastIndex;
+		let rows, $row, $index, lastIndex;
 		rows = script;
 		lastIndex = rows.lastIndexOf(" as ");
 		if (lastIndex !== -1) {
 			rows = rows.substring(0, lastIndex);
-			row = script.substring(lastIndex + 4).trim();
+			$row = script.substring(lastIndex + 4).trim();
 
-			lastIndex = row.lastIndexOf(",");
+			lastIndex = $row.lastIndexOf(",");
 			if (lastIndex !== -1) {
-				index = row.substring(lastIndex + 1).trim();
-				row = row.substring(0, lastIndex).trim();
+				$index = $row.substring(lastIndex + 1).trim();
+				$row = $row.substring(0, lastIndex).trim();
 			}
 		}
 		rows = "(" + rows + ")";
@@ -273,91 +339,61 @@ module.directive("*repeat", function() {
 
 		////
 		let container = [];
+		let prevArray = [];
 
 		scope.watch$(rows, array => {
 
-			let prev = container.map(v => v.value);
-			let lcs = LCS(prev, array);
-
-			let oldContainer = container.slice();
-
-			let _placeholder = placeholder.nextSibling;
+			let lcsResult = LCS(prevArray, array);
+			let d = lcsResult[0];
+			let e = lcsResult[1];
 
 
-			console.log("lcs", lcs);
+			/// LCS 알고리즘을 통해 삭제할 노드와 남길 노드를 분리한다.
+			let fixed_container = [];
+			let values_for_reuse = [];
+
+			prevArray.forEach((value, index) => {
+				if (d[index] === undefined) {
+					values_for_reuse[index] = value;
+					container[index].node.remove();
+				} else {
+					fixed_container.push(container[index]);
+				}
+			});
+			fixed_container.push({node: placeholderEnd});
 
 
-			container = array.map((value, i) => {
+			/// 변경되지 않는 노드를 중심으로 새로운 노드들을 추가/재배치 한다.
+			let placeholder_index = 0;
+			let placeholder = fixed_container[placeholder_index].node;
 
-				if (lcs[0] === value) {
-					lcs.shift();
+			container = array.map((value, index) => {
+				if (e[index] === undefined) {
+					let idx = values_for_reuse.indexOf(value);
+					let r = container[idx];
+					if (r) {
+						placeholder.before(r.node);
+						delete container[idx];
+					} else {
+						r = createRepeatNode(repeatNode, scope, $row, $index, value, index);
+						placeholder.before(r.node);
+					}
 
-					let pIndex = prev.indexOf(value);
-					prev[pIndex] = NaN;
-
-					let _scope = oldContainer[pIndex].scope;
-					index && (_scope.local[index] = i);
-					_placeholder = oldContainer[pIndex].nextSibling;
-					return oldContainer[pIndex];
+					return r;
 				}
 
-
-				_placeholder = _placeholder || placeholderEnd;
-
-				let node = repeatNode.cloneNode(true);
-				let _scope = scope.fork();
-
-				row && (_scope.local[row] = value);
-				index && (_scope.local[index] = i);
-
-				$compile(node, _scope);
-				_placeholder.before(node);
-
-				return {
-					nodes: [node],
-					value: value,
-					scope: _scope
-				};
+				let r = fixed_container[placeholder_index];
+				placeholder = fixed_container[++placeholder_index].node;
+				return r;
 			});
 
+			container.forEach((data, index) => {
+				let _scope = data.scope;
+				$row && (_scope.local[$row] = data.value);
+				$index && (_scope.local[$index] = index);
+			});
 
-			// console.log(_container);
-			//
-			//
-			// /// @TODO: 같은 Object일 경우 DOM을 재사용할 수 있도록 sort하는 로직 추가 할것!!!
-			// foreach(array, (value, i) => {
-			//
-			// 	console.log(value, i);
-			//
-			// 	if (!container[i]) {
-			// 		let node = repeatNode.cloneNode(true);
-			// 		let _scope = scope.fork();
-			//
-			// 		row && (_scope.local[row] = value);
-			// 		index && (_scope.local[index] = i);
-			//
-			// 		$compile(node, _scope);
-			// 		placeholderEnd.before(node);
-			//
-			// 		container[i] = {
-			// 			nodes: [node],
-			// 			value: value,
-			// 			scope: _scope
-			// 		};
-			// 	} else {
-			// 		let _scope = container[i].scope;
-			// 		row && (_scope.local[row] = value);
-			// 		index && (_scope.local[index] = i);
-			// 	}
-			// });
-
-
-			console.log(container, oldContainer);
-
-			for (let i = array.length, len = oldContainer.length; i < len; i++) {
-				oldContainer[i].nodes.forEach(node => node.remove());
-				oldContainer[i].scope.stop();
-			}
+			prevArray = array.slice();
 		});
 	}
 });
@@ -429,45 +465,5 @@ module.directive("*else", function() {
 		});
 	}
 });
-
-
-function LCS(s1, s2) {
-	let M = [];
-	for (let i = 0; i <= s1.length; i++) {
-		M.push([]);
-
-		for (let j = 0; j <= s2.length; j++) {
-			let currValue = 0;
-			if (i === 0 || j === 0) {
-				currValue = 0;
-			} else if (s1[i - 1] === s2[j - 1]) {
-				currValue = M[i - 1][j - 1] + 1;
-			} else {
-				currValue = Math.max(M[i][j - 1], M[i - 1][j]);
-			}
-
-			M[i].push(currValue);
-		}
-	}
-
-	let i = s1.length;
-	let j = s2.length;
-
-	let s3 = [];
-
-	while (M[i][j] > 0) {
-		if (s1[i - 1] === s2[j - 1] && (M[i - 1][j - 1] + 1 === M[i][j])) {
-			s3 = [].concat(s1[i - 1], s3);
-			i--;
-			j--;
-		} else if (M[i - 1][j] > M[i][j - 1]) {
-			i--;
-		} else {
-			j--;
-		}
-	}
-
-	return s3;
-}
 
 
