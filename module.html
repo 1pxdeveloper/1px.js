@@ -1,127 +1,124 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-    <script src="js4/observable.js"></script>
-    <script src="js4/watch.js"></script>
-    <script src="js4/module.js"></script>
-    <script src="js4/parse.js"></script>
-    <script src="js4/compile.js"></script>
+	<meta charset="UTF-8">
+	<title>Title</title>
+	<script src="js4/observable.js"></script>
+	<!--<script src="js4/watch.js"></script>-->
+	<!--<script src="js4/module.js"></script>-->
+	<!--<script src="js4/parse.js"></script>-->
+	<!--<script src="js4/compile.js"></script>-->
 </head>
 <body>
 
 
-<h1>{{ title }}</h1>
-
-<h2>{{ c$ }}</h2>
-
-<ul>
-    <li *repeat="arr as a, index">hello~~ {{ a }} {{ index }}</li>
-</ul>
-
 <script>
-	let b = document.body;
 
-	b.title = "asdflkjaslkdfjlksadfas";
-
-	b.arr = ["A"];
-
-	// b.c$ = Observable.interval(500).map(i => i);
-
-
-	// $compile(b);
-
-
-	let A = "abcde".split("");
-
-	let container = A.map(v => {
-		let ret = document.createElement("span");
-		ret.innerText = v;
-
-		return {
-			node: ret,
-			value: v
-		}
-	});
-
-	container.forEach(b => {
-		document.body.appendChild(b.node);
-	});
-
-	let placehodlerEnd = document.createComment("");
-	document.body.appendChild(placehodlerEnd);
-
-
-	let B = "abde".split("");
-
-	let [c, d, e] = LCS(A, B);
-
-
-	console.log(c, d, e);
-
-	// console.log(c, d, e);
-
-
-	let dels = [];
-	let placeholders = [];
-	let _container = [];
-
-	A.forEach((value, index) => {
-		if (!d[index]) {
-			_container[index] = value;
-			dels.push(container[index]);
-			container[index].node.remove();
-		} else {
-			placeholders.push(container[index].node);
-		}
-	});
-	placeholders.push(placehodlerEnd);
-
-
-	console.log("dels", dels);
-	console.log("placeholders", placeholders);
-
-
-	////
-	let placeholder_index = 0;
-	let placeholder = placeholders[placeholder_index];
-
-	let _new_container = B.map((value, index) => {
-		if (!e[index]) {
-			let idx = _container.indexOf(value);
-
-			let r = container[idx];
-			if (r) {
-				r = r.node;
-				r.style.color = "red";
-				delete container[idx];
-			}
-
-			if (!r) {
-				r = document.createElement("strong");
-				r.innerText = value;
-			}
-
-			placeholder.before(r);
-			return {
-				node: r,
-				value: value,
-				index: index
-			}
+	function createFactoryFromArray(array) {
+		array = array.slice();
+		let factory = array.pop();
+		if (typeof factory !== "function") {
+			throw SyntaxError(array);
 		}
 
-		placeholder = placeholders[++placeholder_index];
-		return {
-			node: placeholder,
-			value: value,
-			index: index
+		factory.$inject = array;
+		factory.$inject.values = Object.create(null);
+		return factory;
+	}
+
+	function createFactoryFromFunction(factory) {
+		if (typeof factory !== "function") {
+			throw TypeError('factory is must be function.');
 		}
-	});
+
+		if (Array.isArray(factory.$inject)) {
+			return factory;
+		}
+
+		if (factory.length === 0) {
+			factory.$inject = [];
+			factory.$inject.values = Object.create(null);
+			return factory;
+		}
+
+		let injector = factory.toString().match(/\([^)]*\)/m)[0];
+		factory.$inject = injector.slice(1, -1).split(/\s*,\s*/);
+		factory.$inject.values = Object.create(null);
+		return factory;
+	}
+
+	function createFactory(mixed) {
+		if (typeof mixed === "function") {
+			return createFactoryFromFunction(mixed);
+		}
+
+		if (Array.isArray(mixed)) {
+			return createFactoryFromArray(mixed);
+		}
+
+		throw SyntaxError(mixed);
+	}
 
 
-	console.log("_container", _container);
-	console.log("_new_container", _new_container);
+	function invokeFactory(factory, args, index, callback) {
+		if (index >= factory.$inject.length) {
+			callback(args);
+			return;
+		}
+
+		let name = factory.$inject[index];
+		console.log(name, args);
+
+		if (name in $values) {
+			args[index] = $values[name];
+			return invokeFactory(factory, args, index + 1, callback);
+		}
+
+		console.log("없을때??", name);
+
+		$queue[name] = $queue[name] || [];
+		$queue[name].push(arguments);
+
+		if (name in $factories) {
+			let f = createFactory($factories[name]);
+			return invokeFactory(f, [], 0, function(args) {
+				module.value(name, f(...args));
+			});
+		}
+	}
+
+
+	let $values = Object.create(null);
+	let $factories = Object.create(null);
+	let $queue = Object.create(null);
+
+	let module = {};
+
+	module.value = function(name, value) {
+		$values[name] = value;
+
+		if ($queue[name]) {
+			let q = $queue[name].slice();
+			$queue[name] = [];
+			q.forEach(args => {
+				invokeFactory(...args);
+			});
+		}
+
+		return this;
+	};
+
+	module.factory = function(name, mixed) {
+		$factories[name] = mixed;
+		return this;
+	};
+
+	module.require = function(mixed) {
+		let factory = createFactory(mixed);
+		invokeFactory(factory, [], 0, function(args) {
+			factory(...args);
+		});
+	};
 
 
 </script>

@@ -24,27 +24,25 @@
 	<template>
 		<section class="todoapp">
 			<header class="header">
-				<h1>todos {{ todos.length }}</h1>
-				<form (submit)="addTodo($form.newTodo.value)" $form>
+				<h1>todos</h1>
+				<form (submit)="addTodo($form.newTodo.value); $form.reset()" $form>
 					<input name="newTodo" class="new-todo" placeholder="What needs to be done?" autofocus>
 				</form>
 			</header>
 
 			<!-- This section should be hidden by default and shown when there are todos -->
 			<section class="main" [hidden]="todos.length === 0">
-				<input id="toggle-all" class="toggle-all" type="checkbox" [(checked)]="allMarked" (change)="toggleAll(allMarked)">
+				<input id="toggle-all" class="toggle-all" type="checkbox" [(checked)]="allChecked" (input)="toggleAll(allChecked)">
 				<label for="toggle-all">Mark all as complete</label>
 				<ul class="todo-list">
-					<li *repeat="todos as todo, index" [class.completed]="todo.completed"
-							[class.editing]="todo === editingTodo">
+					<li *repeat="todos as todo, index" [class.completed]="todo.completed" [class.editing]="todo === editingTodo">
 						<div class="view">
 							<input class="toggle" type="checkbox" [(checked)]="todo.completed">
-							<label (dblclick)="setEditingTodo(todo)">#{{index}} {{ todo.completed }} {{ todo.title }}</label>
+							<label (dblclick)="setEditingTodo(todo)">{{ todo.title }}</label>
 							<button class="destroy" (click)="removeTodoByIndex(index)"></button>
 						</div>
-						<form $form2 (submit)="applyTodo(todo, editingTodo.title)">
-							<input name="title" class="edit" [(value)]="editingTodo.title" (blur)="$form2.submit()"
-									focus()="todo === editingTodo">
+						<form (submit)="applyTodo(todo, $el.title.value)">
+							<input name="title" class="edit" [value]="todo.title" (blur)="$el.parentNode.submit()" focus()="todo === editingTodo">
 						</form>
 					</li>
 				</ul>
@@ -53,90 +51,122 @@
 			<!-- This footer should hidden by default and shown when there are todos -->
 			<footer class="footer">
 				<!-- This should be `0 items left` by default -->
-				<span class="todo-count"><strong>{{ num_items_left$ || 0 }}</strong> items left</span>
+				<span class="todo-count"><strong>{{ num_items_left || 0 }}</strong> {{ num_items_left === 1 ? "item" : "items" }} left</span>
 				<!-- Remove this if you don't implement routing -->
 				<ul class="filters">
 					<li>
-						<a class="selected" href="#/">All</a>
+						<a [class.selected]="filter === 'all'" href="#/">All</a>
 					</li>
 					<li>
-						<a href="#/active">Active</a>
+						<a [class.selected]="filter === 'active'" href="#/active">Active</a>
 					</li>
 					<li>
-						<a href="#/completed">Completed</a>
+						<a [class.selected]="filter === 'completed'" href="#/completed">Completed</a>
 					</li>
 				</ul>
 				<!-- Hidden if no completed items are left ↓ -->
-				<button class="clear-completed" [hidden]="num_items_left$ > 0" (click)="clearCompleted()">Clear
-					completed
-				</button>
+				<button class="clear-completed" [hidden]="num_items_left> 0" (click)="clearCompleted()">Clear completed</button>
 			</footer>
 		</section>
 	</template>
-
-	<script>module.component("todo-app", function(self) {
-		return {
-			init: function() {
-				window.app = this;
-
-				this.todos = [
-					{
-						title: "123",
-						completed: true,
-					},
-					{
-						title: "Taste JavaScript 345",
-						completed: true,
-					},
-					{
-						title: "JavaScript",
-						completed: false
-					}
-				];
-
-				this.allMarked = false;
-				this.editingTodo = null;
-
-				// this.watch$("todos as todo if !todo.completed").count();
-				// this.num_completed_items$ = this.watch$("todos.length - num_items_left");
-			},
-
-			addTodo: function(title) {
-				this.todos.unshift({
-					title: title,
-					completed: false,
-				});
-
-				this.$form.newTodo.value = "";
-			},
-
-			toggleAll: function(allMarked) {
-				this.todos.forEach(function(todo) {
-					todo.completed = allMarked;
-				});
-			},
-
-			removeTodoByIndex: function(index) {
-				this.todos.splice(index, 1);
-			},
-
-			setEditingTodo: function(todo) {
-				this.editingTodo = todo;
-			},
-
-			applyTodo: function(todo, title) {
-				todo.title = title;
-				this.editingTodo = null;
-			},
-
-			clearCompleted: function() {
-				this.todos = this.todos.slice().filter(function(todo) {
-					return !todo.completed;
-				});
-			}
-		}
-	})</script>
 </web-component>
+
+<script>module.component("todo-app", function($parse) {
+	return {
+		init: function() {
+			window.app = this;
+
+			this.todos = [
+				{
+					title: "123",
+					completed: true,
+				},
+				{
+					title: "Taste JavaScript 345",
+					completed: true,
+				},
+				{
+					title: "JavaScript",
+					completed: false
+				}
+			];
+
+			this.editingTodo = null;
+			this.allChecked = null;
+
+
+			/// @FIXME: 조금더 고급스러운 방법을 고민해보자.
+			this.watchScript$("todo.completed").subscribe(v => {
+				this.num_completed = this.todos.filter(todo => todo.completed).length;
+				this.num_items_left = this.todos.length - this.num_completed;
+				this.allChecked = !this.num_items_left;
+			});
+
+
+			/// @TODO: Route Service
+			this.on$(window, "popstate").subscribe(event => {
+				if (this[location.hash]) {
+					this[location.hash]();
+				}
+			});
+
+			this.filter = "all";
+		},
+
+		/// Route Service
+		"#/": function() {
+			this.filter = "all";
+			console.log("active!!!!!!!!!!");
+		},
+
+		"#/active": function() {
+			this.filter = "active";
+			console.log("active!!!!!!!!!!");
+		},
+
+		"#/completed": function() {
+			this.filter = "completed";
+			console.log("completed!!!!!!!!!!");
+		},
+
+
+		/// Methods
+		addTodo: function(title) {
+
+			title = title.trim();
+			if (!title) return;
+
+			this.todos.unshift({
+				title: title,
+				completed: false,
+			});
+		},
+
+		toggleAll: function(allChecked) {
+			this.todos.forEach(todo => todo.completed = allChecked);
+		},
+
+		removeTodoByIndex: function(index) {
+			this.todos.splice(index, 1);
+		},
+
+		setEditingTodo: function(todo) {
+			this.editingTodo = todo;
+		},
+
+		applyTodo: function(todo, title) {
+
+			this.editingTodo = null;
+			title = (title || "").trim();
+			if (!title) return;
+			todo.title = title;
+		},
+
+		clearCompleted: function() {
+			this.todos = this.todos.filter(todo => !todo.completed);
+		}
+	}
+})</script>
 
 <todo-app></todo-app>
 

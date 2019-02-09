@@ -1,28 +1,13 @@
-(function(self) {
-
-	let module = {};
-
-
-	/// Module - Value
-	let $values = {};
-
-	module.value = function(name, obj) {
-		$values[name] = obj;
-		return this;
-	};
-
-
-	/// Module - Factory
-	let $factories = {};
+(function() {
 
 	function createFactoryFromArray(array) {
+		array = array.slice();
 		let factory = array.pop();
 		if (typeof factory !== "function") {
 			throw SyntaxError(array);
 		}
 
 		factory.$inject = array;
-		factory.$inject.values = {};
 		return factory;
 	}
 
@@ -37,62 +22,107 @@
 
 		if (factory.length === 0) {
 			factory.$inject = [];
-			factory.$inject.values = {};
 			return factory;
 		}
 
 		let injector = factory.toString().match(/\([^)]*\)/m)[0];
 		factory.$inject = injector.slice(1, -1).split(/\s*,\s*/);
-		factory.$inject.values = {};
 		return factory;
 	}
 
-	function createFactory(object) {
-		if (typeof object === "function") {
-			return createFactoryFromFunction(object);
+	function createFactory(mixed) {
+		if (typeof mixed === "function") {
+			return createFactoryFromFunction(mixed);
 		}
 
-		if (Array.isArray(object)) {
-			return createFactoryFromArray(object);
+		if (Array.isArray(mixed)) {
+			return createFactoryFromArray(mixed);
 		}
 
-		throw SyntaxError(object);
+		throw SyntaxError(mixed);
 	}
 
-	function invokeFactory$(name) {
-		if (!$factories[name]) {
-			return watch$($factories, "name").map(_ => invokeFactory$(name));
+
+	function fillFactoryArguments(factory, args, index, callback) {
+		if (index >= factory.$inject.length) {
+			callback(args);
+			return;
 		}
 
-		let factory = $factories[name];
+		let name = factory.$inject[index];
 
-		/// Dependancy
-		return Observable.from(factory.$inject).mergeMap(name => {
-			return factory.$inject.values[name] || $values[name] || invokeFactory$(name);
-		}).mergeAll().map(args => {
-			$values[name] = factory.apply(null, args);
-			return $values[name];
-		});
+
+
+			// console.log(name);
+
+		if (name in $values) {
+
+			args[index] = $values[name];
+			return fillFactoryArguments(factory, args, index + 1, callback);
+		}
+
+
+		// console.log("없을때??", name);
+
+		$queue[name] = $queue[name] || [];
+		$queue[name].push(arguments);
+
+		if (name in $factories) {
+
+			console.log(name);
+
+
+			let f = createFactory($factories[name]);
+			return fillFactoryArguments(f, [], 0, function(args) {
+				module.value(name, f(...args));
+			});
+		}
 	}
 
-	module.factory = function(name, mixed) {
-		$factories[name] = createFactory(mixed);
+
+	/// Module
+	let $values = Object.create(null);
+	let $factories = Object.create(null);
+	let $queue = Object.create(null);
+
+	let module = {};
+
+	module.value = function(name, value) {
+		$values[name] = value;
+
+		if ($queue[name]) {
+			let q = $queue[name].slice();
+			$queue[name] = [];
+			q.forEach(args => {
+				fillFactoryArguments(...args);
+			});
+		}
+
 		return this;
 	};
 
-	module.get$ = function(name) {
-		return $values[name] ? Observable.of($values[name]) : invokeFactory$(name);
+	module.factory = function(name, mixed) {
+		$factories[name] = mixed;
+		return this;
+	};
+
+	module.require = function(mixed) {
+		let factory = createFactory(mixed);
+
+		fillFactoryArguments(factory, [], 0, function(args) {
+			factory(...args);
+		});
 	};
 
 
 	/// Short Cuts
 	function createPrefixFactory(fn) {
-		function create(name, factory) {
-			$factories[fn(name)] = createFactory(factory);
+		function create(name, mixed) {
+			module.factory(fn(name), mixed);
 		}
 
-		create.get$ = function(name) {
-			return module.get$(fn(name));
+		create.require = function(name, callback) {
+			module.require([fn(name), callback]);
 		};
 
 		return create;
@@ -106,6 +136,7 @@
 	/// @FIXME: 임시 확인용
 	module.$values = $values;
 	module.$factories = $factories;
+	module.$queue = $factories;
 
 	window.module = module;
-})(this);
+})();

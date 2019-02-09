@@ -7,8 +7,7 @@ class WebComponent extends HTMLElement {
 	constructor() {
 		super();
 
-		/// Link Component
-		module.component.get$(this.tagName).subscribe(component => {
+		module.component.require(this.tagName, component => {
 			Object.setPrototypeOf(component, WebComponent.prototype);
 			Object.setPrototypeOf(this, component);
 		});
@@ -25,12 +24,13 @@ class WebComponent extends HTMLElement {
 		console.log("init");
 
 		let scope = new Scope(this);
+		$compile(template, scope);
 
-		this.watch$ = scope.watch$.bind(scope);
 		this.on$ = scope.on$.bind(scope);
+		this.watch$ = scope.watch$.bind(scope);
+		this.watchScript$ = scope.watchScript$.bind(scope);
 		this.init();
 
-		$compile(template, scope);
 
 		/// Attach Shady DOM!!
 		let contents = DocumentFragment.from(this.childNodes);
@@ -50,14 +50,14 @@ class WebComponent extends HTMLElement {
 
 
 		/// Override disconnected
-		this.destroy = function() {
+		this.destroy = () => {
+			delete this.destroy;
 			scope.stop();
-			let node;
-			while (node = this.lastChild) {
-				node.remove();
+
+			while (this.lastChild) {
+				this.lastChild.remove();
 			}
 			this.appendChild(DocumentFragment.from(originalContent));
-			delete this.destroy;
 		};
 	}
 

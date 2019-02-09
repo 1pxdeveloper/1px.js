@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Title</title>
+	<script src="js4/observable.js"></script>
+	<script src="js4/watch.js"></script>
+	<script src="js4/module.js"></script>
+	<script src="js4/parse.js"></script>
+	<script src="js4/compile.js"></script>
+</head>
+<body>
+
+
+<h1>{{ title2 }}</h1>
+<h2>{{ title3 }}</h2>
+
+<p>{{ title2 + title3 }}</p>
+
+<p>{{ c$ }}</p>
+
+<ul>
+	<li *repeat="arr as a, index">hello~~ {{ a }} {{ index }}</li>
+</ul>
+
+<ul>
+	<li *repeat="arr as a, index">hello~~ {{ a }} {{ index }}</li>
+</ul>
+
+
+<script>
+	let b = document.body;
+
+	b.title2 = "hello";
+	b.title3 = "world";
+
+	b.arr = ["A"];
+
+	let click$ = Observable.fromEvent(document, "click");
+
+	b.c$ = Observable.interval(500).map(i => i).takeUntil(click$).map(i => i * 10);
+
+
+	function test() {
+		b.title2 = "good";
+		b.title3 = "boy";
+	}
+
+	$compile(b);
+
+
+</script>
+
+</body>
+</html>

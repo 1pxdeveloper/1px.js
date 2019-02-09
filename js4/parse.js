@@ -176,6 +176,9 @@ symbol("(name)").nud = function() {
 // });
 
 
+infix(5, ";");
+
+
 infix(10, "|", function(left) {
 	if ($token.id !== "(name)") {
 		this.error("Unexpected token " + $token.id);
@@ -295,7 +298,7 @@ infix(80, "(", function(left) {
 	args.value = [];
 
 	if (left.id === "." || left.id === "[") {
-		this.push(left.a, left.b, args);
+		this.push(left[0], left[1], args);
 	} else {
 		this.push(left, args);
 	}
@@ -318,7 +321,7 @@ infix(80, "(", function(left) {
 
 
 /// Tokenizer
-tokenize.re = /([_$a-zA-Z가-힣][_$a-zA-Z0-9가-힣]*)|((?:\d*\.\d+)|\d+)|('[^']*'|"[^"]*")|(===|!==|==|!=|<=|>=|&&|\|\||[-|+*/!?:.,<>\[\]\(\){}])|(\s)|./g;
+tokenize.re = /([_$a-zA-Z가-힣][_$a-zA-Z0-9가-힣]*)|((?:\d*\.\d+)|\d+)|('[^']*'|"[^"]*")|(===|!==|==|!=|<=|>=|&&|\|\||[-|+*/!?:;.,<>\[\]\(\){}])|(\s)|./g;
 
 let token_types = [
 	"",
@@ -330,34 +333,12 @@ let token_types = [
 	"(unknown)"
 ];
 
-function tokenize(script, macro) {
-	macro = macro || Object.create(null);
+function tokenize(script) {
 	let tokens = [];
 
 	String(script).replace(tokenize.re, function(value) {
 		let type;
 		let token;
-
-		/// Macro
-		// let o = macro[value];
-		// if (o !== undefined) {
-		// 	let prev = tokens[tokens.length - 1];
-		// 	if (!prev || prev.value !== ".") {
-		// 		tokens = tokens.concat(tokenize(o, macro));
-		// 		return value;
-		// 	}
-		// }
-
-		/// Literals
-		// let o = macro[value];
-		// if (o !== undefined) {
-		// 	let prev = tokens[tokens.length - 1];
-		// 	if (!prev || prev.value !== ".") {
-		// 		tokens = tokens.concat(tokenize(o, macro));
-		// 		return value;
-		// 	}
-		// }
-
 
 		/// parse Type
 		for (let i = 1; i < arguments.length; i++) {
@@ -440,6 +421,11 @@ evaluateRule("{", 1, function(a) {
 evaluateRule("+", 1, (a) => +evaluate(a));
 evaluateRule("-", 1, (a) => -evaluate(a));
 evaluateRule("!", 1, (a) => !evaluate(a));
+
+evaluateRule(";", 2, (a, b) => {
+	evaluate(a);
+	return evaluate(b)
+});
 
 evaluateRule("&&", 2, (a, b) => evaluate(a) && evaluate(b));
 evaluateRule("||", 2, (a, b) => evaluate(a) || evaluate(b));
@@ -524,10 +510,9 @@ function setScope(tokens, scope, local) {
 	});
 }
 
-function $parse(script, macro) {
-	$tokens = tokenize(script, macro);
+function $parse(script) {
+	$tokens = tokenize(script);
 	let tokens = $tokens.slice();
-
 
 	next();
 	let root = expression();
@@ -552,31 +537,29 @@ function $parse(script, macro) {
 
 
 	$eval.watch$ = function(context, local) {
-
-		setScope(tokens, context, local);
-		tokens.forEach(function(token) {
-			token.setObjectProp = function(object, prop) {
-				this.subscription && this.subscription.unsubscribe();
-				this.subscription = watch$(object, prop).subscribe(() => {
-					token.makeDirty();
-				});
-
-				this.object = object;
-				this.prop = prop;
-				return this.object && this.object[this.prop];
-			}
-		});
-
 		return new Observable(function(observer) {
 
+			setScope(tokens, context, local);
+			let stop$ = Observable.defer();
+			let value;
+
 			function nextValue() {
-				let value = evaluate(root);
+				value = evaluate(root);
+
+				console.log("nextValuenextValue", script, value);
+
+
 				value instanceof Observable ? value.subscribe(observer) : observer.next(value);
 
-				watch$(root, "cached").subscribe(cached => {
-					if (cached === false) {
-						nextTick(nextValue);
-					}
+				let os = tokens.filter(token => token.prop).map(token => {
+					return watch$(token.object, token.prop).do(() => token.makeDirty()).takeUntil(stop$);
+				});
+
+				Observable.all(...os).take(1).subscribe(_ => {
+					nextTick(() => {
+						stop$.next();
+						nextValue();
+					});
 				});
 			}
 
@@ -584,7 +567,7 @@ function $parse(script, macro) {
 
 			return function() {
 				console.log("scope watch clean up!!!");
-				// s.forEach(s => s.unsubscribe());
+				stop$.complete();
 			}
 		});
 	};
@@ -592,46 +575,77 @@ function $parse(script, macro) {
 	return $eval;
 }
 
-let nextTick = function() {
+module.value("$parse", $parse);
 
-	let queue = [];
-	let uuid = true;
+
+let nextTick = function() {
 
 	let i = 0;
 	let index = 0;
-
-	let observer = new MutationObserver(function() {
-		console.log("nextTick", i++);
-
-		let fn;
-		while (fn = queue[index++]) {
-			fn();
-		}
-
-		index = 0;
-		queue.length = 0;
-	});
-
-	let textNode = document.createTextNode("");
-	observer.observe(textNode, {characterData: true});
-
-	function start() {
-		uuid = !uuid;
-		textNode.nodeValue = uuid;
-	}
+	let queue = [];
 
 	function nextTick(fn) {
 		if (queue.length === 0) {
-			start();
+			Promise.resolve().then(() => {
+				console.log("nextTick", i++);
+
+				let fn;
+				while (fn = queue[index++]) {
+					fn();
+				}
+
+				index = 0;
+				queue.length = 0;
+			})
 		}
 
 		queue.push(fn);
-
-		if (queue.length > 1024) {
-			throw new Error();
-		}
 	}
 
 	nextTick.queue = queue;
 	return nextTick;
 }();
+
+// let nextTick = function() {
+//
+// 	let queue = [];
+// 	let uuid = true;
+//
+// 	let i = 0;
+// 	let index = 0;
+//
+// 	let observer = new MutationObserver(function() {
+// 		console.log("nextTick", i++);
+//
+// 		let fn;
+// 		while (fn = queue[index++]) {
+// 			fn();
+// 		}
+//
+// 		index = 0;
+// 		queue.length = 0;
+// 	});
+//
+// 	let textNode = document.createTextNode("");
+// 	observer.observe(textNode, {characterData: true});
+//
+// 	function start() {
+// 		uuid = !uuid;
+// 		textNode.nodeValue = uuid;
+// 	}
+//
+// 	function nextTick(fn) {
+// 		if (queue.length === 0) {
+// 			start();
+// 		}
+//
+// 		queue.push(fn);
+//
+// 		if (queue.length > 1024) {
+// 			throw new Error();
+// 		}
+// 	}
+//
+// 	nextTick.queue = queue;
+// 	return nextTick;
+// }();

@@ -199,7 +199,7 @@ Observable.prototype.map = function(fn) {
 	return this.pipe(observer => {
 		return {
 			next() {
-				observer.next(fn.apply(observer, arguments));
+				observer.next(fn(...arguments));
 			}
 		}
 	});
@@ -209,7 +209,7 @@ Observable.prototype.do = function(fn) {
 	return this.pipe(observer => {
 		return {
 			next() {
-				fn.apply(observer, arguments);
+				fn(...arguments);
 				observer.next(...arguments);
 			}
 		}
@@ -257,13 +257,27 @@ Observable.prototype.filter = function(fn) {
 	});
 };
 
-Observable.prototype.takeUntil = function(observable$) {
-	return this.pipe(function(observer) {
-		function complete() {
-			observer.complete();
-		}
+Observable.prototype.take = function(num) {
+	let ret = [];
 
-		observable$.subscribe(complete, complete, complete);
+	return new Observable(observer => {
+		this.subscribe({
+			next(value) {
+				ret.push(value);
+				if (ret.length === num) {
+					observer.next(ret);
+					observer.complete();
+				}
+			}
+		})
+	})
+};
+
+Observable.prototype.takeUntil = function(observable$) {
+	return new Observable(observer => {
+		let s = this.subscribe(observer);
+		let stop = s.unsubscribe.bind(s);
+		observable$.subscribe(stop, stop, stop);
 	});
 };
 
@@ -273,11 +287,13 @@ Observable.prototype.share = function() {
 	let subscription;
 
 	return new Observable(observer => {
+		// console.log('share', observers.length, observers.indexOf(observer));
 
 		observers.push(observer);
 
 		subscription = subscription || this.subscribe({
 			next() {
+				// console.log('share', observers.length, ...arguments)
 				observers.forEach(observer => observer.next(...arguments));
 			},
 
@@ -291,7 +307,11 @@ Observable.prototype.share = function() {
 		});
 
 		return function() {
+			// console.log('-share', observers.indexOf(observer), observers.length);
+
 			observers.splice(observers.indexOf(observer), 1);
+
+
 			if (observers.length === 0) {
 				subscription.unsubscribe();
 			}
@@ -325,8 +345,10 @@ Observable.prototype.skip = function(count) {
 
 
 /// Static
-Observable.never = new Observable(function() {
-});
+function noop() {
+}
+
+Observable.never = new Observable(noop);
 Observable.empty = new Observable(observer => observer.complete());
 
 Observable.interval = function(delay) {
@@ -365,7 +387,7 @@ Observable.zip = function(...observables) {
 		let s = observables.map((observable, index) => {
 			return observable.subscribe(function(value) {
 				result[index] = value;
-				observer.next.apply(observer, result);
+				observer.next(result);
 			});
 		});
 
@@ -376,7 +398,45 @@ Observable.zip = function(...observables) {
 };
 
 
-Observable.race = function(array) {
+Observable.all = function(...observables) {
 
-	let subscription = array.map(o => o.subscribe({}))
+	let index = 0;
+	let len = observables.length;
+
+	return new Observable(observer => {
+
+		observables.map(observable => {
+			return observable.subscribe({
+				next(value) {
+					observer.next(value)
+				},
+				error(err) {
+					observer.error(err)
+				},
+				complete() {
+					len++;
+					if (len === index) {
+						observer.complete();
+					}
+				}
+			});
+		});
+	});
 };
+
+
+Observable.defer = function() {
+
+	let o = new Observable(observer => {
+		o.next = observer.next.bind(observer);
+		o.error = observer.error.bind(observer);
+		o.complete = observer.complete.bind(observer);
+	});
+
+	o.next = noop;
+	o.error = noop;
+	o.complete = noop;
+	return o;
+};
+
+

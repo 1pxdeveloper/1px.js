@@ -1,15 +1,18 @@
-function Scope(context, local) {
+function Scope(context, local, watchTower) {
 	let self = this;
 
-	this.context = context || {};
-	this.local = local || {};
+	this.context = context || Object(null);
+	this.local = local || Object(null);
 
 	this.enable = true;
 	this.stop$ = new Observable(function(observer) {
 		self.stop = function() {
+			observer.next();
 			observer.complete();
 		}
-	}).share();
+	});
+
+	this.watchTower = watchTower || Object(null);
 }
 
 Scope.prototype = {
@@ -18,7 +21,7 @@ Scope.prototype = {
 	},
 
 	fork() {
-		return new Scope(this.context, Object.create(this.local));
+		return new Scope(this.context, Object.create(this.local), this.watchTower);
 	},
 
 	on$(el, type, useCapture) {
@@ -34,9 +37,56 @@ Scope.prototype = {
 	},
 
 	watch$(script, fn) {
-		let o = $parse(script).watch$(this.context, this.local);//.takeUntil(this.stop$);
+
+		script = String(script).trim();
+
+		let o = $parse(script).watch$(this.context, this.local).takeUntil(this.stop$).do(value => {
+
+			try {
+
+
+				if (this.watchTower[script]) {
+					console.log("@@@@@@@", this.watchTower, this.watchTower[script], script);
+					console.log("@@@@[watch script]", script);
+					this.watchTower[script].next(value);
+				}
+			} catch (e) {
+
+				console.error(e);
+			}
+		});
+
 		return fn ? o.subscribe(fn) : o;
+	},
+
+	watchScript$(script, fn) {
+
+		script = String(script).trim();
+
+
+		if (!this.watchTower[script]) {
+			let o = Observable.defer();
+			this.watchTower[script] = {
+				o: o.takeUntil(this.stop$),
+				next: function() {
+					o.next(...arguments)
+				}
+			}
+		}
+
+		console.log("###watchScript!!!", this.watchTower[script], script);
+
+		return this.watchTower[script].o;
+
+
+		// script = String(script).trim();
+		//
+		// let o = $parse(script).watch$(this.context, this.local).takeUntil(this.stop$).do(() => {
+		// 	console.log("@@@@[watch script]", script);
+		// });
+		// return fn ? o.subscribe(fn) : o;
 	}
+
 };
 
 
@@ -74,22 +124,31 @@ function compile_element_node(el, scope) {
 			return false;
 	}
 
+	if (el.tagName === "FORM") {
+		if (!el.hasAttribute("method") && !el.hasAttribute("action")) {
+			el.submit = function() {
+				this.dispatchEvent(new CustomEvent("submit"));
+			}
+		}
+	}
+
+
 	/// @FIXME:... default template directive
 	let attrValue = el.getAttribute("*repeat");
 	if (attrValue) {
-		module.directive.get$("*repeat").subscribe(f => f(scope, el, attrValue));
+		module.directive.require("*repeat", f => f(scope, el, attrValue));
 		return false;
 	}
 
 	attrValue = el.getAttribute("*if");
 	if (attrValue) {
-		module.directive.get$("*if").subscribe(f => f(scope, el, attrValue));
+		module.directive.require("*if", f => f(scope, el, attrValue));
 		return false;
 	}
 
 	attrValue = el.hasAttribute("*else");
 	if (attrValue) {
-		module.directive.get$("*else").subscribe(f => f(scope, el, attrValue));
+		module.directive.require("*else", f => f(scope, el, attrValue));
 		return false;
 	}
 
@@ -99,7 +158,7 @@ function compile_element_node(el, scope) {
 
 		/// Custom directives
 		let customDefaultPrevent = false;
-		module.directive.get$(attr.nodeName).subscribe(directive => {
+		module.directive.require(attr.nodeName, directive => {
 			if (typeof directive === "function") {
 				let ret = directive(scope, el, attr.nodeValue);
 				customDefaultPrevent = ret === false;
@@ -152,16 +211,37 @@ function _event(scope, el, script, events) {
 	let eventType = events[0];
 
 	scope.on$(el, eventType).subscribe(function(event) {
-
 		/// form.submit prevent
-		if (eventType === "submit" && !el.hasAttribute("method")) {
+		if (eventType === "submit" && !el.hasAttribute("action")) {
 			event.preventDefault();
+			event.stopPropagation();
 		}
 
 		scope.local.event = event;
+		scope.local.$el = el;
 		scope.eval(script);
 		delete scope.local.event;
+		delete scope.local.$el;
+
+		return false;
 	});
+
+
+	// scope.on$(el, eventType).subscribe(function(event) {
+	//
+	//
+	// 	alert(eventType);
+	//
+	//
+	// 	/// form.submit prevent
+	// 	if (eventType === "submit" && !el.hasAttribute("method")) {
+	// 		event.preventDefault();
+	// 	}
+	//
+	// 	scope.local.event = event;
+	// 	scope.eval(script);
+	// 	delete scope.local.event;
+	// });
 }
 
 function _twoway(scope, el, script, prop) {
@@ -171,9 +251,6 @@ function _twoway(scope, el, script, prop) {
 	});
 
 	scope.on$(el, "input").subscribe(function(event) {
-
-		// console.log("!!!", script, el[prop]);
-
 		scope.assign(script, el[prop]);
 	});
 }
@@ -224,15 +301,7 @@ function compile_text_node(textNode, scope) {
 		let script = textNode.nodeValue.slice(2, -2);
 
 		textNode.nodeValue = "";
-
-//		console.log("textNode.watch", script);
-
 		scope.watch$(script, function(value) {
-
-
-			// console.log(script, value);
-
-
 			this.nodeValue = value === undefined ? "" : value;
 //			domChanged(textNode.parentNode);
 		}.bind(textNode));
@@ -247,6 +316,9 @@ function compile_text_node(textNode, scope) {
 module.directive("*repeat", function() {
 
 	function LCS(s1, s2) {
+		s1 = s1 || [];
+		s2 = s2 || [];
+
 		let M = [];
 		for (let i = 0; i <= s1.length; i++) {
 			M.push([]);
@@ -324,7 +396,7 @@ module.directive("*repeat", function() {
 				$row = $row.substring(0, lastIndex).trim();
 			}
 		}
-		rows = "(" + rows + ")";
+		// rows = "(" + rows + ")";
 
 
 		/// Prepare Placeholder
@@ -342,6 +414,9 @@ module.directive("*repeat", function() {
 		let prevArray = [];
 
 		scope.watch$(rows, array => {
+			array = array || [];
+
+			console.log("repeat!!!", array);
 
 			let lcsResult = LCS(prevArray, array);
 			let d = lcsResult[0];
@@ -355,6 +430,7 @@ module.directive("*repeat", function() {
 			prevArray.forEach((value, index) => {
 				if (d[index] === undefined) {
 					values_for_reuse[index] = value;
+					container[index].scope.stop();
 					container[index].node.remove();
 				} else {
 					fixed_container.push(container[index]);
@@ -403,8 +479,7 @@ module.directive("*repeat", function() {
 module.directive("*if", function() {
 	return function(scope, el, script) {
 		let placeholder = document.createComment("if: " + script);
-		placeholder._ifScript = script;
-		el._ifScript = script;
+		el._ifScript = placeholder._ifScript = script;
 
 		scope.watch$(script, function(bool) {
 
@@ -432,9 +507,7 @@ module.directive("*else", function() {
 
 		let placeholder = document.createComment("else: " + script);
 
-
 		/// prev가 ifScript가 있거나...
-
 
 		let prev = el.previousSibling;
 		for (let i = 0; i < 5; i++) {

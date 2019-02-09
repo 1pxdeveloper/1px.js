@@ -3,6 +3,8 @@
 	const ARRAY_METHODS = ["reverse", "splice", "push", "pop", "unshift", "shift", "sort"];
 	const DATE_METHODS = ["setDate", "setFullYear", "setHours", "setMilliseconds", "setMonth", "setSeconds", "setTime", "setUTCDate", "setUTCFullYear", "setUTCHours", "setUTCMilliseconds", "setUTCMinutes", "setUTCSeconds", "setYear"];
 
+	let numm = 0;
+
 	function mutationObservableFromClass$(object, cls, methods) {
 		let key = methods[0];
 
@@ -10,7 +12,10 @@
 			return object[key].observable$;
 		}
 
-		let observable$ = new Observable(function(observer) {
+		let observable$ = new Observable(observer => {
+			// numm++;
+			// console.log("mutation watch$ ob: " + numm);
+
 			let prototype = Object.getPrototypeOf(object);
 			let o = Object.create(prototype);
 			Object.setPrototypeOf(object, o);
@@ -19,7 +24,6 @@
 				o[method] = function() {
 					let result = cls[method].apply(this, arguments);
 					observer.next(this);
-					observer.complete();
 					return result;
 				}
 			}
@@ -27,6 +31,10 @@
 			o[key].observable$ = observable$;
 
 			return function() {
+
+				// numm--;
+				// console.log("--mutation watch$ ob: " + numm);
+
 				delete o[key].observable$;
 				Object.setPrototypeOf(object, prototype);
 			}
@@ -41,6 +49,9 @@
 		if (object instanceof Date) return mutationObservableFromClass$(object, Date.prototype, DATE_METHODS);
 		return Observable.never;
 	}
+
+
+	let num = 0;
 
 	function watch$(object, prop) {
 
@@ -62,12 +73,11 @@
 		}
 
 		let observable$ = new Observable(function(observer) {
-			let value = object[prop];
+			// num++;
+			// console.log("watch$ ob: " + num, object, prop);
 
-			let subscription = mutationObservable$(value).subscribe(value => {
-				observer.next(value);
-				observer.complete();
-			});
+			let value = object[prop];
+			let subscription = mutationObservable$(value).subscribe(observer);
 
 			function set(newValue) {
 				if (Object.is(value, newValue)) {
@@ -75,8 +85,9 @@
 				}
 
 				value = newValue;
+				subscription.unsubscribe();
+				subscription = mutationObservable$(value).subscribe(observer);
 				observer.next(value);
-				observer.complete();
 			}
 
 			set.observable$ = observable$;
@@ -92,8 +103,11 @@
 
 			/// cleanup!
 			return function() {
-				subscription.unsubscribe();
 
+				// num--;
+				// console.log("-watch$ ob: " + num, object, prop);
+
+				subscription.unsubscribe();
 				delete set.observable$;
 				delete object[prop];
 				if (value !== undefined) {
