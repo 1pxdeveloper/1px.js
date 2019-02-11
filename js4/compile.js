@@ -1,64 +1,42 @@
-function Scope(global, local, watchTower) {
-	let self = this;
+class Scope {
+	constructor(global, local) {
+		this.global = global || Object(null);
+		this.local = local || Object(null);
 
-	this.global = global || Object(null);
-	this.local = local || Object(null);
+		this.stop$ = new Observable(observer => {
+			this.stop = function() {
+				observer.complete();
+			}
+		}).share();
+	}
 
-	this.enable = true;
-	this.stop$ = new Observable(function(observer) {
-		self.stop = function() {
-			observer.next();
-			observer.complete();
-		}
-	});
-
-	this.watchTower = watchTower || Object(null);
-}
-
-Scope.prototype = {
 	stop() {
 
-	},
+	}
 
-	fork() {
-		return new Scope(this.global, Object.create(this.local), this.watchTower);
-	},
+	fork(local) {
+		local = Object.assign(Object.create(this.local), local);
+		return new Scope(this.global, local);
+	}
 
 	on$(el, type, useCapture) {
-		return Observable.fromEvent(el, type, useCapture);
-	},
+		return Observable.fromEvent(el, type, useCapture).takeUntil(this.stop$);
+	}
 
-	eval(script) {
+	$eval(script) {
 		return $parse(script)(this.global, this.local);
-	},
+	}
 
 	assign(script, value) {
 		return $parse(script).assign(this.global, this.local, value);
-	},
+	}
 
 	watch$(script, fn) {
-
 		script = String(script).trim();
-
-		let o = $parse(script).watch$(this.global, this.local).takeUntil(this.stop$).do(value => {
-
-			try {
-
-
-				if (this.watchTower[script]) {
-					console.log("@@@@@@@", this.watchTower, this.watchTower[script], script);
-					console.log("@@@@[watch script]", script);
-					this.watchTower[script].next(value);
-				}
-			} catch (e) {
-
-				console.error(e);
-			}
-		});
-
+		let o = $parse(script).watch$(this.global, this.local).takeUntil(this.stop$);
 		return fn ? o.subscribe(fn) : o;
 	}
-};
+}
 
 
 function traverse(node, fn) {
@@ -144,9 +122,7 @@ function compile_element_node(el, scope) {
 		if (syntax(scope, el, attr, "[(", _twoway, ")]")) continue;
 		if (syntax(scope, el, attr, "[attr.", _attr, "]")) continue;
 		if (syntax(scope, el, attr, "[style.", _style, "]")) continue;
-		if (syntax(scope, el, attr, "[style]", _style_list)) continue;
 		if (syntax(scope, el, attr, "[class.", _class, "]")) continue;
-		if (syntax(scope, el, attr, "[class]", _class_list)) continue;
 		if (syntax(scope, el, attr, "[", _prop, "]")) continue;
 	}
 }
@@ -176,80 +152,110 @@ function _prop(scope, el, script, prop) {
 	scope.watch$(script, value => el[prop] = value);
 }
 
+
+/// @TODO: (keypress.enter) (keypress.ctrl.enter)
 function _event(scope, el, script, events) {
 
-	events = events.split(".");
-	let eventType = events[0];
+	let [type, ...options] = events.split(".");
 
-	scope.on$(el, eventType).subscribe(function(event) {
+	options = options.reduce((o, option) => {
+		o[option] = true;
+		return o;
+	}, Object.create(null));
+
+	function handleEvent(event) {
 		/// form.submit prevent
-		if (eventType === "submit" && !el.hasAttribute("action")) {
+		if (type === "submit" && !el.hasAttribute("action")) {
 			event.preventDefault();
 			event.stopPropagation();
 		}
 
+		options.prevent && event.preventDefault();
+		options.stop && event.stopPropagation();
+
 		scope.local.event = event;
 		scope.local.$el = el;
-		scope.eval(script);
+		let ret = scope.$eval(script);
 		delete scope.local.event;
 		delete scope.local.$el;
 
-		return false;
+		/// @TOOD: promise, observable
+		if (ret instanceof Promise) {
+
+		}
+	}
+
+	let o$ = scope.on$(el, type, options.capture);
+	if (options.once) {
+		o$ = o$.take(1);
+	}
+
+	/// @TODO: (keypress.enter) (keypress.ctrl.enter)
+
+	// switch (type) {
+	// 	case "keydown":
+	// 	case "keypress":
+	// 	case "keyup":
+	// 		o$.subscribe(function(event) {
+	// 			handleEvent(event);
+	// 		});
+	// 		return;
+	// }
+
+	o$.subscribe(function(event) {
+		handleEvent(event);
 	});
-
-
-	// scope.on$(el, eventType).subscribe(function(event) {
-	//
-	//
-	// 	alert(eventType);
-	//
-	//
-	// 	/// form.submit prevent
-	// 	if (eventType === "submit" && !el.hasAttribute("method")) {
-	// 		event.preventDefault();
-	// 	}
-	//
-	// 	scope.local.event = event;
-	// 	scope.eval(script);
-	// 	delete scope.local.event;
-	// });
 }
 
-function _twoway(scope, el, script, prop) {
+function _twoway(scope, el, script, value) {
+
+	let [prop, ...options] = value.split(".");
+
+	options = options.reduce((o, option) => {
+		o[option] = true;
+		return o;
+	}, Object.create(null));
 
 	scope.watch$(script, function(value) {
 		el[prop] = value;
 	});
 
-	scope.on$(el, "input").subscribe(function(event) {
+	scope.on$(el, options.change ? "change" : "input").subscribe(function() {
 		scope.assign(script, el[prop]);
 	});
 }
 
 function _attr(scope, el, script, attr) {
 	scope.watch$(script, value => {
-		el.setAttribute(attr, value)
+		if (value === null || value === undefined) el.removeAttribute(attr);
+		else el.setAttribute(attr, value)
 	});
 }
 
 function _style(scope, el, script, name) {
+
+	let [prop, unit] = name.split(".", 2);
+	unit = unit || "";
+
 	scope.watch$(script, value => {
-		el.style[name] = value;
+		switch (unit) {
+			case "url":
+				value = "url('" + encodeURIComponent(value) + "')";
+				break;
+
+			default:
+				value = value + unit;
+				break;
+		}
+
+		el.style[prop] = value;
 	});
-}
-
-function _style_list(scope, el, script) {
-
 }
 
 function _class(scope, el, script, name) {
 	scope.watch$(script, value => {
 		value ? el.classList.add(name) : el.classList.remove(name);
 	});
-}
-
-function _class_list(scope, el, script) {
-
 }
 
 function _ref(scope, el, script, name) {
@@ -280,7 +286,6 @@ function compile_text_node(textNode, scope) {
 }
 
 
-/// Directive: "*repeat"
 module.directive("*repeat", function() {
 
 	function LCS(s1, s2) {
@@ -331,6 +336,7 @@ module.directive("*repeat", function() {
 		return [s4, s5];
 	}
 
+	/// @FIXME: 고급스럽게 전환하기
 	function createRepeatNode(repeatNode, scope, row, index, value, i) {
 		let node = repeatNode.cloneNode(true);
 		let _scope = scope.fork();
@@ -350,23 +356,6 @@ module.directive("*repeat", function() {
 
 	return function(scope, el, script) {
 
-		/// expression => *repeat="rows as row, index"
-		let rows, $row, $index, lastIndex;
-		rows = script;
-		lastIndex = rows.lastIndexOf(" as ");
-		if (lastIndex !== -1) {
-			rows = rows.substring(0, lastIndex);
-			$row = script.substring(lastIndex + 4).trim();
-
-			lastIndex = $row.lastIndexOf(",");
-			if (lastIndex !== -1) {
-				$index = $row.substring(lastIndex + 1).trim();
-				$row = $row.substring(0, lastIndex).trim();
-			}
-		}
-		// rows = "(" + rows + ")";
-
-
 		/// Prepare Placeholder
 		let placeholder = document.createComment("repeat: " + script);
 		let placeholderEnd = document.createComment("endrepeat");
@@ -381,17 +370,16 @@ module.directive("*repeat", function() {
 		let container = [];
 		let prevArray = [];
 
-		scope.watch$(rows, array => {
-			array = array || [];
+		scope.watch$(script, array => {
 
-			console.log("repeat!!!", array);
-
-			let lcsResult = LCS(prevArray, array);
-			let d = lcsResult[0];
-			let e = lcsResult[1];
+			/// @FIXME: 고급스럽게 전환하기
+			let [$row, $index] = array["@@keys"];
+			array = array.map(v => v["@@entries"][0]);
 
 
 			/// LCS 알고리즘을 통해 삭제할 노드와 남길 노드를 분리한다.
+			let [d, e] = LCS(prevArray, array);
+
 			let fixed_container = [];
 			let values_for_reuse = [];
 

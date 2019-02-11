@@ -48,7 +48,7 @@
 	function mutationObservable$(object) {
 		if (Array.isArray(object)) return mutationObservableFromClass$(object, Array.prototype, ARRAY_METHODS);
 		if (object instanceof Date) return mutationObservableFromClass$(object, Date.prototype, DATE_METHODS);
-		return Observable.never;
+		return Observable.NEVER;
 	}
 
 
@@ -57,11 +57,11 @@
 	function watch$(object, prop) {
 
 		if (Object(object) !== object) {
-			return Observable.never;
+			return Observable.NEVER;
 		}
 
 		if (Array.isArray(object) && +prop === prop) {
-			return Observable.never;
+			return Observable.NEVER;
 		}
 
 		let desc = Object.getOwnPropertyDescriptor(object, prop);

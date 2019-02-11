@@ -185,7 +185,19 @@ symbol("(name)").nud = function() {
 	this.push({value: this.value});
 };
 
-infix(10, "as", function(left) {
+infix(5, ";");
+
+infixr(10, "=", function(left) {
+	if (left.id !== "." && left.id !== "[" && left.id !== "(name)") {
+		left.error("Bad lvalue.");
+	}
+
+	this.push(left);
+	this.push(expression(9));
+});
+
+
+infix(20, "as", function(left) {
 	this.push(left, next("(name)"));
 
 	if ($token.id === ",") {
@@ -203,10 +215,7 @@ infix(10, "as", function(left) {
 });
 
 
-infix(5, ";");
-
-
-infix(10, "|", function(left) {
+infix(30, "|", function(left) {
 	if ($token.id !== "(name)") {
 		this.error("Unexpected token " + $token.id);
 	}
@@ -237,27 +246,72 @@ infix(10, "|", function(left) {
 });
 
 
-infix(20, "?", function(left) {
+infix(40, "?", function(left) {
 	this.push(left, expression());
 	next(":");
 	this.push(expression());
 });
 
-infixr(30, ["&&", "||"]);
-infixr(40, ["===", "!==", "==", "!=", "<", "<=", ">", ">="]);
+infixr(50, ["&&", "||"]);
+infixr(60, ["===", "!==", "==", "!=", "<", "<=", ">", ">="]);
 
-infix(50, ["+", "-"]);
-infix(60, ["*", "/"]);
+infix(70, ["+", "-"]);
+infix(80, ["*", "/"]);
 
-prefix(70, ["+", "-", "!"]);
+prefix(90, ["+", "-", "!"]);
 
-prefix(70, "(", function() {
+prefix(90, "(", function() {
+
+	let _next = $tokens[$tokens.index];
+	let _next2 = $tokens[$tokens.index + 1];
+
+	console.log(_next);
+
+	if (_next.id === "," || (_next.id === ")" && _next2.id === "=>")) {
+		let args = Object.create($symbol_table["(array)"]);
+		args.value = [];
+		this.push(args);
+
+		for (; ;) {
+			args.value.push(next("(name)"));
+			if ($token.id !== ",") {
+				break;
+			}
+			next(",");
+		}
+		next(")");
+
+		next("=>");
+
+		this.push(expression());
+		return;
+	}
+
+	if (_next.id === "=>") {
+		let args = Object.create($symbol_table["(array)"]);
+		args.value = [];
+		this.push(args);
+		next(")");
+
+		next("=>");
+
+		this.push(expression());
+		return;
+	}
+
+
 	let e = expression();
 	next(")");
 	return e;
 });
 
-prefix(70, "[", function() {
+infix(90, "=>", function(left) {
+	this.push(left);
+	this.push(expression());
+});
+
+
+prefix(90, "[", function() {
 	let array = Object.create($symbol_table["(array)"]);
 	array.value = [];
 
@@ -278,7 +332,7 @@ prefix(70, "[", function() {
 	return array;
 });
 
-prefix(70, "{", function() {
+prefix(90, "{", function() {
 	let args = this.push([]);
 
 	if ($token.id !== "}") {
@@ -305,7 +359,7 @@ prefix(70, "{", function() {
 	next("}");
 });
 
-infix(80, ".", function(left) {
+infix(100, ".", function(left) {
 	if ($token.id !== "(name)") {
 		this.error("Unexpected token " + $token.id);
 	}
@@ -313,12 +367,12 @@ infix(80, ".", function(left) {
 	this.push(left, next());
 });
 
-infix(80, "[", function(left) {
+infix(100, "[", function(left) {
 	this.push(left, expression());
 	next("]");
 });
 
-infix(80, "(", function(left) {
+infix(100, "(", function(left) {
 	let args = Object.create($symbol_table["(array)"]);
 	args.value = [];
 
@@ -346,7 +400,7 @@ infix(80, "(", function(left) {
 
 
 /// Tokenizer
-tokenize.re = /([_$a-zA-Z가-힣][_$a-zA-Z0-9가-힣]*)|((?:\d*\.\d+)|\d+)|('[^']*'|"[^"]*")|(===|!==|==|!=|<=|>=|=>|&&|\|\||[-|+*/!?:;.,<>\[\]\(\){}])|(\s)|./g;
+tokenize.re = /([_$a-zA-Z가-힣][_$a-zA-Z0-9가-힣]*)|((?:\d*\.\d+)|\d+)|('[^']*'|"[^"]*")|(===|!==|==|!=|<=|>=|=>|&&|\|\||[-|+*/!?:;.,<>=\[\]\(\){}])|(\s)|./g;
 
 tokenize.types = [
 	"",
@@ -480,6 +534,20 @@ evaluateRule("[", 2, function(a, b) {
 });
 
 evaluateRule("(", 2, function(a, b) {
+
+	if (a.id === "(array)") {
+		/// @TODO: 이거 중복인데....
+		let args = a.value.map(v => v.value);
+		let tokens = flat_tokens(b);
+
+		return function(..._args) {
+			let r = {};
+			args.forEach((key, index) => r[key] = _args[index]);
+			tokens.forEach(t => t.local = r);
+			return evaluate(b);
+		}
+	}
+
 	let fn = this.setObjectProp(a in this.local ? this.local : this.scope, a.value);
 	return fn && fn.apply(this.object, evaluate(b));
 });
@@ -490,6 +558,20 @@ evaluateRule("(", 3, function(a, b, c) {
 });
 
 
+evaluateRule("=>", 2, function(a, b) {
+
+	let args = [a.value];
+	let tokens = flat_tokens(b);
+
+	return function(..._args) {
+		let r = {};
+		args.forEach((key, index) => r[key] = _args[index]);
+		tokens.forEach(t => t.local = r);
+		return evaluate(b);
+	}
+});
+
+
 evaluateRule("as", 3, function(a, b, c) {
 
 	let arrayLike = evaluate(a);
@@ -497,12 +579,16 @@ evaluateRule("as", 3, function(a, b, c) {
 	let name_of_item = b.value;
 	let name_of_index = c.value || b.value;
 
-	return Array.from(arrayLike).map((value, index) => {
-		let r = {};
+	let ret = Array.from(arrayLike).map((value, index) => {
+		let r = Object.create(null);
 		r[name_of_index] = index;
 		r[name_of_item] = value;
+		r["@@entries"] = [value, index];
 		return r;
 	});
+
+	ret["@@keys"] = [name_of_item, name_of_index];
+	return ret;
 
 // 	return Observable.from(observable).pipe(observer => {
 // 		let index = 0;
@@ -525,6 +611,31 @@ evaluateRule("as", 3, function(a, b, c) {
 });
 
 
+evaluateRule("=", 2, function(a, b) {
+	let A = evaluate(a);
+	let B = evaluate(b);
+
+	if (a.object) {
+		a.object[a.prop] = B;
+	}
+	return B;
+});
+
+function flat_tokens(token) {
+	let tokens = [];
+
+	let stack = [token];
+	while (stack.length) {
+		let t = stack.pop();
+		tokens.push(t);
+		if (t.length) {
+			foreach(t, o => stack.push(o));
+		}
+	}
+
+	return tokens;
+}
+
 evaluateRule("as", 4, function(a, b, c, d) {
 
 	console.log("evaluate!!!!!!!!!!");
@@ -535,30 +646,24 @@ evaluateRule("as", 4, function(a, b, c, d) {
 	let name_of_item = b.value;
 	let name_of_index = c.value || b.value;
 
-	let tokens = [];
+	let tokens = flat_tokens(d);
 
-	let stack = [d];
-	while (stack.length) {
-		let t = stack.pop();
-		tokens.push(t);
-		if (t.length) {
-			foreach(t, o => stack.push(o));
-		}
-	}
-
-	return Array.from(arrayLike).map((value, index) => {
-		let r = {};
+	let ret = Array.from(arrayLike).map((value, index) => {
+		let r = Object.create(null);
 		r[name_of_index] = index;
 		r[name_of_item] = value;
+		r["@@entries"] = [value, index];
+		r["@@keys"] = [name_of_item, name_of_index];
 
 		tokens.forEach(t => {
 			t.local = r;
-			t.cached = false;
-			t.useCache = false;
 		});
 
 		return evaluate(d);
 	});
+
+	ret["@@keys"] = [name_of_item, name_of_index];
+	return ret;
 
 
 // 	return Observable.from(observable).pipe(observer => {
@@ -645,7 +750,7 @@ function $parse(script) {
 
 				/// @TODO: nextTick의 의미 => nextTick으로 인해 변경이 감지되면 다음 tick이 아니라 현재 틱에 다 끝낼수 있어야 한다.!!!!
 				/// @TODO: nextTick vs nextFrame => template이 업데이트가 될떄에는 모든 변경점 관리를 끝내고 한번에 출력할 수 있어야 한다.!!!
-				
+
 				Observable.merge(...watchers).take(1).subscribe(_ => {
 					nextTick(nextValue);
 				});
@@ -663,7 +768,6 @@ function $parse(script) {
 }
 
 module.value("$parse", $parse);
-
 
 
 let nextTick = function() {

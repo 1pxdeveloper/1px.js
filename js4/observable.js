@@ -112,6 +112,7 @@ const Observable = (function() {
 				else if (typeof cleanup === "function")
 					this._cleanup = cleanup;
 			} catch (e) {
+				console.error(e);
 				observer.error(e);
 				return;
 			}
@@ -142,14 +143,14 @@ const Observable = (function() {
 			return this._subscription.closed;
 		}
 
-		next() {
+		next(value) {
 			if (this.closed) return;
-			this._subscription._observer.next && this._subscription._observer.next(...arguments);
+			this._subscription._observer.next && this._subscription._observer.next(value);
 		}
 
 		error(value) {
 			if (this.closed) return;
-			this._subscription._observer.error && this._subscription._observer.error(...arguments);
+			this._subscription._observer.error && this._subscription._observer.error(value);
 			cleanupSubscription(this._subscription);
 		}
 
@@ -348,8 +349,8 @@ Observable.prototype.skip = function(count) {
 function noop() {
 }
 
-Observable.never = new Observable(noop);
-Observable.empty = new Observable(observer => observer.complete());
+Observable.NEVER = new Observable(noop);
+Observable.empty = () => new Observable(observer => observer.complete());
 
 Observable.interval = function(delay) {
 	let i = 0;

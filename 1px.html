@@ -17,7 +17,9 @@
 
 <p>{{ title2 + title3 }}</p>
 
-<p>{{ c$ }}</p>
+<p (click.prevent.stop.self.capture.once)="hello()">{{ c$ }}</p>
+
+<div [style.width.%]="100"></div>
 
 <ul>
 	<li *repeat="arr as a, index">hello~~ {{ a }} {{ index }}</li>
@@ -29,23 +31,73 @@
 
 
 <script>
-	let b = document.body;
+	// let b = document.body;
+	//
+	// b.title2 = "hello";
+	// b.title3 = "world";
+	// b.arr = ["a", "b", "c", "d"];
+	//
+	// let click$ = Observable.fromEvent(document, "click").subscribe(event => {
+	//
+	//
+	// 	console.log("!");
+	//
+	// });
+	//
+	// let stop$ = Observable.empty();
+	//
+	// b.c$ = Observable.interval(500).map(i => i).takeUntil(stop$).map(i => i * 10);
+	//
+	//
+	// function test() {
+	// 	b.title2 = "good";
+	// 	b.title3 = "boy";
+	// }
 
-	b.title2 = "hello";
-	b.title3 = "world";
+	/// auto $localStorage!!!
 
-	let click$ = Observable.fromEvent(document, "click");
+	// let o = {};
+	//
+	// let o2 = new Proxy(o, {
+	// 	set(target, p, value, receiver) {
+	// 		console.log("Save!!")
+	// 		target[p] = value;
+	// 		return true;
+	// 	}
+	// });
 
-	b.c$ = Observable.interval(500).map(i => i).takeUntil(click$).map(i => i * 10);
+	// let revocable = Proxy.revocable({}, {
+	//
+	// });
+	//
+	// revocable.revoke();
 
 
-	function test() {
-		b.title2 = "good";
-		b.title3 = "boy";
-	}
+	// $compile(b);
 
-	$compile(b);
+	var todos = "hello world name".split(" ").map(v => {
+		return {title: v}
+	});
 
+	var x = {a: 100};
+
+	let c = $parse("a => {a: a + 500}")({a: 100, b: 100});
+
+	console.log(c(700));
+
+	//
+	// let e = $parse("a = 300")(x);
+	//
+	// console.log(e);
+	//
+	// let o = {todos};
+	//
+	// let d = $parse("num = todos.map((todo,index) => todo.title + 'abc' + index)").watch$(o).subscribe(v => {
+	// 	console.log(v);
+	// });
+
+
+	// console.log(d);
 
 </script>
 

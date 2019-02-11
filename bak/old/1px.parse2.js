@@ -48,7 +48,7 @@ $module("1px").define(["foreach", "msie", function(foreach, msie) {
 			};
 		};
 
-// Begin tokenization. If the source string is never, return nothing.
+// Begin tokenization. If the source string is NEVER, return nothing.
 
 		if (!this) {
 			return;
