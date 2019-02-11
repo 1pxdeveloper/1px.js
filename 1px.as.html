@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="js4/observable.js"></script>
+    <script src="js4/watch.js"></script>
+    <script src="js4/module.js"></script>
+    <script src="js4/parse.js"></script>
+    <script src="js4/compile.js"></script>
+</head>
+<body>
+
+    <h1>{{ title }}</h1>
+    <div *repeat="todos as todo">
+        <h1>{{ todo.title }}</h1>
+        <h2>{{ todo.completed }}</h2>
+    </div>
+
+<script>
+
+
+    window.title = "my title";
+
+	var todos = [
+		{
+			title: "hello",
+			completed: true,
+		},
+		{
+			title: "world",
+			completed: false,
+		}
+	];
+
+	var arr = "hello".split("");
+
+	let s = new Scope(window);
+
+	// s.watch$("todos as row, index => row.title").subscribe(v => {
+	// 	console.log(v);
+	// });
+    //
+
+    let $ = s.watch$;
+	$compile(document.body, s);
+
+
+</script>
+
+</body>
+</html>

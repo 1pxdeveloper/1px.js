@@ -2144,7 +2144,7 @@ Number.format = function(number, decimals, dec_point, thousands_sep) {
 		return 0;
 	}
 
-	// Strip all characters but numerical ones.
+	// Strip merge characters but numerical ones.
 	number = (number + '').replace(/[^0-9+\-Ee.]/g, '');
 	var n = !isFinite(+number) ? 0 : +number,
 		prec = !isFinite(+decimals) ? 0 : Math.abs(decimals),

@@ -140,7 +140,7 @@ module.require(function($parse, $compile, $$makeFragment) {
 							return;
 						}
 
-						/// Remove all event listeners
+						/// Remove merge event listeners
 						removeAutoAutoEventListener();
 
 						/// Unwatch All

@@ -57,36 +57,7 @@ Scope.prototype = {
 		});
 
 		return fn ? o.subscribe(fn) : o;
-	},
-
-	watchScript$(script, fn) {
-
-		script = String(script).trim();
-
-
-		if (!this.watchTower[script]) {
-			let o = Observable.defer();
-			this.watchTower[script] = {
-				o: o.takeUntil(this.stop$),
-				next: function() {
-					o.next(...arguments)
-				}
-			}
-		}
-
-		console.log("###watchScript!!!", this.watchTower[script], script);
-
-		return this.watchTower[script].o;
-
-
-		// script = String(script).trim();
-		//
-		// let o = $parse(script).watch$(this.context, this.local).takeUntil(this.stop$).do(() => {
-		// 	console.log("@@@@[watch script]", script);
-		// });
-		// return fn ? o.subscribe(fn) : o;
 	}
-
 };
 
 

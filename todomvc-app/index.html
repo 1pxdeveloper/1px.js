@@ -32,17 +32,20 @@
 
 			<!-- This section should be hidden by default and shown when there are todos -->
 			<section class="main" [hidden]="todos.length === 0">
-				<input id="toggle-all" class="toggle-all" type="checkbox" [(checked)]="allChecked" (input)="toggleAll(allChecked)">
+				<input id="toggle-all" class="toggle-all" type="checkbox" [(checked)]="allChecked"
+					   (input)="toggleAll(allChecked)">
 				<label for="toggle-all">Mark all as complete</label>
 				<ul class="todo-list">
-					<li *repeat="todos as todo, index" [class.completed]="todo.completed" [class.editing]="todo === editingTodo">
+					<li *repeat="todos as todo, index" [class.completed]="todo.completed"
+						[class.editing]="todo === editingTodo">
 						<div class="view">
 							<input class="toggle" type="checkbox" [(checked)]="todo.completed">
 							<label (dblclick)="setEditingTodo(todo)">{{ todo.title }}</label>
-							<button class="destroy" (click)="removeTodoByIndex(index)"></button>
+							<button class="destroy" (click)="removeTodo(todo)"></button>
 						</div>
 						<form (submit)="applyTodo(todo, $el.title.value)">
-							<input name="title" class="edit" [value]="todo.title" (blur)="$el.parentNode.submit()" focus()="todo === editingTodo">
+							<input name="title" class="edit" [value]="todo.title" (blur)="$el.parentNode.submit()"
+								   focus()="todo === editingTodo">
 						</form>
 					</li>
 				</ul>
@@ -65,16 +68,25 @@
 					</li>
 				</ul>
 				<!-- Hidden if no completed items are left ↓ -->
-				<button class="clear-completed" [hidden]="num_items_left> 0" (click)="clearCompleted()">Clear completed</button>
+				<button class="clear-completed" [hidden]="num_items_left> 0" (click)="clearCompleted()">Clear
+					completed
+				</button>
 			</footer>
 		</section>
 	</template>
 </web-component>
 
-<script>module.component("todo-app", function($parse) {
+<script>module.component("todo-app", function() {
+
+	// const { watch$ } = this;
+
 	return {
 		init: function() {
 			window.app = this;
+
+			function $(str) {
+				console.log("test", str);
+			}
 
 			this.todos = [
 				{
@@ -91,17 +103,23 @@
 				}
 			];
 
+			console.log("@@", this.todos);
+			console.log("@@@", app.todos);
+
 			this.editingTodo = null;
 			this.allChecked = null;
 
 
 			/// @FIXME: 조금더 고급스러운 방법을 고민해보자.
-			this.watchScript$("todo.completed").subscribe(v => {
-				this.num_completed = this.todos.filter(todo => todo.completed).length;
-				this.num_items_left = this.todos.length - this.num_completed;
-				this.allChecked = !this.num_items_left;
+			this.watch$("todos as todo => todo.completed; todo").subscribe(todos => {
+				this.num_items_left = this.todos.filter(todo => !todo.completed).length;
 			});
 
+			/// @FIXME: 이게 더 나아 보이지 않아????
+			// this.$ `this.num_items_left = this.todos.filter(todo => !todo.completed).length;`;
+			// this.$ `this.allChecked = !num_items_left`;
+
+			this.watch$("!num_items_left", v => this.allChecked = v);
 
 			/// @TODO: Route Service
 			this.on$(window, "popstate").subscribe(event => {
@@ -110,12 +128,12 @@
 				}
 			});
 
-			this.filter = "all";
+			this.filter = "merge";
 		},
 
 		/// Route Service
 		"#/": function() {
-			this.filter = "all";
+			this.filter = "merge";
 			console.log("active!!!!!!!!!!");
 		},
 
@@ -131,7 +149,7 @@
 
 
 		/// Methods
-		addTodo: function(title) {
+		addTodo(title) {
 
 			title = title.trim();
 			if (!title) return;
@@ -142,27 +160,27 @@
 			});
 		},
 
-		toggleAll: function(allChecked) {
+		toggleAll(allChecked) {
 			this.todos.forEach(todo => todo.completed = allChecked);
 		},
 
-		removeTodoByIndex: function(index) {
-			this.todos.splice(index, 1);
+		removeTodo(todo) {
+			let index = this.todos.indexOf(todo);
+			if (index >= 0) this.todos.splice(index, 1);
 		},
 
-		setEditingTodo: function(todo) {
+		setEditingTodo(todo) {
 			this.editingTodo = todo;
 		},
 
-		applyTodo: function(todo, title) {
-
+		applyTodo(todo, title) {
 			this.editingTodo = null;
 			title = (title || "").trim();
 			if (!title) return;
 			todo.title = title;
 		},
 
-		clearCompleted: function() {
+		clearCompleted() {
 			this.todos = this.todos.filter(todo => !todo.completed);
 		}
 	}

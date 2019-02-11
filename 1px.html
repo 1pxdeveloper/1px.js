@@ -34,8 +34,6 @@
 	b.title2 = "hello";
 	b.title3 = "world";
 
-	b.arr = ["A"];
-
 	let click$ = Observable.fromEvent(document, "click");
 
 	b.c$ = Observable.interval(500).map(i => i).takeUntil(click$).map(i => i * 10);

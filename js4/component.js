@@ -28,7 +28,6 @@ class WebComponent extends HTMLElement {
 
 		this.on$ = scope.on$.bind(scope);
 		this.watch$ = scope.watch$.bind(scope);
-		this.watchScript$ = scope.watchScript$.bind(scope);
 		this.init();
 
 

@@ -24,6 +24,7 @@
 				o[method] = function() {
 					let result = cls[method].apply(this, arguments);
 					observer.next(this);
+					observer.complete();
 					return result;
 				}
 			}
@@ -64,12 +65,14 @@
 		}
 
 		let desc = Object.getOwnPropertyDescriptor(object, prop);
-		if (desc && (desc.configurable === false || desc.writable === false || (desc.get && !desc.set))) {
-			return Observable.never;
-		}
+		if (desc) {
+			if (desc.set && desc.set.observable$) {
+				return desc.set.observable$;
+			}
 
-		if (desc && desc.set && desc.set.observable$) {
-			return desc.set.observable$;
+			if (desc.configurable === false || desc.writable === false) {
+				return mutationObservable$(object[prop]);
+			}
 		}
 
 		let observable$ = new Observable(function(observer) {
@@ -83,11 +86,9 @@
 				if (Object.is(value, newValue)) {
 					return;
 				}
-
 				value = newValue;
-				subscription.unsubscribe();
-				subscription = mutationObservable$(value).subscribe(observer);
 				observer.next(value);
+				observer.complete();
 			}
 
 			set.observable$ = observable$;
@@ -110,9 +111,7 @@
 				subscription.unsubscribe();
 				delete set.observable$;
 				delete object[prop];
-				if (value !== undefined) {
-					object[prop] = value;
-				}
+				object[prop] = value;
 			}
 
 		}).share();

@@ -398,7 +398,7 @@ Observable.zip = function(...observables) {
 };
 
 
-Observable.all = function(...observables) {
+Observable.merge = function(...observables) {
 
 	let index = 0;
 	let len = observables.length;
