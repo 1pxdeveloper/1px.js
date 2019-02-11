@@ -1,7 +1,7 @@
-function Scope(context, local, watchTower) {
+function Scope(global, local, watchTower) {
 	let self = this;
 
-	this.context = context || Object(null);
+	this.global = global || Object(null);
 	this.local = local || Object(null);
 
 	this.enable = true;
@@ -21,7 +21,7 @@ Scope.prototype = {
 	},
 
 	fork() {
-		return new Scope(this.context, Object.create(this.local), this.watchTower);
+		return new Scope(this.global, Object.create(this.local), this.watchTower);
 	},
 
 	on$(el, type, useCapture) {
@@ -29,18 +29,18 @@ Scope.prototype = {
 	},
 
 	eval(script) {
-		return $parse(script)(this.context, this.local);
+		return $parse(script)(this.global, this.local);
 	},
 
 	assign(script, value) {
-		return $parse(script).assign(this.context, this.local, value);
+		return $parse(script).assign(this.global, this.local, value);
 	},
 
 	watch$(script, fn) {
 
 		script = String(script).trim();
 
-		let o = $parse(script).watch$(this.context, this.local).takeUntil(this.stop$).do(value => {
+		let o = $parse(script).watch$(this.global, this.local).takeUntil(this.stop$).do(value => {
 
 			try {
 
@@ -253,10 +253,7 @@ function _class_list(scope, el, script) {
 }
 
 function _ref(scope, el, script, name) {
-
-	// console.log("name111", name);
-
-	scope.context["$" + name] = el;
+	scope.global["$" + name] = el;
 }
 
 

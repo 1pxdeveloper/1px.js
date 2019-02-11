@@ -1,34 +1,96 @@
 #1px.js javascript framework
 
-## Compile(Smart Watch)
+## Working Drafts
 
-``` $`this.num_completed = todos.filter(todo => todo.completed).length` ```
-## Template Binding
+### Template Binding
 
-```<div [prop]=expr (event)=handler>{{ display }}</div>```
+```html
+<!-- property, event, text -->
+<div [hidden]="isShow" (click)="removeTodo(todo)">{{ todo.title }}</div>
 
-```<div *foreach="todos as todo, index"></div>```
+<!-- two-way -->
+<input [(value)]="title">
 
-```<div *foreach="todos as todo, index => todo.title if todo.complete"></div>```
+<!-- maniplation -->
+<div *foreach="todos as todo, index"></div>
 
-## Module
+<!-- map, filter -->
+<div *foreach="todos as todo, index => todo.title if todo.complete"></div>
 
-## WebComponent
+<!-- if -->
+<div *if="condition"></div>
 
-```<web-component name="todo-apps">```
+<div *else-if="condition2"></div>
+
+<div *else></div>
+```
 
 
-## Form
+### Compile(Smart Watch)
+
+```javascript
+
+$ `this.num_completed = todos.filter(todo => todo.completed).length`
+
+```
+
+
+### Module
+```javascript
+
+```
+
+### WebComponent
+
+```html
+<web-component name="todo-apps">
+    <template>
+        <div *repeat="todos as todo">{{ todo.title }}</div>   
+    </template>
+</web-component>
+
+<script>module.component("todo-apps", function() {
+	
+	return {
+		init() {
+			
+		},
+		
+		addTodos(title) {
+			
+		}
+	}
+})
+
+</script>
+```
+
+### Observable
+
+### Expression
+
+```html
+$parse(script).watch$(global, local);
+
+let scope = new Scope(global, local);
+
+scope.watch$(script)
+
+```
+
+### Pipe
+```html
+<div>{{ today | date: 'yyyy-mm-dd' }}</div>
+```
+
+### Form
  
- 
-## Util
+### Router
 
-## Router
+### Virtual DOM
 
-## Virtual DOM
+### SSR
 
-## SSR
+### UI Library
 
-## UI Library
-
-## on ServerSide
+### on ServerSide

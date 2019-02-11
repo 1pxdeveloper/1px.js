@@ -22,25 +22,25 @@ module.factory("Scope", function($parse) {
 	function Scope(context, def) {
 		this.context = context || {};
 		this.def = Object.create(def || {});
-		this.value("self", this.context);
-		this.value("this", this.context);
+		this.value("self", this.global);
+		this.value("this", this.global);
 		this.watchers = [];
 		this.children = [];
 	}
 
 	Scope.prototype = {
 		fork: function() {
-			var s = new Scope(this.context, this.def);
+			var s = new Scope(this.global, this.def);
 			this.children.push(s);
 			return s;
 		},
 
 		eval: function(script) {
-			return $parse(script, this.def)(this.context);
+			return $parse(script, this.def)(this.global);
 		},
 
 		assign: function(script, value) {
-			return $parse(script, this.def).assign(this.context, value);
+			return $parse(script, this.def).assign(this.global, value);
 		},
 
 		watch: function(script, fn, args) {
@@ -51,7 +51,7 @@ module.factory("Scope", function($parse) {
 				return;
 			}
 
-			this.watchers.push($parse(script, this.def).watch(this.context, fn, args));
+			this.watchers.push($parse(script, this.def).watch(this.global, fn, args));
 		},
 
 		macro: function(name, value) {
