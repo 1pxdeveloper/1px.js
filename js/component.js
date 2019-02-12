@@ -31,6 +31,7 @@ class WebComponent extends HTMLElement {
 		let scope = new Scope(this);
 		this.on$ = scope.on$.bind(scope);
 		this.watch$ = scope.watch$.bind(scope);
+		this.watch$.on$ = this.on$;
 
 		/// @FIXME: nextTick dependancy
 		$compile(template, scope);
@@ -57,7 +58,7 @@ class WebComponent extends HTMLElement {
 			delete this.destroy;
 			scope.stop();
 
-			while (this.lastChild) this.lastChild.remove();
+			while(this.lastChild) this.lastChild.remove();
 			this.appendChild(DocumentFragment.from(originalContent));
 		};
 	}

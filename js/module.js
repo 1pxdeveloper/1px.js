@@ -51,27 +51,15 @@
 
 		let name = factory.$inject[index];
 
-
-
-			// console.log(name);
-
 		if (name in $values) {
-
 			args[index] = $values[name];
 			return fillFactoryArguments(factory, args, index + 1, callback);
 		}
-
-
-		// console.log("없을때??", name);
 
 		$queue[name] = $queue[name] || [];
 		$queue[name].push(arguments);
 
 		if (name in $factories) {
-
-			console.log(name);
-
-
 			let f = createFactory($factories[name]);
 			return fillFactoryArguments(f, [], 0, function(args) {
 				module.value(name, f(...args));
@@ -140,6 +128,7 @@
 	module.$values = $values;
 	module.$factories = $factories;
 	module.$queue = $factories;
+
 
 	window.module = module;
 })();

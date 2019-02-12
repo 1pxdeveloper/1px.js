@@ -15,20 +15,19 @@
 <web-component name="my-app">
 	<template>
 		<h1>Hello, world {{ a$ }} {{ l }} {{ count$ }}</h1>
-		
+
 		<ul>
 			<li *repeat="rows as row">{{ row }}</li>
 		</ul>
-		
+
 	</template>
 </web-component>
 
-<script>
-app.component("my-app", function() {
+<script>app.component("my-app", function() {
 	return {
 		init() {
-			this.rows = ["A","B","C"];
-			
+			this.rows = ["A", "B", "C"];
+
 			this.count$ = this.watch$("rows as row").count();
 
 			this.watch$("rows").subscribe(function(value) {
@@ -42,7 +41,7 @@ app.component("my-app", function() {
 			window.$scope = this;
 		}
 	}
-})
+});
 </script>
 
 

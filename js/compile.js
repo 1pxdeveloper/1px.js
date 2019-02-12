@@ -60,7 +60,7 @@ function traverse(node, fn) {
 	fn = fn || noop;
 
 	let stack = [];
-	while (node) {
+	while(node) {
 		node = fn(node) === false ? stack.pop() : node.firstChild || stack.pop();
 		node && node.nextSibling && stack.push(node.nextSibling);
 	}
@@ -136,6 +136,8 @@ function compile_element_node(el, scope) {
 		/// Basic directives
 		if (syntax(scope, el, attr, "$", _ref, "")) continue;
 		if (syntax(scope, el, attr, "(", _event, ")")) continue;
+		if (syntax(scope, el, attr, "(", _event, ")")) continue;
+		if (syntax(scope, el, attr, "(", _event, ")")) continue;
 		if (syntax(scope, el, attr, "[(", _twoway, ")]")) continue;
 		if (syntax(scope, el, attr, "[attr.", _attr, "]")) continue;
 		if (syntax(scope, el, attr, "[style.", _style, "]")) continue;
@@ -170,57 +172,87 @@ function _prop(scope, el, script, prop) {
 }
 
 
+function handleEvent(event, scope, el, script, options) {
+	/// form.submit prevent
+	if (event.type === "submit" && !el.hasAttribute("action")) {
+		event.preventDefault();
+		event.stopPropagation();
+	}
+
+	options.prevent && event.preventDefault();
+	options.stop && event.stopPropagation();
+
+	scope.local.event = event;
+	scope.local.$el = el;
+	let ret = scope.$eval(script);
+	delete scope.local.event;
+	delete scope.local.$el;
+
+	/// @TOOD: promise, observable
+	if (ret instanceof Promise) {
+
+	}
+}
+
+
 /// @TODO: (keypress.enter) (keypress.ctrl.enter)
 function _event(scope, el, script, events) {
 
 	let [type, ...options] = events.split(".");
+	switch (type) {
+		case "keydown":
+		case "keypress":
+		case "keyup":
+			return _keyevent(...arguments, type, options);
+	}
 
 	options = options.reduce((o, option) => {
 		o[option] = true;
 		return o;
 	}, Object.create(null));
 
-	function handleEvent(event) {
-		/// form.submit prevent
-		if (type === "submit" && !el.hasAttribute("action")) {
-			event.preventDefault();
-			event.stopPropagation();
-		}
-
-		options.prevent && event.preventDefault();
-		options.stop && event.stopPropagation();
-
-		scope.local.event = event;
-		scope.local.$el = el;
-		let ret = scope.$eval(script);
-		delete scope.local.event;
-		delete scope.local.$el;
-
-		/// @TOOD: promise, observable
-		if (ret instanceof Promise) {
-
-		}
+	let o$ = scope.on$(el, type, options.capture);
+	if (options.once) {
+		o$ = o$.take(1);
 	}
+
+	o$.subscribe(function(event) {
+		handleEvent(event, scope, el, script, options);
+	});
+}
+
+
+/// @FIXME:.. 왤케 정리를 못하ㅇ냐!!!!!!!!!!!!!!
+
+function _keyevent(scope, el, script, events, type, options) {
+
+	console.log(type, options);
+
+	let keys = Object.create(null);
+	let hasKey = options.some(option => {
+		if (option[0] === "[") {
+			keys[option.slice(1, -1)] = true;
+			return true;
+		}
+		return false;
+	});
+
+	options = options.reduce((o, option) => {
+		o[option] = true;
+		return o;
+	}, Object.create(null));
 
 	let o$ = scope.on$(el, type, options.capture);
 	if (options.once) {
 		o$ = o$.take(1);
 	}
 
-	/// @TODO: (keypress.enter) (keypress.ctrl.enter)
-
-	// switch (type) {
-	// 	case "keydown":
-	// 	case "keypress":
-	// 	case "keyup":
-	// 		o$.subscribe(function(event) {
-	// 			handleEvent(event);
-	// 		});
-	// 		return;
-	// }
-
 	o$.subscribe(function(event) {
-		handleEvent(event);
+		if (hasKey) {
+			keys[event.key.toLowerCase()] && handleEvent(event, scope, el, script, options);
+		} else {
+			handleEvent(event, scope, el, script, options);
+		}
 	});
 }
 
@@ -284,7 +316,7 @@ function _ref(scope, el, script, name) {
 function compile_text_node(textNode, scope) {
 	let index = textNode.nodeValue.indexOf("{{");
 
-	while (index >= 0) {
+	while(index >= 0) {
 		textNode = textNode.splitText(index);
 		index = textNode.nodeValue.indexOf("}}");
 		if (index === -1) return;
@@ -308,7 +340,7 @@ function compile_text_node(textNode, scope) {
 			}
 
 			this.nodeValue = value === undefined ? "" : value;
-//			domChanged(textNode.parentNode);
+			//			domChanged(textNode.parentNode);
 		}.bind(textNode));
 
 		textNode = next;
@@ -348,7 +380,7 @@ module.directive("*repeat", function() {
 		let s4 = [];
 		let s5 = [];
 
-		while (M[i][j] > 0) {
+		while(M[i][j] > 0) {
 			if (s1[i - 1] === s2[j - 1] && (M[i - 1][j - 1] + 1 === M[i][j])) {
 				// s3.unshift(s1[i - 1]);
 
