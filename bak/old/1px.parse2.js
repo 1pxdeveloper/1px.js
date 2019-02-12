@@ -1,6 +1,6 @@
 $module("1px").define(["foreach", "msie", function(foreach, msie) {
 
-// tokens.js
+// tokens.js0
 // 2010-02-23
 
 // (c) 2006 Douglas Crockford
@@ -270,7 +270,7 @@ $module("1px").define(["foreach", "msie", function(foreach, msie) {
 	};
 
 
-// expression.js
+// expression.js0
 // Parser for Simplified JavaScript written in Simplified JavaScript
 // From Top Down Operator Precedence
 // http://javascript.crockford.com/tdop/index.html
