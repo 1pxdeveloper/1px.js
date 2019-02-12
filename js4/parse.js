@@ -180,10 +180,8 @@ symbol("(array)");
 
 symbol("(end)").nud = noop;
 symbol("(literal)").nud = noop;
-
-symbol("(name)").nud = function() {
-	this.push({value: this.value});
-};
+symbol("(name)").nud = noop;
+symbol("this").nud = noop;
 
 infix(5, ";");
 
@@ -230,11 +228,7 @@ infix(30, "|", function(left) {
 		next(":");
 
 		for (; ;) {
-			if ($token.id !== "(name)" && $token.id !== "(literal)") {
-				this.error("Unexpected token " + $token.id);
-			}
-
-			let o = expression(0);
+			let o = expression();
 			args.push(o);
 
 			if ($token.id !== ",") {
@@ -520,9 +514,12 @@ evaluateRule("%", 2, (a, b) => evaluate(a) % evaluate(b));
 
 evaluateRule("?", 3, (a, b, c) => evaluate(a) ? evaluate(b) : evaluate(c));
 
-evaluateRule("(name)", 1, function(a) {
-	a = a.value;
-	return this.setObjectProp(a in this.local ? this.local : this.scope, a);
+evaluateRule("(name)", 0, function() {
+	return this.setObjectProp(this.value in this.local ? this.local : this.scope, this.value);
+});
+
+evaluateRule("this", 0, function() {
+	return this.scope;
 });
 
 evaluateRule(".", 2, function(a, b) {
@@ -538,7 +535,7 @@ evaluateRule("(", 2, function(a, b) {
 	if (a.id === "(array)") {
 		/// @TODO: 이거 중복인데....
 		let args = a.value.map(v => v.value);
-		let tokens = flat_tokens(b);
+		let tokens = _flat_tokens(b);
 
 		return function(..._args) {
 			let r = {};
@@ -561,7 +558,7 @@ evaluateRule("(", 3, function(a, b, c) {
 evaluateRule("=>", 2, function(a, b) {
 
 	let args = [a.value];
-	let tokens = flat_tokens(b);
+	let tokens = _flat_tokens(b);
 
 	return function(..._args) {
 		let r = {};
@@ -574,7 +571,7 @@ evaluateRule("=>", 2, function(a, b) {
 
 evaluateRule("as", 3, function(a, b, c) {
 
-	let arrayLike = evaluate(a);
+	let arrayLike = evaluate(a) || [];
 
 	let name_of_item = b.value;
 	let name_of_index = c.value || b.value;
@@ -621,7 +618,18 @@ evaluateRule("=", 2, function(a, b) {
 	return B;
 });
 
-function flat_tokens(token) {
+
+evaluateRule("|", 3, function(a, b, c) {
+	let value = evaluate(a);
+	let args = c.map(evaluate);
+
+	return module.pipe.require(b.value, pipe => {
+		return pipe(value, ...args);
+	});
+});
+
+
+function _flat_tokens(token) {
 	let tokens = [];
 
 	let stack = [token];
@@ -638,15 +646,12 @@ function flat_tokens(token) {
 
 evaluateRule("as", 4, function(a, b, c, d) {
 
-	console.log("evaluate!!!!!!!!!!");
-
-
-	let arrayLike = evaluate(a);
+	let arrayLike = evaluate(a) || [];
 
 	let name_of_item = b.value;
 	let name_of_index = c.value || b.value;
 
-	let tokens = flat_tokens(d);
+	let tokens = _flat_tokens(d);
 
 	let ret = Array.from(arrayLike).map((value, index) => {
 		let r = Object.create(null);
@@ -780,14 +785,7 @@ let nextTick = function() {
 		if (queue.length === 0) {
 			Promise.resolve().then(() => {
 				console.log("nextTick", i++);
-
-				let fn;
-				while (fn = queue[index++]) {
-					fn();
-				}
-
-				index = 0;
-				queue.length = 0;
+				nextTick.flush();
 			})
 		}
 
@@ -795,6 +793,17 @@ let nextTick = function() {
 	}
 
 	nextTick.queue = queue;
+
+	nextTick.flush = function() {
+		let fn;
+		while (fn = queue[index++]) {
+			fn();
+		}
+
+		index = 0;
+		queue.length = 0;
+	};
+
 	return nextTick;
 }();
 

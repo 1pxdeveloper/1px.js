@@ -20,11 +20,14 @@
 </head>
 <body>
 
+<todo-app></todo-app>
+
 <web-component name="todo-app">
 	<template>
 		<section class="todoapp">
 			<header class="header">
 				<h1>todos</h1>
+				<p>{{ test | html }}</p>
 				<form (submit)="addTodo($form.newTodo.value); $form.reset()" $form>
 					<input name="newTodo" class="new-todo" placeholder="What needs to be done?" autofocus>
 				</form>
@@ -76,17 +79,31 @@
 	</template>
 </web-component>
 
+<script>module.pipe("hello", function() {
+	return function() {
+		return Array.from(arguments).join("@");
+	}
+});
+</script>
+
+<script>module.pipe("html", function() {
+	return function(value) {
+		if (value === undefined) value = "";
+		let h = document.createElement("div");
+		h.innerHTML = String(value);
+		return DocumentFragment.from(h.childNodes);
+	}
+});
+</script>
+
+
 <script>module.component("todo-app", function() {
 
-	// const { watch$ } = this;
+	// 여기는 1번만 실행된다.
 
 	return {
-		init: function() {
+		init($) {
 			window.app = this;
-
-			function $(str) {
-				console.log("test", str);
-			}
 
 			this.todos = [
 				{
@@ -103,23 +120,12 @@
 				}
 			];
 
-			console.log("@@", this.todos);
-			console.log("@@@", app.todos);
-
-			this.editingTodo = null;
+			this.num_items_left = null;
 			this.allChecked = null;
+			this.editingTodo = null;
 
-
-			/// @FIXME: 조금더 고급스러운 방법을 고민해보자.
-			this.watch$("todos as todo => todo.completed; todo").subscribe(todos => {
-				this.num_items_left = this.todos.filter(todo => !todo.completed).length;
-			});
-
-			/// @FIXME: 이게 더 나아 보이지 않아????
-			// this.$ `this.num_items_left = this.todos.filter(todo => !todo.completed).length;`;
-			// this.$ `this.allChecked = !num_items_left`;
-
-			this.watch$("!num_items_left", v => this.allChecked = v);
+			$`this.num_items_left = this.todos.filter(todo => !todo.completed).length;`;
+			$`this.allChecked = !this.num_items_left`;
 
 			/// @TODO: Route Service
 			this.on$(window, "popstate").subscribe(event => {
@@ -128,13 +134,13 @@
 				}
 			});
 
-			this.filter = "merge";
+			this.filter = "all";
 		},
 
 		/// Route Service
 		"#/": function() {
-			this.filter = "merge";
-			console.log("active!!!!!!!!!!");
+			this.filter = "all";
+			console.log("all!!!!!!!!!!");
 		},
 
 		"#/active": function() {
@@ -150,7 +156,6 @@
 
 		/// Methods
 		addTodo(title) {
-
 			title = title.trim();
 			if (!title) return;
 
@@ -186,7 +191,6 @@
 	}
 })</script>
 
-<todo-app></todo-app>
 
 <!-- Scripts here. Don't remove ↓ -->
 <!--<script src="node_modules/todomvc-common/base.js"></script>-->

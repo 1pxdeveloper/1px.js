@@ -109,9 +109,12 @@
 	module.require = function(mixed) {
 		let factory = createFactory(mixed);
 
+		let ret;
 		fillFactoryArguments(factory, [], 0, function(args) {
-			factory(...args);
+			ret = factory(...args);
 		});
+
+		return ret;
 	};
 
 
@@ -122,7 +125,7 @@
 		}
 
 		create.require = function(name, callback) {
-			module.require([fn(name), callback]);
+			return module.require([fn(name), callback]);
 		};
 
 		return create;

@@ -32,9 +32,26 @@ class Scope {
 	}
 
 	watch$(script, fn) {
+
+		/// @TODO: script 가 array 면?? watch$(['a', 'b', 'c'], ...)
+
+		/// @TODO: script 가 template 면?? watch$(`this.dkjfksfd `) script.raw 확인....
+
+		/// @TODO: fn이 있던 없던 Observer로??
 		script = String(script).trim();
-		let o = $parse(script).watch$(this.global, this.local).takeUntil(this.stop$);
-		return fn ? o.subscribe(fn) : o;
+
+		let next = typeof fn === "function" ? fn : noop;
+		$parse(script).watch$(this.global, this.local).takeUntil(this.stop$).do(next).subscribe();
+
+		if (typeof fn === "function") {
+			return;
+		}
+
+		return new Observable(observer => {
+			next = function(value) {
+				observer.next(value);
+			}
+		}).takeUntil(this.stop$);
 	}
 }
 
@@ -276,6 +293,20 @@ function compile_text_node(textNode, scope) {
 
 		textNode.nodeValue = "";
 		scope.watch$(script, function(value) {
+
+			/// HTML Element
+			if (this.__node) {
+				this.__node.forEach(node => node.remove());
+				delete this.__node;
+			}
+
+			if (value instanceof Node) {
+				this.__node = Array.from(value.childNodes || [value]).slice();
+				this.before(value);
+				this.nodeValue = "";
+				return;
+			}
+
 			this.nodeValue = value === undefined ? "" : value;
 //			domChanged(textNode.parentNode);
 		}.bind(textNode));

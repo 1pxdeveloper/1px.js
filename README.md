@@ -6,16 +6,47 @@
 ### @TODO
 
 ```html
+
+[Parse]
+- as 결과물이 너무 구리다. 다시 한번 결과물 인터페이스를 생각해보자.
+
 - array as item, index => item if item.completed /// if filter 구현하기
-- allMarked = !num_left /// assignment 구현하기 (expression but only root!!)
 - parse.js => 상수 cache ex) ['abc','def',2] or 100 + 400 * 2 등등..
 - $ `num_completed = (todos as todo if todo.completed).length` /// $ 구현하기, format 생각하기
-- {{ textData | html }} 이거 구현!!
+
+
+[Pipe]
+- pipe asyncable!!!
+
+
+[Note]
+- Observable sync, async 구분하되 하나의 로직으로 처리하기 
+
+
+
+[WebComponent]
+- /// @FIXME: init & template & compile async 하게 만들기
+
+
+[Util]
+
+/// @TODO: nextTick의 의미 => nextTick으로 인해 변경이 감지되면 다음 tick이 아니라 현재 틱에 다 끝낼수 있어야 한다.!!!!
+/// @TODO: nextTick vs nextFrame => template이 업데이트가 될떄에는 모든 변경점 관리를 끝내고 한번에 출력할 수 있어야 한다.!!!
+
+
 ```
+
+
+### @DONE
+- allMarked = !num_left /// assignment 구현하기 (expression but only root!!)
+
+[Template]
+- {{ textData | html }} 이거 구현!!
 
 
 ### 원칙과 목표
 
+- 일단 남들이 지원하는건 다 지원하자.
 - 덩치를 키우지 않는다. 
 - 프레임워크를 쓰기 위해 프레임워크에 맞게 기존 코드를 고치는 것을 최소화 한다.
 - => 프레임워크를 사용하기 위한 포맷을 최소화 할것 (그래서 모듈이 고민이다.) 
@@ -24,16 +55,19 @@
 
 
 ### Complie (Simple)
-
 ```html
 <template id="el">
     <h1>{{ title }}</h1>
 </template>
 
 <scrpit>
-let el = module.compile("#el", {
+let vm = module.compile("#el", {
 	title: "hello world"
 });
+
+setTimeout(() => {
+    vm.title = "changed!!!" /// auto-bind update
+}, 1000);
 </scrpit>
 ```
 
