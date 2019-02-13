@@ -112,6 +112,10 @@
 			module.factory(fn(name), mixed);
 		}
 
+		create.value = function(name, mixed) {
+			module.value(fn(name), mixed);
+		};
+
 		create.require = function(name, callback) {
 			callback = callback || function(a) { return a };
 			return module.require([fn(name), callback]);
