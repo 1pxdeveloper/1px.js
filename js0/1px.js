@@ -492,7 +492,7 @@ function isBooleanAttr(a) {
 	if (a === "contenteditable") return true;
 //	if (a === "controls") return true;
 //	if (a === "default") return true;
-//	if (a === "defer") return true;
+//	if (a === "subject") return true;
 //	if (a === "formnovalidate") return true;
 //	if (a === "hidden") return true;
 //	if (a === "ismap") return true;

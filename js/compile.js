@@ -1,61 +1,3 @@
-class Scope {
-	constructor(global, local) {
-		this.global = global || Object(null);
-		this.local = local || Object(null);
-
-		this.stop$ = new Observable(observer => {
-			this.stop = function() {
-				observer.complete();
-			}
-		}).share();
-	}
-
-	stop() {
-
-	}
-
-	fork(local) {
-		local = Object.assign(Object.create(this.local), local);
-		return new Scope(this.global, local);
-	}
-
-	on$(el, type, useCapture) {
-		return Observable.fromEvent(el, type, useCapture).takeUntil(this.stop$);
-	}
-
-	$eval(script) {
-		return $parse(script)(this.global, this.local);
-	}
-
-	assign(script, value) {
-		return $parse(script).assign(this.global, this.local, value);
-	}
-
-	watch$(script, fn) {
-
-		/// @TODO: script 가 array 면?? watch$(['a', 'b', 'c'], ...)
-
-		/// @TODO: script 가 template 면?? watch$(`this.dkjfksfd `) script.raw 확인....
-
-		/// @TODO: fn이 있던 없던 Observer로??
-		script = String(script).trim();
-
-		let next = typeof fn === "function" ? fn : noop;
-		$parse(script).watch$(this.global, this.local).takeUntil(this.stop$).do(next).subscribe();
-
-		if (typeof fn === "function") {
-			return;
-		}
-
-		return new Observable(observer => {
-			next = function(value) {
-				observer.next(value);
-			}
-		}).takeUntil(this.stop$);
-	}
-}
-
-
 function traverse(node, fn) {
 	fn = fn || noop;
 
@@ -66,58 +8,56 @@ function traverse(node, fn) {
 	}
 }
 
-function $compile(el, scope) {
+function $compile(el, context) {
 
-	scope = scope || new Scope(el);
+	context = context || new JSContext(el);
 
 	traverse(el, node => {
 		switch (node.nodeType) {
 			case Node.ELEMENT_NODE:
-				return compile_element_node(node, scope);
+				return compile_element_node(node, context);
 
 			case Node.TEXT_NODE:
-				return compile_text_node(node, scope);
+				return compile_text_node(node, context);
 		}
 	});
 }
 
 
 /// ELEMENT_NODE
-function compile_element_node(el, scope) {
+function compile_element_node(el, context) {
 	switch (el.tagName) {
 		case "STYLE":
 		case "SCRIPT":
 			return false;
 	}
 
+	/// @NOTE: FORM Submit 방지
 	if (el.tagName === "FORM") {
 		if (!el.hasAttribute("method") && !el.hasAttribute("action")) {
+			context.on$(el, "submit").subscribe(event => event.preventDefault());
 			el.submit = function() {
 				this.dispatchEvent(new CustomEvent("submit"));
-			}
+			};
 		}
+
+		// @TODO: validate, keyenter -> submit, etc...
 	}
 
 
 	/// @FIXME:... default template directive
-	let attrValue = el.getAttribute("*repeat");
-	if (attrValue) {
-		module.directive.require("*repeat", f => f(scope, el, attrValue));
+	let hasTemplateDirective = ["*repeat", "*if", "*else"].some(attrName => {
+		let hasAttr = el.hasAttribute(attrName);
+		if (hasAttr) {
+			let attrValue = el.getAttribute(attrName);
+			module.directive.require(attrName, directive => directive(context, el, attrValue));
+		}
+		return hasAttr;
+	});
+
+	if (hasTemplateDirective) {
 		return false;
 	}
-
-	attrValue = el.getAttribute("*if");
-	if (attrValue) {
-		module.directive.require("*if", f => f(scope, el, attrValue));
-		return false;
-	}
-
-	attrValue = el.hasAttribute("*else");
-	if (attrValue) {
-		module.directive.require("*else", f => f(scope, el, attrValue));
-		return false;
-	}
-
 
 	/// Attribute directive
 	for (let attr of Array.from(el.attributes)) {
@@ -126,7 +66,7 @@ function compile_element_node(el, scope) {
 		let customDefaultPrevent = false;
 		module.directive.require(attr.nodeName, directive => {
 			if (typeof directive === "function") {
-				let ret = directive(scope, el, attr.nodeValue);
+				let ret = directive(context, el, attr.nodeValue);
 				customDefaultPrevent = ret === false;
 			}
 		});
@@ -134,59 +74,78 @@ function compile_element_node(el, scope) {
 
 
 		/// Basic directives
-		if (syntax(scope, el, attr, "$", _ref, "")) continue;
-		if (syntax(scope, el, attr, "(", _event, ")")) continue;
-		if (syntax(scope, el, attr, "(", _event, ")")) continue;
-		if (syntax(scope, el, attr, "(", _event, ")")) continue;
-		if (syntax(scope, el, attr, "[(", _twoway, ")]")) continue;
-		if (syntax(scope, el, attr, "[attr.", _attr, "]")) continue;
-		if (syntax(scope, el, attr, "[style.", _style, "]")) continue;
-		if (syntax(scope, el, attr, "[class.", _class, "]")) continue;
-		if (syntax(scope, el, attr, "[", _prop, "]")) continue;
+		if (syntax(context, el, attr, "#", _ref, "")) continue;
+		if (syntax(context, el, attr, "(", _event, ")")) continue;
+		if (syntax(context, el, attr, "[(", _twoway, ")]")) continue;
+		if (syntax(context, el, attr, "[attr.", _attr, "]")) continue;
+		if (syntax(context, el, attr, "[style.", _style, "]")) continue;
+		if (syntax(context, el, attr, "[class.", _class, "]")) continue;
+		if (syntax(context, el, attr, "[", _prop, "]")) continue;
 	}
 }
 
-function syntax(scope, el, attr, start, fn, end) {
+function syntax(context, el, attr, start, fn, end) {
 	let name = attr.nodeName;
 	let value = attr.nodeValue;
 
 	if (end === "" && name.startsWith(start) && name.endsWith(end)) {
-		fn(scope, el, value, name.slice(start.length));
+		fn(context, el, value, name.slice(start.length));
+		// el.removeAttributeNode(attr); // @TODO: DEBUG mode
 		return true;
 	}
 
 	if (end !== undefined && name.startsWith(start) && name.endsWith(end)) {
-		fn(scope, el, value, name.slice(start.length, -end.length));
+		fn(context, el, value, name.slice(start.length, -end.length));
+		// el.removeAttributeNode(attr);
 		return true;
 	}
 
 	if (name === start) {
-		fn(scope, el, value);
+		fn(context, el, value);
+		// el.removeAttributeNode(attr);
 		return true;
 	}
 }
 
-function _prop(scope, el, script, prop) {
-	// @TODO: 1) prop이 reactive setter면 바로 적용. 아니면 nextFrame (id, hidden, visible 등... 때문)
-	scope.watch$(script, value => el[prop] = value);
+// function _getOptions(value) {
+// 	return options.reduce((o, option) => {
+// 		o[option] = true;
+// 		return o;
+// 	}, Object.create(null));
+// }
+
+
+function _prop(context, el, script, prop) {
+	context.watch$(script, value => el[prop] = value);
 }
 
+function _event(context, el, script, events) {
 
-function handleEvent(event, scope, el, script, options) {
-	/// form.submit prevent
-	if (event.type === "submit" && !el.hasAttribute("action")) {
-		event.preventDefault();
-		event.stopPropagation();
-	}
+	let [type, ...options] = events.split("|");
 
-	options.prevent && event.preventDefault();
-	options.stop && event.stopPropagation();
+	let useCapture = options.indexOf("once") >= 0;
+	let event;
+	let o$ = context.on$(el, type, useCapture).do(e => event = e);
 
-	scope.local.event = event;
-	scope.local.$el = el;
-	let ret = scope.$eval(script);
-	delete scope.local.event;
-	delete scope.local.$el;
+	options.forEach(pipe => {
+		let handler = module.pipe.require(type + "|" + pipe) || module.pipe.require("event|" + pipe);
+		if (!handler) throw new Error(pipe + " is not registered event pipe.");
+		o$ = handler.call(o$, context, el);
+	});
+
+	o$.subscribe(function() {
+		handleEvent(event, context, el, script, options);
+	});
+}
+
+function handleEvent(event, context, el, script) {
+
+	console.log(event);
+
+
+	context.local.event = event;
+	let ret = context.evaluate(script);
+	delete context.local.event;
 
 	/// @TOOD: promise, observable
 	if (ret instanceof Promise) {
@@ -194,69 +153,8 @@ function handleEvent(event, scope, el, script, options) {
 	}
 }
 
-
-/// @TODO: (keypress.enter) (keypress.ctrl.enter)
-function _event(scope, el, script, events) {
-
-	let [type, ...options] = events.split(".");
-	switch (type) {
-		case "keydown":
-		case "keypress":
-		case "keyup":
-			return _keyevent(...arguments, type, options);
-	}
-
-	options = options.reduce((o, option) => {
-		o[option] = true;
-		return o;
-	}, Object.create(null));
-
-	let o$ = scope.on$(el, type, options.capture);
-	if (options.once) {
-		o$ = o$.take(1);
-	}
-
-	o$.subscribe(function(event) {
-		handleEvent(event, scope, el, script, options);
-	});
-}
-
-
-/// @FIXME:.. 왤케 정리를 못하ㅇ냐!!!!!!!!!!!!!!
-
-function _keyevent(scope, el, script, events, type, options) {
-
-	console.log(type, options);
-
-	let keys = Object.create(null);
-	let hasKey = options.some(option => {
-		if (option[0] === "[") {
-			keys[option.slice(1, -1)] = true;
-			return true;
-		}
-		return false;
-	});
-
-	options = options.reduce((o, option) => {
-		o[option] = true;
-		return o;
-	}, Object.create(null));
-
-	let o$ = scope.on$(el, type, options.capture);
-	if (options.once) {
-		o$ = o$.take(1);
-	}
-
-	o$.subscribe(function(event) {
-		if (hasKey) {
-			keys[event.key.toLowerCase()] && handleEvent(event, scope, el, script, options);
-		} else {
-			handleEvent(event, scope, el, script, options);
-		}
-	});
-}
-
-function _twoway(scope, el, script, value) {
+/// two-way
+function _twoway(context, el, script, value) {
 
 	let [prop, ...options] = value.split(".");
 
@@ -265,28 +163,26 @@ function _twoway(scope, el, script, value) {
 		return o;
 	}, Object.create(null));
 
-	scope.watch$(script, function(value) {
-		el[prop] = value;
-	});
+	context.watch$(script, value => el[prop] = value);
 
-	scope.on$(el, options.change ? "change" : "input").subscribe(function() {
-		scope.assign(script, el[prop]);
+	context.on$(el, options.change ? "change" : "input").subscribe(function() {
+		context.assign(script, el[prop]);
 	});
 }
 
-function _attr(scope, el, script, attr) {
-	scope.watch$(script, value => {
-		if (value === null || value === undefined) el.removeAttribute(attr);
+function _attr(context, el, script, attr) {
+	context.watch$(script, value => {
+		if (value === undefined || value === false || value === null) el.removeAttribute(attr);
 		else el.setAttribute(attr, value)
 	});
 }
 
-function _style(scope, el, script, name) {
+function _style(context, el, script, name) {
 
 	let [prop, unit] = name.split(".", 2);
 	unit = unit || "";
 
-	scope.watch$(script, value => {
+	context.watch$(script, value => {
 		switch (unit) {
 			case "url":
 				value = "url('" + encodeURIComponent(value) + "')";
@@ -301,47 +197,49 @@ function _style(scope, el, script, name) {
 	});
 }
 
-function _class(scope, el, script, name) {
-	scope.watch$(script, value => {
+function _class(context, el, script, name) {
+	context.watch$(script, value => {
 		value ? el.classList.add(name) : el.classList.remove(name);
 	});
 }
 
-function _ref(scope, el, script, name) {
-	scope.global["$" + name] = el;
+function _ref(context, el, script, name) {
+	context.local[name] = el;
 }
 
 
 /// TEXT_NODE
-function compile_text_node(textNode, scope) {
+function _nodeValue(value) {
+
+	/// HTML Element
+	if (this.__node) {
+		this.__node.forEach(node => node.remove());
+		delete this.__node;
+	}
+
+	if (value instanceof Node) {
+		this.__node = Array.from(value.childNodes || [value]).slice();
+		this.before(value);
+		this.nodeValue = "";
+		return;
+	}
+
+	this.nodeValue = value === undefined ? "" : value;
+	//			domChanged(textNode.parentNode);
+}
+
+function compile_text_node(textNode, context) {
 	let index = textNode.nodeValue.indexOf("{{");
 
 	while(index >= 0) {
 		textNode = textNode.splitText(index);
+
 		index = textNode.nodeValue.indexOf("}}");
 		if (index === -1) return;
+
 		let next = textNode.splitText(index + 2);
 		let script = textNode.nodeValue.slice(2, -2);
-
-		textNode.nodeValue = "";
-		scope.watch$(script, function(value) {
-
-			/// HTML Element
-			if (this.__node) {
-				this.__node.forEach(node => node.remove());
-				delete this.__node;
-			}
-
-			if (value instanceof Node) {
-				this.__node = Array.from(value.childNodes || [value]).slice();
-				this.before(value);
-				this.nodeValue = "";
-				return;
-			}
-
-			this.nodeValue = value === undefined ? "" : value;
-			//			domChanged(textNode.parentNode);
-		}.bind(textNode));
+		context.watch$(script, _nodeValue.bind(textNode));
 
 		textNode = next;
 		index = textNode.nodeValue.indexOf("{{");
@@ -349,6 +247,7 @@ function compile_text_node(textNode, scope) {
 }
 
 
+/// Default Template Directive
 module.directive("*repeat", function() {
 
 	function LCS(s1, s2) {
@@ -400,24 +299,24 @@ module.directive("*repeat", function() {
 	}
 
 	/// @FIXME: 고급스럽게 전환하기
-	function createRepeatNode(repeatNode, scope, row, index, value, i) {
+	function createRepeatNode(repeatNode, context, row, index, value, i) {
 		let node = repeatNode.cloneNode(true);
-		let _scope = scope.fork();
+		let _context = context.fork();
 
-		row && (_scope.local[row] = value);
-		index && (_scope.local[index] = i);
+		row && (_context.local[row] = value);
+		index && (_context.local[index] = i);
 
-		$compile(node, _scope);
+		$compile(node, _context);
 
 		return {
 			index: i,
 			value: value,
 			node: node,
-			scope: _scope,
+			context: _context,
 		}
 	}
 
-	return function(scope, el, script) {
+	return function(context, el, script) {
 
 		/// Prepare Placeholder
 		let placeholder = document.createComment("repeat: " + script);
@@ -433,7 +332,7 @@ module.directive("*repeat", function() {
 		let container = [];
 		let prevArray = [];
 
-		scope.watch$(script, array => {
+		context.watch$(script, array => {
 
 			/// @FIXME: 고급스럽게 전환하기
 			let [$row, $index] = array["@@keys"];
@@ -449,7 +348,7 @@ module.directive("*repeat", function() {
 			prevArray.forEach((value, index) => {
 				if (d[index] === undefined) {
 					values_for_reuse[index] = value;
-					container[index].scope.stop();
+					container[index].context.disconnect();
 					container[index].node.remove();
 				} else {
 					fixed_container.push(container[index]);
@@ -470,7 +369,7 @@ module.directive("*repeat", function() {
 						placeholder.before(r.node);
 						delete container[idx];
 					} else {
-						r = createRepeatNode(repeatNode, scope, $row, $index, value, index);
+						r = createRepeatNode(repeatNode, context, $row, $index, value, index);
 						placeholder.before(r.node);
 					}
 
@@ -483,9 +382,9 @@ module.directive("*repeat", function() {
 			});
 
 			container.forEach((data, index) => {
-				let _scope = data.scope;
-				$row && (_scope.local[$row] = data.value);
-				$index && (_scope.local[$index] = index);
+				let _context = data.context;
+				$row && (_context.local[$row] = data.value);
+				$index && (_context.local[$index] = index);
 			});
 
 			prevArray = array.slice();
@@ -496,11 +395,11 @@ module.directive("*repeat", function() {
 
 /// Directive: "*if"
 module.directive("*if", function() {
-	return function(scope, el, script) {
+	return function(context, el, script) {
 		let placeholder = document.createComment("if: " + script);
 		el._ifScript = placeholder._ifScript = script;
 
-		scope.watch$(script, function(bool) {
+		context.watch$(script, function(bool) {
 
 			if (bool) {
 				if (placeholder.parentNode) {
@@ -522,7 +421,7 @@ module.directive("*if", function() {
 
 /// Directive: "*else"
 module.directive("*else", function() {
-	return function(scope, el, script) {
+	return function(context, el, script) {
 
 		let placeholder = document.createComment("else: " + script);
 
@@ -543,7 +442,7 @@ module.directive("*else", function() {
 		// console.log(script);
 
 
-		scope.watch$(script, function(bool) {
+		context.watch$(script, function(bool) {
 
 			if (bool) {
 				if (placeholder.parentNode) {
@@ -559,3 +458,63 @@ module.directive("*else", function() {
 });
 
 
+/// event Pipe ... 과연 Observable 의존도를 높이는게 맞을까??
+module.pipe("event|prevent", function() {
+	return function(context, el) {
+		return this.do(event => event.preventDefault());
+	}
+});
+
+module.pipe("event|stop", function() {
+	return function(context, el) {
+		return this.do(event => event.stopPropagation());
+	}
+});
+
+module.pipe("event|capture", function() {
+	return function(context, el) {
+		return this;
+	}
+});
+
+module.pipe("event|self", function() {
+	return function(context, el) {
+		return this.filter(event => event.target === el);
+	}
+});
+
+module.pipe("event|once", function() {
+	return function(context, el) {
+		return this.take(1);
+	}
+});
+
+module.pipe("event|shift", function() {
+	return function(context, el) {
+		return this.filter(event => event.shiftKey);
+	}
+});
+
+module.pipe("event|ctrl", function() {
+	return function(context, el) {
+		return this.filter(event => event.ctrlKey);
+	}
+});
+
+module.pipe("event|alt", function() {
+	return function(context, el) {
+		return this.filter(event => event.altKey);
+	}
+});
+
+module.pipe("event|meta", function() {
+	return function(context, el) {
+		return this.filter(event => event.metaKey);
+	}
+});
+
+module.pipe("keydown|esc", function() {
+	return function(context, el) {
+		return this.filter(event => event.keyCode === 27)
+	}
+});

@@ -426,17 +426,18 @@ Observable.merge = function(...observables) {
 };
 
 
-Observable.defer = function() {
+Observable.subject = function() {
 
 	let o = new Observable(observer => {
 		o.next = observer.next.bind(observer);
 		o.error = observer.error.bind(observer);
 		o.complete = observer.complete.bind(observer);
-	});
+	}).share();
 
 	o.next = noop;
 	o.error = noop;
 	o.complete = noop;
+
 	return o;
 };
 

@@ -4,7 +4,6 @@
 	<meta charset="UTF-8">
 	<title>Title</title>
 	<script src="js/observable.js"></script>
-	<script src="js/watch.js"></script>
 	<script src="js/module.js"></script>
 	<script src="js/parse.js"></script>
 	<script src="js/compile.js"></script>
@@ -46,47 +45,44 @@
 <my-app id="a"></my-app>
 
 <script>
-	let a = document.getElementById("a");
-	a.title = "asdfkljasdflas";
+let a = document.getElementById("a");
+a.title = "asdfkljasdflas";
 
-	module.component("my-app", function() {
+module.component("my-app", function() {
 
-		console.log("this", this);
+	console.log("this", this);
 
+	return {
+		init() {
+			this.title = "hello";
+			this.arr = [1, 2, 3, 4];
+		},
 
-		return {
-			init() {
-				this.title = "hello";
-				this.arr = [1, 2, 3, 4];
-			},
+		hello() {
 
-			hello() {
-
-			}
 		}
-	});
+	}
+});
 
 
-	// let b = document.body;
-	//
-	// b.title2 = "hello";
-	// b.title3 = "world";
-	//
-	// b.arr = ["A"];
-	//
-	// let click$ = Observable.fromEvent(document, "click");
-	//
-	// b.c$ = Observable.interval(500).map(i => i).takeUntil(click$).map(i => i * 10);
-	//
-	//
-	// function test() {
-	// 	b.title2 = "good";
-	// 	b.title3 = "boy";
-	// }
-	//
-	// $compile(b);
-
-
+// let b = document.body;
+//
+// b.title2 = "hello";
+// b.title3 = "world";
+//
+// b.arr = ["A"];
+//
+// let click$ = Observable.fromEvent(document, "click");
+//
+// b.c$ = Observable.interval(500).map(i => i).takeUntil(click$).map(i => i * 10);
+//
+//
+// function test() {
+// 	b.title2 = "good";
+// 	b.title3 = "boy";
+// }
+//
+// $compile(b);
 </script>
 
 </body>

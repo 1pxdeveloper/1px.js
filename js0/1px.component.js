@@ -148,7 +148,7 @@ function $createWebComponent(name, template, _extends) {
 		},
 
 
-		/// Scope 기능
+		/// JSContext 기능
 		createdCallback: function() {
 			this.$$ = {};
 			this.$value("this", this);
@@ -208,7 +208,7 @@ $registerElement("dom-bind", {
 		this.parentNode.replaceChild(tmpl, this);
 	},
 
-	/// Scope 기능
+	/// JSContext 기능
 	createdCallback: function() {
 		this.$$ = {};
 		this.$value("this", this);

@@ -113,6 +113,7 @@
 		}
 
 		create.require = function(name, callback) {
+			callback = callback || function(a) { return a };
 			return module.require([fn(name), callback]);
 		};
 
@@ -120,8 +121,9 @@
 	}
 
 	module.directive = createPrefixFactory(name => "@" + name);
-	module.pipe = createPrefixFactory(name => "|" + name);
 	module.component = createPrefixFactory(name => "<" + name.toUpperCase() + ">");
+	module.pipe = createPrefixFactory(name => "|" + name);
+	module.pipe.event = createPrefixFactory(name => "event|" + name);
 
 
 	/// @FIXME: 임시 확인용
@@ -129,6 +131,7 @@
 	module.$factories = $factories;
 	module.$queue = $factories;
 
-
 	window.module = module;
 })();
+
+

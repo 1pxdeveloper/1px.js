@@ -2,58 +2,6 @@
 
 ## Working Drafts
 
-
-### @TODO
-
-```html
-
-[Parse]
-- as 결과물이 너무 구리다. 다시 한번 결과물 인터페이스를 생각해보자.
-
-- array as item, index => item if item.completed /// if filter 구현하기
-- parse.js => 상수 cache ex) ['abc','def',2] or 100 + 400 * 2 등등..
-- $ `num_completed = (todos as todo if todo.completed).length` /// $ 구현하기, format 생각하기
-
-
-[Pipe]
-- pipe asyncable!!!
-
-
-[Note]
-- Observable sync, async 구분하되 하나의 로직으로 처리하기 
-
-
-
-[WebComponent]
-- /// @FIXME: init & template & compile async 하게 만들기
-
-
-[Util]
-
-/// @TODO: nextTick의 의미 => nextTick으로 인해 변경이 감지되면 다음 tick이 아니라 현재 틱에 다 끝낼수 있어야 한다.!!!!
-/// @TODO: nextTick vs nextFrame => template이 업데이트가 될떄에는 모든 변경점 관리를 끝내고 한번에 출력할 수 있어야 한다.!!!
-
-
-```
-
-
-### @DONE
-- allMarked = !num_left /// assignment 구현하기 (expression but only root!!)
-
-[Template]
-- {{ textData | html }} 이거 구현!!
-
-
-### 원칙과 목표
-
-- 일단 남들이 지원하는건 다 지원하자.
-- 덩치를 키우지 않는다. 
-- 프레임워크를 쓰기 위해 프레임워크에 맞게 기존 코드를 고치는 것을 최소화 한다.
-- => 프레임워크를 사용하기 위한 포맷을 최소화 할것 (그래서 모듈이 고민이다.) 
-- 간단하고 직관적이고 쉬워야 한다.
-
-
-
 ### Complie (Simple)
 ```html
 <template id="el">
@@ -94,7 +42,10 @@ setTimeout(() => {
 <input [(value)]="title">
 
 <!-- ref -->
-<div $div>{{ $div.tagName }}</form>
+<div #div>{{ div.tagName }}</div>
+
+<!-- call -->
+<input .focus()="condition" .blur()="bool" />
 ```
 
 
@@ -112,11 +63,15 @@ setTimeout(() => {
 ```
 
 
-### Template Syntax - Repeat
+### Template Syntax - List
 
 ```html
+
 <!-- maniplation -->
 <div *foreach="todos as todo, index"></div>
+
+<!-- track by --> (Draft)
+<div *foreach="todos as todo" [key]="todo.id"></div>
 
 <!-- map, filter -->
 <div *foreach="todos as todo, index => todo.title if todo.complete"></div>
@@ -135,18 +90,47 @@ setTimeout(() => {
 
 
 
-### Template Syntax - Event
+### Template Syntax - Event with Pipe
 
 ```html
+<-- addEventListener -->
+<button (click)="foo(bar)"></button>
 
-.prevent
-.capture
-.stop
-.self
-.once
+<-- with Pipe -->
+<button (click|prevent)="foo(bar)"></button>
+<button (click|prevent|capture)="foo(bar)"></button>
+<button (click|once)="foo(bar)"></button>
 
-with Observerable??? | pipe???
+(click|prevent) => event.preventDefault();
+(click|stop) => event.stopPropagation();
+(click|capture) => addEventListener(..., ..., true)
+(click|self) => event.target === event.currentTarget
+(click|once) => .take(1)
 
+(keydown|esc) => e.target.key === "Escape"
+(keydown|39) => e.target.keyCode === 39
+(keydown|alt|esc) => e.target.alt && e.target.key === "Escape"
+
+
+<-- create Custom Pipe -->
+<script>
+
+/// event Pipe ... 과연 Observable 의존도를 높이는게 맞을까??
+module.pipe("event|prevent", function() {
+	return function(context, el) {
+		return this.do(event => event.preventDefault());
+	}
+});
+
+
+
+module.pipe.event("custom", function(observable, name) {} )
+module.pipe.event("click|right", function(observable, name) {} )
+module.pipe.event("keydown|*", function(observable, name) {} )
+
+/// Draft...
+module.pipe.event(["keydown|alt", "keypress|alt", "keyup|alt"], function(observable, name) {} )
+</script>
 ```
 
 
@@ -198,6 +182,10 @@ with Observerable??? | pipe???
 ### Pipe
 ```html
 <div>{{ today | date: 'yyyy-mm-dd' }}</div>
+
+<script>
+module.pipe("date", (value, format) => Date.format(value, format))
+</script>
 ```
 
 
@@ -207,66 +195,64 @@ with Observerable??? | pipe???
 
 ```javascript
 
-$ `this.num_completed = todos.filter(todo => todo.completed).length`
+function init($) {
+	this.todos = [];
+    $ `this.num_completed = todos.filter(todo => todo.completed).length`
+}
 
 ```
 
 
 ### Module
+
 ```javascript
-
 module.value("count", 0)
-
-module.factory("mylib", function(http, element) { ... })
 
 module.require(function(http, element) { ... })
 
-///
+module.factory("mylib", function(http, element) { ... })
 
+
+
+///
 module.component();
 
 module.service();
 
 module.pipe();
-
-
 ```
+
 
 ### WebComponent
 
 ```html
-
 <todo-apps></todo-apps>
 
-<web-component name="todo-apps" (click)="hello()">
+<web-component name="todo-apps">
+    <!-- Service -->
+    <http url="/api/users/:id" #http></http>
+    
+    <!-- Template -->
     <template>
-        <div *repeat="todos as todo">{{ todo.title }}</div>   
+        <div *foreach="todos as todo">{{ todo.title }}</div>   
     </template>
 
-    <template *if="multiple">
-        <div *repeat="todos as todo">{{ todo.title }}</div>   
+    <!-- Sub Template (for Route or Condition) -->
+    <template *if="multiple" *route="/users/:id">
+        <div *foreach="todos as todo">{{ todo.title }}</div>   
     </template>
 </web-component>
 
-or
 
-<template *as="todo-apps" (click)="hello()">
-    <div *repeat="todos as todo">{{ todo.title }}</div>   
-</template>
-
-<script>module.component("todo-apps", function() {
-	
-	return {
-		init() {
-			
-		},
-		
-		addTodos(title) {
-			
-		}
-	}
+<script>module.component("todo-apps", {
+    init() {
+        
+    },
+    
+    addTodos(title) {
+        
+    }
 })
-
 </script>
 ```
 
@@ -312,7 +298,7 @@ Watcher와 Module를 결합한 선언형 프로그래밍 모듈.
     <http url="/api/todos" [params]="params" $http></http>
     
     <template>
-        <div *repeat="$http.res as page"></div>
+        <div *foreach="$http.res as page"></div>
     </template>
 </web-component>
 ```
@@ -336,16 +322,16 @@ Watcher와 Module를 결합한 선언형 프로그래밍 모듈.
 
 
 
-### Form - Validate (Draft)
+### Form & Input - Validate (Draft)
 
 ```html
-.ng-unmodified
-.ng-untouched
-.ng-touched
-.ng-dirty
-.ng-valid
-.ng-invalid
-.ng-pending
+.clean
+.untouched
+.touched
+.dirty
+.valid
+.invalid
+.pending
 ``` 
 
 
@@ -449,6 +435,57 @@ ex) localStorage always save with Proxy handler!!!!
 ### Touch & Drag & Drop & Motion Event ....
 
 
+
+
+### 원칙과 목표
+
+- 일단 남들이 지원하는건 다 지원하자.
+- 덩치를 키우지 않는다. 
+- 프레임워크를 쓰기 위해 프레임워크에 맞게 기존 코드를 고치는 것을 최소화 한다.
+- => 프레임워크를 사용하기 위한 포맷을 최소화 할것 (그래서 모듈이 고민이다.) 
+- 간단하고 직관적이고 쉬워야 한다.
+
+
+
+
+
+
+### @TODO
+
+```html
+
+[Parse]
+- as 결과물이 너무 구리다. 다시 한번 결과물 인터페이스를 생각해보자.
+
+- array as item, index => item if item.completed /// if filter 구현하기
+- parse.js => 상수 cache ex) ['abc','def',2] or 100 + 400 * 2 등등..
+- $ `num_completed = (todos as todo if todo.completed).length` /// $ 구현하기, format 생각하기
+
+
+[Pipe]
+- pipe asyncable!!!
+
+
+[Note]
+- Observable sync, async 구분하되 하나의 로직으로 처리하기 
+
+
+
+[WebComponent]
+- /// @FIXME: init & template & compile async 하게 만들기
+
+
+[Util]
+
+/// @TODO: nextTick의 의미 => nextTick으로 인해 변경이 감지되면 다음 tick이 아니라 현재 틱에 다 끝낼수 있어야 한다.!!!!
+/// @TODO: nextTick vs nextFrame => template이 업데이트가 될떄에는 모든 변경점 관리를 끝내고 한번에 출력할 수 있어야 한다.!!!
+
+
+```
+
+
+### @DONE
+- allMarked = !num_left /// assignment 구현하기 (expression but only root!!)
 
 
 

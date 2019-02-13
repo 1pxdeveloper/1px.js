@@ -25,17 +25,15 @@ class WebComponent extends HTMLElement {
 
 		/// Apply Template Engine
 		let o = WebComponentDefine.map[this.tagName];
+
+		/// @FIXME: ... 여기서 굳이 importNode여야 한가?
 		let template = document.importNode(o.template.content, true);
 
 		/// @FIXME: private scope;;;;
-		let scope = new Scope(this);
-		this.on$ = scope.on$.bind(scope);
-		this.watch$ = scope.watch$.bind(scope);
-		this.watch$.on$ = this.on$;
-
 		/// @FIXME: nextTick dependancy
-		$compile(template, scope);
-		this.init(this.watch$);
+		let context = JSContext.create(this);
+		$compile(template, context);
+		this.init(context);
 		nextTick.flush(); /// @NOTE: 즉각 업데이트를 하기 위함.
 
 		/// Attach Shady DOM!!
@@ -56,21 +54,37 @@ class WebComponent extends HTMLElement {
 		/// Override disconnected
 		this.destroy = () => {
 			delete this.destroy;
-			scope.stop();
-
+			context.disconnect();
 			while(this.lastChild) this.lastChild.remove();
 			this.appendChild(DocumentFragment.from(originalContent));
 		};
+
+
+		/// Override connected Call
+		this.connected(...arguments);
 	}
 
 	disconnectedCallback() {
 		this.destroy();
+
+		/// Override disconnected Call
+		this.disconnected(...arguments);
 	}
 
 	init() {
+
+	}
+
+	connected() {
+
+	}
+
+	disconnected() {
+
 	}
 
 	destroy() {
+
 	}
 }
 
@@ -100,7 +114,6 @@ class WebComponentDefine extends HTMLElement {
 }
 
 WebComponentDefine.map = {};
-
 document.addEventListener("DOMContentLoaded", function() {
 	window.customElements.define("web-component", WebComponentDefine);
 });

@@ -4,7 +4,6 @@
 	<meta charset="utf-8"/>
 	<script src="js/observable.js"></script>
 	<script src="js/module.js"></script>
-	<script src="js/watch.js"></script>
 	<script src="js/parse.js"></script>
 	<script src="js/compile.js"></script>
 	<script src="js/component.js"></script>
@@ -15,30 +14,36 @@
 <web-component name="my-app">
 	<template>
 		<h1>Hello, world {{ a$ }} {{ l }} {{ count$ }}</h1>
-
 		<ul>
 			<li *repeat="rows as row">{{ row }}</li>
 		</ul>
 
+		<button (click|stop|self|prevent|test|abc|debounce:1000)="hello()"></button>
 	</template>
 </web-component>
 
-<script>app.component("my-app", function() {
+
+<script>module.component("my-app", function() {
 	return {
-		init() {
+		init($) {
 			this.rows = ["A", "B", "C"];
 
-			this.count$ = this.watch$("rows as row").count();
+			this.count$ = $`rows as row`.count();
 
-			this.watch$("rows").subscribe(function(value) {
+			$`rows`.subscribe(function(value) {
 				console.log("rows", value);
 			});
 
-			this.watch$("rows as row, index").subscribe(function(value, index) {
+			$`rows as row, index`.subscribe(function(value, index) {
 				console.log(arguments);
 			});
 
-			window.$scope = this;
+			window.app = this;
+		},
+
+		hello() {
+
+			console.log("heelo")
 		}
 	}
 });

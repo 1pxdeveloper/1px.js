@@ -51,7 +51,7 @@
 	}
 
 
-	/// Scope
+	/// JSContext
 	var symbol_table = {};
 
 

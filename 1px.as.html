@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <title>Title</title>
     <script src="js/observable.js"></script>
-    <script src="js/watch.js"></script>
     <script src="js/module.js"></script>
     <script src="js/parse.js"></script>
     <script src="js/compile.js"></script>
@@ -18,8 +17,6 @@
     </div>
 
 <script>
-
-
     window.title = "my title";
 
 	var todos = [
@@ -35,14 +32,8 @@
 
 	var arr = "hello".split("");
 
-	let s = new Scope(window);
+	let s = new JSContext(window);
 
-	// s.watch$("todos as row, index => row.title").subscribe(v => {
-	// 	console.log(v);
-	// });
-    //
-
-    let $ = s.watch$;
 	$compile(document.body, s);
 
 

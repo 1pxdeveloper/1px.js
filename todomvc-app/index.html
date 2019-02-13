@@ -11,12 +11,10 @@
 
 	<script src="../js/observable.js"></script>
 	<script src="../js/module.js"></script>
-	<script src="../js/watch.js"></script>
 	<script src="../js/parse.js"></script>
 	<script src="../js/compile.js"></script>
 	<script src="../js/component.js"></script>
 	<script src="../js/util.js"></script>
-
 </head>
 <body>
 
@@ -27,8 +25,7 @@
 		<section class="todoapp">
 			<header class="header">
 				<h1>todos</h1>
-				<p>{{ test | html }}</p>
-				<form (submit)="addTodo($el.newTodo.value); $el.reset()">
+				<form #form (submit)="addTodo(form.newTodo.value); form.reset()">
 					<input name="newTodo" class="new-todo" placeholder="What needs to be done?" autofocus>
 				</form>
 			</header>
@@ -45,9 +42,9 @@
 							<label (dblclick)="setEditingTodo(todo)">{{ todo.title }}</label>
 							<button class="destroy" (click)="removeTodo(todo)"></button>
 						</div>
-						<form (submit)="applyTodo(todo, editingTodo)">
+						<form (submit)="applyTodo(todo)">
 							<input name="title" class="edit" [(value)]="editingTodo.title" (change)="applyTodo(todo)"
-									(keydown.[escape])="revertTodo()" focus()="editingTodo.todo === todo">
+									(keydown|esc)="revertTodo()" .focus()="editingTodo.todo === todo">
 						</form>
 					</li>
 				</ul>
@@ -78,7 +75,8 @@
 	</template>
 </web-component>
 
-<script>module.component("todo-app", function() {
+<script>
+module.component("todo-app", function() {
 	return {
 		init($) {
 			window.app = this;

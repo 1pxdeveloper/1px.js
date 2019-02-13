@@ -1,30 +1,130 @@
+/// watch$
+(function(exports) {
+
+	const ARRAY_METHODS = ["reverse", "splice", "push", "pop", "unshift", "shift", "sort"];
+	const DATE_METHODS = ["setDate", "setFullYear", "setHours", "setMilliseconds", "setMonth", "setSeconds", "setTime", "setUTCDate", "setUTCFullYear", "setUTCHours", "setUTCMilliseconds", "setUTCMinutes", "setUTCSeconds", "setYear"];
+
+	let numm = 0;
+
+	function mutationObservableFromClass$(object, methods) {
+		let key = methods[0];
+		if (object[key].observable$) {
+			return object[key].observable$;
+		}
+
+		let observable$ = new Observable(observer => {
+			// numm++;
+			// console.log("mutation watch$ ob: " + numm);
+
+			let prototype = Object.getPrototypeOf(object);
+			let o = Object.create(prototype);
+			Object.setPrototypeOf(object, o);
+
+			for (let method of methods) {
+				o[method] = function() {
+					let result = prototype[method].apply(this, arguments);
+					observer.next(this);
+					observer.complete();
+					return result;
+				}
+			}
+
+			o[key].observable$ = observable$;
+
+			return function() {
+
+				// numm--;
+				// console.log("--mutation watch$ ob: " + numm);
+
+				delete o[key].observable$;
+				Object.setPrototypeOf(object, prototype);
+			}
+
+		}).share();
+
+		return observable$;
+	}
+
+	function mutationObservable$(object) {
+		if (Array.isArray(object)) return mutationObservableFromClass$(object, ARRAY_METHODS);
+		if (object instanceof Date) return mutationObservableFromClass$(object, DATE_METHODS);
+		return Observable.NEVER;
+	}
+
+
+	let num = 0;
+
+	function watch$(object, prop) {
+
+		if (Object(object) !== object) {
+			return Observable.NEVER;
+		}
+
+		if (Array.isArray(object) && +prop === prop) {
+			return Observable.NEVER;
+		}
+
+		let desc = Object.getOwnPropertyDescriptor(object, prop);
+		if (desc) {
+			if (desc.set && desc.set.observable$) {
+				return desc.set.observable$;
+			}
+
+			if (desc.configurable === false || desc.writable === false) {
+				return mutationObservable$(object[prop]);
+			}
+		}
+
+		let observable$ = new Observable(function(observer) {
+			// num++;
+			// console.log("watch$ ob: " + num, object, prop);
+
+			let value = object[prop];
+			let subscription = mutationObservable$(value).subscribe(observer);
+
+			function set(newValue) {
+				if (Object.is(value, newValue)) {
+					return;
+				}
+				value = newValue;
+				observer.next(value);
+				observer.complete();
+			}
+
+			set.observable$ = observable$;
+
+			Object.defineProperty(object, prop, {
+				enumerable: true,
+				configurable: true,
+				get: function() {
+					return value;
+				},
+				set: set
+			});
+
+			/// cleanup!
+			return function() {
+
+				// num--;
+				// console.log("-watch$ ob: " + num, object, prop);
+
+				subscription.unsubscribe();
+				delete set.observable$;
+				delete object[prop];
+				object[prop] = value;
+			}
+
+		}).share();
+
+		return observable$;
+	}
+
+	exports.watch$ = watch$;
+
+})(window);
+
+
 ////////////////
-function $clone(obj, weakMap) {
-	if (Object(obj) !== obj) {
-		return obj;
-	}
-
-	if (obj === window || obj === document) {
-		return obj;
-	}
-
-	weakMap = weakMap || new WeakMap();
-	let o = weakMap.get(obj);
-	if (o) {
-		return o;
-	}
-
-	o = Object.create(Object.getPrototypeOf(obj));
-	weakMap.set(obj, o);
-
-	Object.keys(obj).forEach(prop => {
-		o[prop] = $clone(obj[prop], weakMap);
-	});
-
-	return o;
-}
-
-
 let $tokens;
 let $token;
 
@@ -49,7 +149,7 @@ function expression(rbp) {
 	next();
 
 	let left = t.nud() || t;
-	while ($token.lbp > rbp) {
+	while($token.lbp > rbp) {
 		t = $token;
 		next();
 		left = t.led(left) || t;
@@ -587,24 +687,24 @@ evaluateRule("as", 3, function(a, b, c) {
 	ret["@@keys"] = [name_of_item, name_of_index];
 	return ret;
 
-// 	return Observable.from(observable).pipe(observer => {
-// 		let index = 0;
-//
-// 		return {
-// 			next: function(value) {
-//
-//
-// //				$watch(observable, index)
-//
-// 				observer.next(value, index++, b.value, c.value);
-// 			},
-//
-// 			complete: function() {
-// 				observer.complete();
-// 				index = 0;
-// 			}
-// 		}
-// 	});
+	// 	return Observable.from(observable).pipe(observer => {
+	// 		let index = 0;
+	//
+	// 		return {
+	// 			next: function(value) {
+	//
+	//
+	// //				$watch(observable, index)
+	//
+	// 				observer.next(value, index++, b.value, c.value);
+	// 			},
+	//
+	// 			complete: function() {
+	// 				observer.complete();
+	// 				index = 0;
+	// 			}
+	// 		}
+	// 	});
 });
 
 
@@ -633,7 +733,7 @@ function _flat_tokens(token) {
 	let tokens = [];
 
 	let stack = [token];
-	while (stack.length) {
+	while(stack.length) {
 		let t = stack.pop();
 		tokens.push(t);
 		if (t.length) {
@@ -671,24 +771,24 @@ evaluateRule("as", 4, function(a, b, c, d) {
 	return ret;
 
 
-// 	return Observable.from(observable).pipe(observer => {
-// 		let index = 0;
-//
-// 		return {
-// 			next: function(value) {
-//
-//
-// //				$watch(observable, index)
-//
-// 				observer.next(value, index++, b.value, c.value);
-// 			},
-//
-// 			complete: function() {
-// 				observer.complete();
-// 				index = 0;
-// 			}
-// 		}
-// 	});
+	// 	return Observable.from(observable).pipe(observer => {
+	// 		let index = 0;
+	//
+	// 		return {
+	// 			next: function(value) {
+	//
+	//
+	// //				$watch(observable, index)
+	//
+	// 				observer.next(value, index++, b.value, c.value);
+	// 			},
+	//
+	// 			complete: function() {
+	// 				observer.complete();
+	// 				index = 0;
+	// 			}
+	// 		}
+	// 	});
 });
 
 
@@ -699,7 +799,7 @@ function foreach(arr, fn) {
 }
 
 
-function setScope(tokens, scope, local) {
+function setContext(tokens, scope, local) {
 	tokens.forEach(function(token) {
 		token.scope = scope;
 		token.local = local || Object.create(null);
@@ -714,14 +814,14 @@ function $parse(script) {
 	next();
 	let root = expression();
 
-	function $eval(context, local) {
-		setScope(tokens, context, local);
+	function $expr(context, local) {
+		setContext(tokens, context, local);
 		return evaluate(root);
 	}
 
-	$eval.assign = function(context, local, value) {
+	$expr.assign = function(context, local, value) {
 
-		setScope(tokens, context, local);
+		setContext(tokens, context, local);
 		evaluate(root);
 
 		if (!root.object || !root.prop) {
@@ -733,11 +833,12 @@ function $parse(script) {
 	};
 
 
-	$eval.watch$ = function(context, local) {
+	$expr.watch$ = function(context, local) {
 		return new Observable(function(observer) {
-			setScope(tokens, context, local);
+			setContext(tokens, context, local);
 
-			let stop$ = Observable.defer();
+			let stop$ = Observable.subject();
+
 			let watchers = [];
 			tokens.forEach(token => {
 				token.watch = function(object, prop) {
@@ -747,14 +848,9 @@ function $parse(script) {
 
 			function nextValue() {
 				stop$.next();
-
 				watchers = [];
 				let value = evaluate(root);
 				value instanceof Observable ? value.subscribe(observer) : observer.next(value);
-
-
-				/// @TODO: nextTick의 의미 => nextTick으로 인해 변경이 감지되면 다음 tick이 아니라 현재 틱에 다 끝낼수 있어야 한다.!!!!
-				/// @TODO: nextTick vs nextFrame => template이 업데이트가 될떄에는 모든 변경점 관리를 끝내고 한번에 출력할 수 있어야 한다.!!!
 
 				Observable.merge(...watchers).take(1).subscribe(_ => {
 					nextTick(nextValue);
@@ -769,10 +865,8 @@ function $parse(script) {
 		});
 	};
 
-	return $eval;
+	return $expr;
 }
-
-module.value("$parse", $parse);
 
 
 let nextTick = function() {
@@ -796,7 +890,7 @@ let nextTick = function() {
 
 	nextTick.flush = function() {
 		let fn;
-		while (fn = queue[index++]) {
+		while(fn = queue[index++]) {
 			fn();
 		}
 
@@ -807,46 +901,63 @@ let nextTick = function() {
 	return nextTick;
 }();
 
-// let nextTick = function() {
-//
-// 	let queue = [];
-// 	let uuid = true;
-//
-// 	let i = 0;
-// 	let index = 0;
-//
-// 	let observer = new MutationObserver(function() {
-// 		console.log("nextTick", i++);
-//
-// 		let fn;
-// 		while (fn = queue[index++]) {
-// 			fn();
-// 		}
-//
-// 		index = 0;
-// 		queue.length = 0;
-// 	});
-//
-// 	let textNode = document.createTextNode("");
-// 	observer.observe(textNode, {characterData: true});
-//
-// 	function start() {
-// 		uuid = !uuid;
-// 		textNode.nodeValue = uuid;
-// 	}
-//
-// 	function nextTick(fn) {
-// 		if (queue.length === 0) {
-// 			start();
-// 		}
-//
-// 		queue.push(fn);
-//
-// 		if (queue.length > 1024) {
-// 			throw new Error();
-// 		}
-// 	}
-//
-// 	nextTick.queue = queue;
-// 	return nextTick;
-// }();
+
+/// @FIXME: JS는 말고 템플릿에서도 적용되는데... 1pxContext 처럼 이름을 지으면 붙여줘야겠다.
+class JSContext {
+	static create(global, local) {
+		let context = new JSContext(global, local);
+		let ret = context.watch$.bind(context);
+		Object.setPrototypeOf(ret, context);
+		return ret;
+	}
+
+	constructor(global, local) {
+		this.global = global || Object(null);
+		this.local = local || Object(null);
+		this.disconnect$ = Observable.subject();
+	}
+
+	disconnect() {
+		this.disconnect$.complete();
+	}
+
+	fork(local) {
+		local = Object.assign(Object.create(this.local), local);
+		return new JSContext(this.global, local);
+	}
+
+	evaluate(script) {
+		return $parse(script)(this.global, this.local);
+	}
+
+	assign(script, value) {
+		return $parse(script).assign(this.global, this.local, value);
+	}
+
+	watch$(script, fn) {
+
+		/// @TODO: script 가 array 면?? watch$(['a', 'b', 'c'], ...)
+
+		/// @TODO: script 가 template 면?? watch$(`this.dkjfksfd `) script.raw 확인....
+
+		/// @TODO: fn이 있던 없던 Observer로??
+		script = String(script).trim();
+
+		let next = typeof fn === "function" ? fn : noop;
+		$parse(script).watch$(this.global, this.local).takeUntil(this.disconnect$).do(next).subscribe();
+
+		if (typeof fn === "function") {
+			return;
+		}
+
+		return new Observable(observer => {
+			next = function(value) {
+				observer.next(value);
+			}
+		}).takeUntil(this.disconnect$);
+	}
+
+	on$(el, type, useCapture, handler) {
+		return Observable.fromEvent(el, type, useCapture).takeUntil(this.disconnect$);
+	}
+}
