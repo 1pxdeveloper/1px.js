@@ -123,7 +123,8 @@ function _event(context, el, script, events) {
 
 	let [type, ...options] = events.split("|");
 
-	let useCapture = options.indexOf("once") >= 0;
+	let useCapture = options.indexOf("capture") >= 0;
+
 	let event;
 	let o$ = context.on$(el, type, useCapture).do(e => event = e);
 
