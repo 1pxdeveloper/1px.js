@@ -114,6 +114,7 @@ class WebComponentDefine extends HTMLElement {
 }
 
 WebComponentDefine.map = {};
+
 document.addEventListener("DOMContentLoaded", function() {
 	window.customElements.define("web-component", WebComponentDefine);
 });

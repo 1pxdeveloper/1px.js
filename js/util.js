@@ -1,15 +1,75 @@
-module.directive(".focus()", function() {
-	return function(scope, el, script) {
-		scope.watch$(script, function(bool) {
+/// event Pipe ... 과연 Observable 의존도를 높이는게 맞을까??
+Event.pipes = {
+
+	prevent($) {
+		return $.do(e => e.preventDefault())
+	},
+
+	stop($) {
+		return $.do(e => e.stopPropagation())
+	},
+
+	capture($) {
+		return this
+	},
+
+	self($) {
+		return $.filter(e => e.target === $.element)
+	},
+
+	once($) {
+		return $.take(1)
+	},
+
+	shift($) {
+		return $.filter(e => e.shiftKey)
+	},
+
+	alt($) {
+		return $.filter(e => e.altKey)
+	},
+
+	ctrl($) {
+		return $.filter(e => e.ctrlKey)
+	},
+
+	meta($) {
+		return $.filter(e => e.metaKey)
+	},
+
+	esc($) {
+		return $.filter(e => e.keyCode === 27)
+	}
+};
+
+KeyboardEvent.pipes = {
+	esc($) {
+		return $.filter(e => e.keyCode === 27)
+	}
+};
+
+
+///
+module.directive(".focus()", function($) {
+	return function(context, el, script) {
+		context.watch$(script, function(bool) {
+
+
+			console.log(script, bool);
+
+
 			if (bool) {
-				el.focus();
+				window.requestAnimationFrame(function() {
+					el.focus();
+				});
 			}
 		});
 	}
 });
 
 
-module.pipe("html", function() {
+/// default Pipes
+module.pipe("html", function($) {
 	return function(value) {
 		if (value === undefined) value = "";
 		let h = document.createElement("div");

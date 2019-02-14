@@ -285,6 +285,8 @@ symbol("this").nud = noop;
 
 infix(5, ";");
 
+infix(7, "if");
+
 infixr(10, "=", function(left) {
 	if (left.id !== "." && left.id !== "[" && left.id !== "(name)") {
 		left.error("Bad lvalue.");
@@ -358,8 +360,6 @@ prefix(90, "(", function() {
 
 	let _next = $tokens[$tokens.index];
 	let _next2 = $tokens[$tokens.index + 1];
-
-	console.log(_next);
 
 	if (_next.id === "," || (_next.id === ")" && _next2.id === "=>")) {
 		let args = Object.create($symbol_table["(array)"]);
@@ -494,10 +494,11 @@ infix(100, "(", function(left) {
 
 
 /// Tokenizer
-tokenize.re = /([_$a-zA-Z가-힣][_$a-zA-Z0-9가-힣]*)|((?:\d*\.\d+)|\d+)|('[^']*'|"[^"]*")|(===|!==|==|!=|<=|>=|=>|&&|\|\||[-|+*/!?:;.,<>=\[\]\(\){}])|(\s)|./g;
+tokenize.re = /(as|if)|([_$a-zA-Z가-힣][_$a-zA-Z0-9가-힣]*)|((?:\d*\.\d+)|\d+)|('[^']*'|"[^"]*")|(===|!==|==|!=|<=|>=|=>|&&|\|\||[-|+*/!?:;.,<>=\[\]\(\){}])|(\s)|./g;
 
 tokenize.types = [
 	"",
+	"(operator)",
 	"(name)",
 	"(number)",
 	"(string)",
@@ -715,6 +716,7 @@ evaluateRule("=", 2, function(a, b) {
 	if (a.object) {
 		a.object[a.prop] = B;
 	}
+
 	return B;
 });
 
@@ -792,6 +794,20 @@ evaluateRule("as", 4, function(a, b, c, d) {
 });
 
 
+
+evaluateRule("if", 2, function(a, b) {
+
+	this.ifcondition = evaluate(b);
+	if (this.ifcondition) {
+		return evaluate(a);
+	}
+
+	return undefined;
+});
+
+
+
+
 function foreach(arr, fn) {
 	for (let i = 0, len = arr.length; i < len; i++) {
 		fn(arr[i], i);
@@ -824,7 +840,7 @@ function $parse(script) {
 		setContext(tokens, context, local);
 		evaluate(root);
 
-		if (!root.object || !root.prop) {
+		if (!root.object || !root.prop || root.ifcondition === false) {
 			return false;
 		}
 
@@ -850,7 +866,10 @@ function $parse(script) {
 				stop$.next();
 				watchers = [];
 				let value = evaluate(root);
-				value instanceof Observable ? value.subscribe(observer) : observer.next(value);
+
+				if (root.ifcondition !== false) {
+					value instanceof Observable ? value.subscribe(observer) : observer.next(value);
+				}
 
 				Observable.merge(...watchers).take(1).subscribe(_ => {
 					nextTick(nextValue);

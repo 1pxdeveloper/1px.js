@@ -2,7 +2,8 @@
 
 ## Working Drafts
 
-### Complie (Simple)
+
+### Complie (Simple just Library)
 ```html
 <template id="el">
     <h1>{{ title }}</h1>
@@ -47,6 +48,63 @@ setTimeout(() => {
 <!-- call -->
 <input .focus()="condition" .blur()="bool" />
 ```
+
+
+
+### Template expressions
+
+javascript expressions
+
+No 
+- typeof, instanceof
+- no statements (ex if, for)
+- no +=, -=, ++, --
+- no bitwise & >> << >>>
+- no arrow function with curly brace 
+- (a,b) => { ... } (X) it means (a,b) => { {obj} }
+- (a,b) => ... (O)
+- (a,b) => ...; ...; ... (O)
+
+differences
+
+- pipe: | ex) array | filter: x => x < 10
+- if expressions: z = x if y > 10
+- as Observable: [1,2,3,4] as row
+- in Array : 'a' in ['a','b','c','d'] // true
+- ; expressions: foo(); bar; 30; // 30
+- null or undefined dot chain no error: a.b.c.d // if a.b === undefined ? undefined;
+
+
+
+
+### Template Syntax
+
+```html
+<!-- property, interpolation -->
+<div [hidden]="isShow">{{ todo.title }}</div>
+
+<!-- event -->
+<button (click)="hello()">
+
+<!-- class -->
+<button [class.hello]="bool">
+
+<!-- attr -->
+<button [attr.id]="this.id">
+
+<!-- style -->
+<button [style.width.px]="img.width" [style.background-image.url]="'abc.jpg'">
+
+<!-- two-way -->
+<input [(value)]="title">
+
+<!-- ref -->
+<div #div>{{ div.tagName }}</div>
+
+<!-- call -->
+<input .focus()="condition" .blur()="bool" />
+```
+
 
 
 
@@ -114,22 +172,48 @@ setTimeout(() => {
 
 <-- create Custom Pipe -->
 <script>
+Event.pipes = {
 
-/// event Pipe ... 과연 Observable 의존도를 높이는게 맞을까??
-module.pipe("event|prevent", function() {
-	return function(context, el) {
-		return this.do(event => event.preventDefault());
+	prevent($) {
+		return $.do(e => e.preventDefault())
+	},
+
+	stop($) {
+		return $.do(e => e.stopPropagation())
+	},
+
+	capture($) {
+		return this
+	},
+
+	self($) {
+		return $.filter(e => e.target === $.element)
+	},
+
+	once($) {
+		return $.take(1)
+	},
+
+	shift($) {
+		return $.filter(e => e.shiftKey)
+	},
+
+	alt($) {
+		return $.filter(e => e.altKey)
+	},
+
+	ctrl($) {
+		return $.filter(e => e.ctrlKey)
+	},
+
+	meta($) {
+		return $.filter(e => e.metaKey)
+	},
+
+	esc($) {
+		return $.filter(e => e.keyCode === 27)
 	}
-});
-
-
-
-module.pipe.event("custom", function(observable, name) {} )
-module.pipe.event("click|right", function(observable, name) {} )
-module.pipe.event("keydown|*", function(observable, name) {} )
-
-/// Draft...
-module.pipe.event(["keydown|alt", "keypress|alt", "keyup|alt"], function(observable, name) {} )
+};
 </script>
 ```
 
@@ -454,9 +538,13 @@ ex) localStorage always save with Proxy handler!!!!
 
 ```html
 
-[Parse]
-- as 결과물이 너무 구리다. 다시 한번 결과물 인터페이스를 생각해보자.
+[Module]
+- es6 modules?
+- directives, pipes, component 어떻게 등록할건데?
+- single module name??
 
+
+[Parse]
 - array as item, index => item if item.completed /// if filter 구현하기
 - parse.js => 상수 cache ex) ['abc','def',2] or 100 + 400 * 2 등등..
 - $ `num_completed = (todos as todo if todo.completed).length` /// $ 구현하기, format 생각하기
@@ -475,10 +563,6 @@ ex) localStorage always save with Proxy handler!!!!
 - /// @FIXME: init & template & compile async 하게 만들기
 
 
-[Util]
-
-/// @TODO: nextTick의 의미 => nextTick으로 인해 변경이 감지되면 다음 tick이 아니라 현재 틱에 다 끝낼수 있어야 한다.!!!!
-/// @TODO: nextTick vs nextFrame => template이 업데이트가 될떄에는 모든 변경점 관리를 끝내고 한번에 출력할 수 있어야 한다.!!!
 
 
 ```

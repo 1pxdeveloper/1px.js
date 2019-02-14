@@ -21,6 +21,8 @@ function $compile(el, context) {
 				return compile_text_node(node, context);
 		}
 	});
+
+	return el;
 }
 
 
@@ -84,6 +86,7 @@ function compile_element_node(el, context) {
 	}
 }
 
+/// @FIXME...
 function syntax(context, el, attr, start, fn, end) {
 	let name = attr.nodeName;
 	let value = attr.nodeValue;
@@ -116,42 +119,29 @@ function syntax(context, el, attr, start, fn, end) {
 
 
 function _prop(context, el, script, prop) {
-	context.watch$(script, value => el[prop] = value);
+	context.watch$(script, value => _value = el[prop] = value);
 }
 
-function _event(context, el, script, events) {
+function _event(context, el, script, value) {
 
-	let [type, ...options] = events.split("|");
-
+	let [type, ...options] = value.split("|");
 	let useCapture = options.indexOf("capture") >= 0;
 
 	let event;
 	let o$ = context.on$(el, type, useCapture).do(e => event = e);
+	o$.element = el;
 
 	options.forEach(pipe => {
-		let handler = module.pipe.require(type + "|" + pipe) || module.pipe.require("event|" + pipe);
+		let handler = Event.pipes[pipe] || Event.pipes["*"];
 		if (!handler) throw new Error(pipe + " is not registered event pipe.");
-		o$ = handler.call(o$, context, el);
+		o$ = handler(o$);
+		o$.element = el;
 	});
 
-	o$.subscribe(function() {
-		handleEvent(event, context, el, script, options);
+	o$.subscribe(function(event) {
+		context.local.event = event;
+		context.evaluate(script);
 	});
-}
-
-function handleEvent(event, context, el, script) {
-
-	console.log(event);
-
-
-	context.local.event = event;
-	let ret = context.evaluate(script);
-	delete context.local.event;
-
-	/// @TOOD: promise, observable
-	if (ret instanceof Promise) {
-
-	}
 }
 
 /// two-way
@@ -164,8 +154,8 @@ function _twoway(context, el, script, value) {
 		return o;
 	}, Object.create(null));
 
-	context.watch$(script, value => el[prop] = value);
 
+	context.watch$(script, value => el[prop] = value);
 	context.on$(el, options.change ? "change" : "input").subscribe(function() {
 		context.assign(script, el[prop]);
 	});
@@ -219,9 +209,9 @@ function _nodeValue(value) {
 	}
 
 	if (value instanceof Node) {
+		this.nodeValue = "";
 		this.__node = Array.from(value.childNodes || [value]).slice();
 		this.before(value);
-		this.nodeValue = "";
 		return;
 	}
 
@@ -455,67 +445,5 @@ module.directive("*else", function() {
 
 			// console.log("if", script, bool);
 		});
-	}
-});
-
-
-/// event Pipe ... 과연 Observable 의존도를 높이는게 맞을까??
-module.pipe("event|prevent", function() {
-	return function(context, el) {
-		return this.do(event => event.preventDefault());
-	}
-});
-
-module.pipe("event|stop", function() {
-	return function(context, el) {
-		return this.do(event => event.stopPropagation());
-	}
-});
-
-module.pipe("event|capture", function() {
-	return function(context, el) {
-		return this;
-	}
-});
-
-module.pipe("event|self", function() {
-	return function(context, el) {
-		return this.filter(event => event.target === el);
-	}
-});
-
-module.pipe("event|once", function() {
-	return function(context, el) {
-		return this.take(1);
-	}
-});
-
-module.pipe("event|shift", function() {
-	return function(context, el) {
-		return this.filter(event => event.shiftKey);
-	}
-});
-
-module.pipe("event|ctrl", function() {
-	return function(context, el) {
-		return this.filter(event => event.ctrlKey);
-	}
-});
-
-module.pipe("event|alt", function() {
-	return function(context, el) {
-		return this.filter(event => event.altKey);
-	}
-});
-
-module.pipe("event|meta", function() {
-	return function(context, el) {
-		return this.filter(event => event.metaKey);
-	}
-});
-
-module.pipe("keydown|esc", function() {
-	return function(context, el) {
-		return this.filter(event => event.keyCode === 27)
 	}
 });
