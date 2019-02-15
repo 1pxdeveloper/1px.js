@@ -794,7 +794,6 @@ evaluateRule("as", 4, function(a, b, c, d) {
 });
 
 
-
 evaluateRule("if", 2, function(a, b) {
 
 	this.ifcondition = evaluate(b);
@@ -804,8 +803,6 @@ evaluateRule("if", 2, function(a, b) {
 
 	return undefined;
 });
-
-
 
 
 function foreach(arr, fn) {
@@ -927,6 +924,9 @@ class JSContext {
 		let context = new JSContext(global, local);
 		let ret = context.watch$.bind(context);
 		Object.setPrototypeOf(ret, context);
+
+		// @FIXME:...
+		ret.nextTick = nextTick;
 		return ret;
 	}
 

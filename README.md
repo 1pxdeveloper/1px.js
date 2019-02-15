@@ -3,19 +3,31 @@
 ## Working Drafts
 
 
-### Complie (Simple just Library)
+### Compile (Simple just Library)
 ```html
-<template id="el">
-    <h1>{{ title }}</h1>
-</template>
+<!-- your module name here (module attibute) -->
+<html module="app">
+<body>
+    <template id="app">
+        <h1>{{ title }}</h1>
+        <button (click)="change()"></button>
+    </template>
+</body>    
+</html>
 
 <scrpit>
-let vm = module.compile("#el", {
-	title: "hello world"
-});
+let context = {
+    title: "hello",
+
+    change: function() {
+        this.title = "world";
+    }
+}
+
+app.compile("#app", context);
 
 setTimeout(() => {
-    vm.title = "changed!!!" /// auto-bind update
+    context.title = "change my title" /// auto-bind update
 }, 1000);
 </scrpit>
 ```
@@ -70,9 +82,9 @@ differences
 - pipe: | ex) array | filter: x => x < 10
 - if expressions: z = x if y > 10
 - as Observable: [1,2,3,4] as row
-- in Array : 'a' in ['a','b','c','d'] // true
 - ; expressions: foo(); bar; 30; // 30
 - null or undefined dot chain no error: a.b.c.d // if a.b === undefined ? undefined;
+- in Array : 'a' in ['a','b','c','d'] // true (Draft)
 
 
 

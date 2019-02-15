@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" module="app">
 <head>
 	<meta charset="UTF-8">
 	<title>Title</title>
@@ -7,6 +7,7 @@
 	<script src="js/module.js"></script>
 	<script src="js/parse.js"></script>
 	<script src="js/compile.js"></script>
+	<script src="js/test.js"></script>
 </head>
 <body>
 
@@ -26,12 +27,13 @@
 
 <script>
 
+console.log(app);
+
+
 let c = $compile(document.body);
-c.title = "aslkdfjalsdkjfkasd"
+c.title = "aslkdfjalsdkjfkasd";
 
 c.alert = function(v) {
-
-
 	alert(v);
 }
 

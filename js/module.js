@@ -117,7 +117,9 @@
 		};
 
 		create.require = function(name, callback) {
-			callback = callback || function(a) { return a };
+			callback = callback || function(a) {
+				return a
+			};
 			return module.require([fn(name), callback]);
 		};
 
@@ -136,6 +138,11 @@
 	module.$queue = $factories;
 
 	window.module = module;
+
+	let name = document.documentElement.getAttribute("module");
+	if (name) {
+		window[name] = module;
+	}
 })();
 
 
