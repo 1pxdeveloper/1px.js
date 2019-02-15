@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Title</title>
+	<script src="js/observable.js"></script>
+	<script src="js/module.js"></script>
+	<script src="js/parse.js"></script>
+	<script src="js/compile.js"></script>
+	<script src="js/component.js"></script>
+</head>
+
+<style>
+	* {
+		/*outline: 1px solid #4f80ff;*/
+		box-sizing: border-box;
+	}
+
+	html, body {
+		background: #f1f1f1;
+		height: 100%;
+	}
+
+	main {
+		max-width: 1024px;
+		margin: auto;
+		min-height: 100%;
+	}
+
+	#grid {
+		background: #fff;
+	}
+
+	#grid, .grid-input {
+		position: relative;
+		display: grid;
+		grid-template-columns: 1fr 1fr 1fr 1fr;
+		grid-gap: 8px;
+	}
+
+	#grid {
+		grid-template-rows: 1fr 1fr;
+	}
+
+	#grid > * {
+		outline: 1px solid #4f80ff;
+		padding: 8px;
+	}
+
+	.grid-input {
+		display: contents;
+		margin: 8px 0;
+	}
+
+	.grid-input input {
+		display: block;
+		width: 100%;
+		padding: 4px;
+		text-align: center;
+	}
+
+	.grid-input-v {
+
+	}
+</style>
+
+
+<body>
+
+<main>
+
+	<!--<section class="grid-input">-->
+		<!--<div><input value="1fr"/></div>-->
+		<!--<div><input value="1fr"/></div>-->
+		<!--<div><input value="1fr"/></div>-->
+		<!--<div><input value="1fr"/></div>-->
+	<!--</section>-->
+
+	<!--<section class="grid-input grid-input-v">-->
+		<!--<div><input value="1fr"/></div>-->
+		<!--<div><input value="1fr"/></div>-->
+		<!--<div><input value="1fr"/></div>-->
+		<!--<div><input value="1fr"/></div>-->
+	<!--</section>-->
+
+
+	<section id="grid">
+		<div contenteditable style="">1</div>
+		<div contenteditable>2</div>
+		<div contenteditable>3</div>
+		<div contenteditable>4</div>
+		<div contenteditable>5</div>
+		<div contenteditable>6</div>
+		<div contenteditable>7</div>
+		<div contenteditable>8</div>
+		<div contenteditable>9</div>
+		<div contenteditable>10</div>
+		<div contenteditable>11</div>
+		<div contenteditable>12</div>
+	</section>
+</main>
+
+</body>
+</html>
