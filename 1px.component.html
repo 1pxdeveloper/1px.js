@@ -48,11 +48,9 @@
 let a = document.getElementById("a");
 a.title = "asdfkljasdflas";
 
-module.component("my-app", function() {
+module.component("my-app", function(module) {
 
-	console.log("this", this);
-
-	return {
+	module.exports = {
 		init() {
 			this.title = "hello";
 			this.arr = [1, 2, 3, 4];

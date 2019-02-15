@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" module="app">
+<html lang="en" module="module">
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
@@ -72,54 +72,48 @@
 </web-component>
 
 <script>
-app.component("todo-app", function() {
+module.component("todo-app", function($localStorage) {
+
+	const $store = $localStorage("todomvc-1px");
+
 	return {
 		init($) {
-			this.todos = [
-				{
-					title: "123",
-					completed: true,
-				},
-				{
-					title: "Taste JavaScript 345",
-					completed: true,
-				},
-				{
-					title: "JavaScript",
-					completed: false
-				}
-			];
+			this.todos = $store.todos = $store.todos || [];
 
-			this.num_items_left = null;
 			this.allChecked = null;
+			this.num_items_left = null;
 			this.editingTodo = null;
 
-			$`this.num_items_left = this.todos.filter(todo => !todo.completed).length;`;
-			$`this.allChecked = !this.num_items_left`;
+			/// Computed
+			$`this.num_items_left = todos.filter(todo => !todo.completed).length;`;
+			$`this.allChecked = !num_items_left`;
 
+			/// localStorage Auto Save
+			$`todos.forEach(todo => todo.title; todo.completed)`.subscribe($store.save);
+
+
+			/// Filter @TODO: Route Service
 			this.filter = "all";
-
-			/// @TODO: Route Service
-			$.on$(window, "popstate").subscribe(event => {
+			let route = () => {
 				let hash = location.hash || "#/";
-				this[hash] && this[hash](event);
-			});
+				this[hash] && this[hash]();
+			};
+
+			$.on$(window, "popstate").subscribe(route);
+			route();
 		},
 
 		/// Route Service
 		"#/": function() {
 			this.filter = "all";
-			console.log("all!!!!!!!!!!");
 		},
 
 		"#/active": function() {
 			this.filter = "active";
-			console.log("active!!!!!!!!!!");
 		},
 
 		"#/completed": function() {
 			this.filter = "completed";
-			console.log("completed!!!!!!!!!!");
 		},
 
 

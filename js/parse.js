@@ -963,16 +963,14 @@ class JSContext {
 		script = String(script).trim();
 
 		let next = typeof fn === "function" ? fn : noop;
-		$parse(script).watch$(this.global, this.local).takeUntil(this.disconnect$).do(next).subscribe();
+		$parse(script).watch$(this.global, this.local).takeUntil(this.disconnect$).do(_ => next(_)).subscribe();
 
 		if (typeof fn === "function") {
 			return;
 		}
 
 		return new Observable(observer => {
-			next = function(value) {
-				observer.next(value);
-			}
+			next = observer.next.bind(observer);
 		}).takeUntil(this.disconnect$);
 	}
 

@@ -3,6 +3,25 @@
 ## Working Drafts
 
 
+### Bootstrap!!!!!!!! 
+```html
+<html module="App"></html>
+<script>
+
+App.component("todo-app", class {
+	init() {
+		
+	}
+	
+	addTodo() {
+		
+	}
+})
+</script>
+
+```
+
+
 ### Compile (Simple just Library)
 ```html
 <!-- your module name here (module attibute) -->
@@ -519,10 +538,30 @@ express와 Node.js 를 이용해서 Universal을 만들 방법을 생각해보�
 
 ```
 
-### localStorage or Firebase Storage ....
-```html
+### localStorage....
+```javascript
 
-ex) localStorage always save with Proxy handler!!!!
+module.factory("$localStorage", function() {
+	function $localStorage(key) {
+		let store = JSON.parse(localStorage.getItem(key)) || Object.create(null);
+		Object.setPrototypeOf(store, null);
+
+		return new Proxy(store, {
+			set: function(o, prop, value) {
+				console.log(o, prop, value);
+				o[prop] = value;
+				localStorage.setItem(key, JSON.stringify(o));
+			}
+		})
+	}
+
+	return $localStorage;
+});
+
+
+const $store = $localStorage("todomvc-app");
+
+$store.abc = "123"
 
 
 ```

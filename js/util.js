@@ -79,6 +79,46 @@ module.pipe("html", function($) {
 });
 
 
+/// $localStorage
+module.factory("$localStorage", function() {
+
+	function $localStorage(key) {
+		let store = JSON.parse(localStorage.getItem(key)) || Object.create(null);
+
+		let prototype = {
+			clear() {
+				Object.keys(store).forEach(key => delete store[key]);
+				localStorage.removeItem(key);
+			},
+
+			save() {
+				localStorage.setItem(key, JSON.stringify(store));
+			}
+		};
+
+		Object.setPrototypeOf(prototype, null);
+		Object.setPrototypeOf(store, prototype);
+
+		let flag = false;
+		return new Proxy(store, {
+			set: function(o, prop, value) {
+				o[prop] = value;
+
+				if (!flag) {
+					flag = true;
+					Promise.resolve().then(() => {
+						flag = false;
+						localStorage.setItem(key, JSON.stringify(o));
+					});
+				}
+			}
+		})
+	}
+
+	return $localStorage;
+});
+
+
 /// @FIXME: 이거 쓰게 될까??
 function $clone(obj, weakMap) {
 	if (Object(obj) !== obj) {
