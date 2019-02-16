@@ -8,20 +8,14 @@
 	<!--<link rel="stylesheet" href="node_modules/todomvc-app-css/index.css">-->
 	<!-- CSS overrides - remove if you don't need it -->
 	<link rel="stylesheet" href="css/app.css">
-
-	<script src="../../js/observable.js"></script>
-	<script src="../../js/module.js"></script>
-	<script src="../../js/parse.js"></script>
-	<script src="../../js/compile.js"></script>
-	<script src="../../js/component.js"></script>
-	<script src="../../js/util.js"></script>
+	<script src="../../js/1px.js"></script>
 </head>
 <body>
 
 <todo-app></todo-app>
 
 <web-component name="todo-app">
-	<template id="todo-app">
+	<template>
 		<section class="todoapp">
 			<header class="header">
 				<h1>todos</h1>
@@ -65,7 +59,7 @@
 					</li>
 				</ul>
 				<!-- Hidden if no completed items are left ↓ -->
-				<button class="clear-completed" [hidden]="num_items_left> 0" (click)="clearCompleted()">Clear completed</button>
+				<button class="clear-completed" [hidden]="!num_completed" (click)="clearCompleted()">Clear completed</button>
 			</footer>
 		</section>
 	</template>
@@ -74,51 +68,32 @@
 <script>
 function main(module) {
 
-	module.directive("route", function() {
-		return function() {
-
-			console.log(arguments);
-		}
-	});
-
-	const $route = function($) {
-
-	};
-
 	module.component("todo-app", function($localStorage) {
 
 		const $store = $localStorage("todomvc-1px");
 
 		return {
 			init($) {
-				this.todos = $store.todos = $store.todos || [];
+				/// localStorage Auto Save
+				this.todos = $store.todos || [];
 
 				this.allChecked = null;
+				this.num_completed = null;
 				this.num_items_left = null;
 				this.editingTodo = null;
-
-				/// Computed
-				$`this.num_items_left = todos.filter(todo => !todo.completed).length;`;
-				$`this.allChecked = !num_items_left`;
-
-				/// localStorage Auto Save
-				$`todos.forEach(todo => todo.title; todo.completed)`.subscribe($store.save);
-
-
-				/// Filter @TODO: Route Service
 				this.filter = "all";
 
-				// $.route("#/");
-				// $.route("#/active");
-				// $.route("#/completed");
+				/// Computed
+				$`this.num_completed = this.todos.filter(todo => todo.completed).length`;
+				$`this.num_items_left = this.todos.length - this.num_completed`;
+				$`this.allChecked = !this.num_items_left`;
 
-				let route = () => {
-					let hash = location.hash || "#/";
-					this[hash] && this[hash]();
-				};
+				/// localStorage Auto Save
+				$`this.todos.forEach(todo => todo.title; todo.completed)`.subscribe(() => {
+					$store.todos = this.todos;
+				});
 
-				$.on$(window, "popstate").subscribe(route);
-				route();
+				$.route(this);
 			},
 
 			/// Route Service
@@ -133,7 +108,6 @@ function main(module) {
 			"#/completed": function() {
 				this.filter = "completed";
 			},
-
 
 			/// Methods
 			checkFilter(filter, completed) {

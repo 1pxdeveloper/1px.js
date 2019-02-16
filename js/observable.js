@@ -161,7 +161,9 @@ const Observable = (function() {
 		}
 	}
 
+	exports.Observable = Observable;
 	return Observable;
+
 }());
 
 
@@ -209,9 +211,9 @@ Observable.prototype.map = function(fn) {
 Observable.prototype.do = function(fn) {
 	return this.pipe(observer => {
 		return {
-			next() {
-				fn(...arguments);
-				observer.next(...arguments);
+			next(value) {
+				fn(value);
+				observer.next(value);
 			}
 		}
 	});
@@ -293,13 +295,12 @@ Observable.prototype.share = function() {
 		observers.push(observer);
 
 		subscription = subscription || this.subscribe({
-			next() {
-				// console.log('share', observers.length, ...arguments)
-				observers.forEach(observer => observer.next(...arguments));
+			next(value) {
+				observers.forEach(observer => observer.next(value));
 			},
 
-			error() {
-				observers.forEach(observer => observer.error(...arguments));
+			error(err) {
+				observers.forEach(observer => observer.error(err));
 			},
 
 			complete() {
@@ -308,11 +309,7 @@ Observable.prototype.share = function() {
 		});
 
 		return function() {
-			// console.log('-share', observers.indexOf(observer), observers.length);
-
 			observers.splice(observers.indexOf(observer), 1);
-
-
 			if (observers.length === 0) {
 				subscription.unsubscribe();
 			}
@@ -326,11 +323,11 @@ Observable.prototype.skip = function(count) {
 
 	return this.pipe(observer => {
 		return {
-			next() {
+			next(value) {
 				if (index++ < count) {
 					return;
 				}
-				observer.next(...arguments);
+				observer.next(value);
 			},
 
 			error() {
@@ -362,10 +359,10 @@ Observable.interval = function(delay) {
 
 Observable.timeout = function(delay) {
 	return new Observable(observer => {
-		setTimeout(() => observer.next(0), delay);
+		let id = setTimeout(() => observer.next(0), delay);
+		return () => clearTimeout(id);
 	});
 };
-
 
 Observable.fromEvent = function(el, type, useCapture) {
 	return new Observable(observer => {
@@ -377,7 +374,6 @@ Observable.fromEvent = function(el, type, useCapture) {
 		return () => el.removeEventListener(type, handler, useCapture);
 	});
 };
-
 
 Observable.zip = function(...observables) {
 
@@ -397,7 +393,6 @@ Observable.zip = function(...observables) {
 		}
 	});
 };
-
 
 Observable.merge = function(...observables) {
 
@@ -425,7 +420,6 @@ Observable.merge = function(...observables) {
 	});
 };
 
-
 Observable.subject = function() {
 
 	let o = new Observable(observer => {
@@ -440,5 +434,3 @@ Observable.subject = function() {
 
 	return o;
 };
-
-

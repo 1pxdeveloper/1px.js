@@ -1,5 +1,5 @@
 /// watch$
-(function(exports) {
+const watch$ = (function() {
 
 	const ARRAY_METHODS = ["reverse", "splice", "push", "pop", "unshift", "shift", "sort"];
 	const DATE_METHODS = ["setDate", "setFullYear", "setHours", "setMilliseconds", "setMonth", "setSeconds", "setTime", "setUTCDate", "setUTCFullYear", "setUTCHours", "setUTCMilliseconds", "setUTCMinutes", "setUTCSeconds", "setYear"];
@@ -119,9 +119,8 @@
 		return observable$;
 	}
 
-	exports.watch$ = watch$;
-
-})(window);
+	return watch$;
+})();
 
 
 ////////////////
@@ -149,7 +148,7 @@ function expression(rbp) {
 	next();
 
 	let left = t.nud() || t;
-	while($token.lbp > rbp) {
+	while ($token.lbp > rbp) {
 		t = $token;
 		next();
 		left = t.led(left) || t;
@@ -283,6 +282,27 @@ symbol("(literal)").nud = noop;
 symbol("(name)").nud = noop;
 symbol("this").nud = noop;
 
+
+/// Operator precedence
+// function precedence() {
+//
+// }
+//
+
+// precedence("=>");
+// precedence(".", "[");
+// precedence("(");
+// precedence("!", "-", "+");
+// precedence("*", "/", "%");
+// precedence("+", "-");
+// precedence("<", ">", ">=", "in");
+// precedence("===", "!==", "==", "!=");
+// precedence("|");
+// precedence("=");
+// precedence("if");
+// precedence(";");
+
+
 infix(5, ";");
 
 infix(7, "if");
@@ -399,11 +419,6 @@ prefix(90, "(", function() {
 	return e;
 });
 
-infix(90, "=>", function(left) {
-	this.push(left);
-	this.push(expression());
-});
-
 
 prefix(90, "[", function() {
 	let array = Object.create($symbol_table["(array)"]);
@@ -490,6 +505,12 @@ infix(100, "(", function(left) {
 	}
 
 	next(")");
+});
+
+
+infix(110, "=>", function(left) {
+	this.push(left);
+	this.push(expression());
 });
 
 
@@ -735,7 +756,7 @@ function _flat_tokens(token) {
 	let tokens = [];
 
 	let stack = [token];
-	while(stack.length) {
+	while (stack.length) {
 		let t = stack.pop();
 		tokens.push(t);
 		if (t.length) {
@@ -895,7 +916,7 @@ let nextTick = function() {
 		if (queue.length === 0) {
 			Promise.resolve().then(() => {
 				console.log("nextTick", i++);
-				nextTick.flush();
+				nextTick.commit();
 			})
 		}
 
@@ -904,9 +925,9 @@ let nextTick = function() {
 
 	nextTick.queue = queue;
 
-	nextTick.flush = function() {
+	nextTick.commit = function() {
 		let fn;
-		while(fn = queue[index++]) {
+		while (fn = queue[index++]) {
 			fn();
 		}
 
@@ -977,4 +998,19 @@ class JSContext {
 	on$(el, type, useCapture, handler) {
 		return Observable.fromEvent(el, type, useCapture).takeUntil(this.disconnect$);
 	}
+
+	/// @FIXME: .. 기능 확대 필요!!! ex) /users/:id
+	route(handler) {
+		let route = () => {
+			let hash = location.hash || "#/";
+			(handler[hash] && handler[hash]()) || handler["*"] && handler["*"]();
+		};
+
+		this.on$(window, "popstate").subscribe(route);
+		route();
+	}
 }
+
+
+exports.nextTick = nextTick;
+exports.JSContext = JSContext;

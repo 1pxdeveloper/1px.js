@@ -1,3 +1,7 @@
+const {JSContext, nextTick} = require("./parse");
+const {$compile} = require("./compile");
+
+
 DocumentFragment.from = function(nodes) {
 	return Array.from(nodes).reduce((frag, node) => {
 		frag.appendChild(node);
@@ -34,7 +38,7 @@ class WebComponent extends HTMLElement {
 		let context = JSContext.create(this);
 		$compile(template, context);
 		this.init(context);
-		nextTick.flush(); /// @NOTE: 즉각 업데이트를 하기 위함.
+		nextTick.commit(); /// @NOTE: 즉각 업데이트를 하기 위함.
 
 		/// Attach Shady DOM!!
 		let contents = DocumentFragment.from(this.childNodes);
@@ -55,7 +59,7 @@ class WebComponent extends HTMLElement {
 		this.destroy = () => {
 			delete this.destroy;
 			context.disconnect();
-			while(this.lastChild) this.lastChild.remove();
+			while (this.lastChild) this.lastChild.remove();
 			this.appendChild(DocumentFragment.from(originalContent));
 		};
 
