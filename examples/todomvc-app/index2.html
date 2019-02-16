@@ -55,13 +55,13 @@
 				<!-- Remove this if you don't implement routing -->
 				<ul class="filters">
 					<li>
-						<a [class.selected]="filter === 'all'" route href="#/">All</a>
+						<a [class.selected]="filter === 'all'" href="#/">All</a>
 					</li>
 					<li>
-						<a [class.selected]="filter === 'active'" route href="#/active">Active</a>
+						<a [class.selected]="filter === 'active'" href="#/active">Active</a>
 					</li>
 					<li>
-						<a [class.selected]="filter === 'completed'" route href="#/completed">Completed</a>
+						<a [class.selected]="filter === 'completed'" href="#/completed">Completed</a>
 					</li>
 				</ul>
 				<!-- Hidden if no completed items are left ↓ -->
@@ -74,123 +74,113 @@
 <script>
 function main(module) {
 
-	module.directive("route", function() {
-		return function() {
+	// import $localStorage from "../sdkfjlsdf";
 
-			console.log(arguments);
+	// module.use("");
+
+
+	const {$localStorage} = module;
+	const $store = {};
+
+	class TodoApp {
+		init($) {
+			this.todos = $store.todos = $store.todos || [];
+
+			this.allChecked = null;
+			this.num_items_left = null;
+			this.editingTodo = null;
+
+			/// Computed
+			$`this.num_items_left = todos.filter(todo => !todo.completed).length;`;
+			$`this.allChecked = !num_items_left`;
+
+			/// localStorage Auto Save
+			$`todos.forEach(todo => todo.title; todo.completed)`.subscribe($store.save);
+
+
+			/// Filter @TODO: Route Service
+			this.filter = "all";
+			let route = () => {
+				let hash = location.hash || "#/";
+				this[hash] && this[hash]();
+			};
+
+			$.on$(window, "popstate").subscribe(route);
+			route();
 		}
-	});
 
-	const $route = function($) {
+		/// Route Service
+		"#/"() {
+			this.filter = "all";
+		}
 
-	};
+		"#/active"() {
+			this.filter = "active";
+		}
 
-	module.component("todo-app", function($localStorage) {
+		"#/completed"() {
+			this.filter = "completed";
+		}
 
-		const $store = $localStorage("todomvc-1px");
+		/// Methods
+		checkFilter(filter, completed) {
+			switch (filter) {
+				case "active":
+					return !completed;
 
-		return {
-			init($) {
-				this.todos = $store.todos = $store.todos || [];
-
-				this.allChecked = null;
-				this.num_items_left = null;
-				this.editingTodo = null;
-
-				/// Computed
-				$`this.num_items_left = todos.filter(todo => !todo.completed).length;`;
-				$`this.allChecked = !num_items_left`;
-
-				/// localStorage Auto Save
-				$`todos.forEach(todo => todo.title; todo.completed)`.subscribe($store.save);
-
-
-				/// Filter @TODO: Route Service
-				this.filter = "all";
-
-				// $.route("#/");
-				// $.route("#/active");
-				// $.route("#/completed");
-
-				let route = () => {
-					let hash = location.hash || "#/";
-					this[hash] && this[hash]();
-				};
-
-				$.on$(window, "popstate").subscribe(route);
-				route();
-			},
-
-			/// Route Service
-			"#/": function() {
-				this.filter = "all";
-			},
-
-			"#/active": function() {
-				this.filter = "active";
-			},
-
-			"#/completed": function() {
-				this.filter = "completed";
-			},
-
-
-			/// Methods
-			checkFilter(filter, completed) {
-				switch (filter) {
-					case "active":
-						return !completed;
-
-					case "completed":
-						return completed;
-				}
-
-				return true;
-			},
-
-			addTodo(title) {
-				title = title.trim();
-				if (!title) return;
-
-				this.todos.unshift({
-					title: title,
-					completed: false,
-				});
-			},
-
-			toggleAll(allChecked) {
-				this.todos.forEach(todo => todo.completed = allChecked);
-			},
-
-			removeTodo(todo) {
-				let index = this.todos.indexOf(todo);
-				if (index >= 0) this.todos.splice(index, 1);
-			},
-
-			setEditingTodo(todo) {
-				this.editingTodo = todo;
-				this.todo_title = todo.title;
-			},
-
-			commitTodo(todo, title) {
-				if (!this.editingTodo) return;
-				this.editingTodo = null;
-
-				title = (title || "").trim();
-				if (!title) return this.removeTodo(todo);
-				todo.title = title;
-			},
-
-			revertTodo() {
-				this.editingTodo = null;
-				this.todo_title = null;
-			},
-
-			clearCompleted() {
-				this.todos = this.todos.filter(todo => !todo.completed);
+				case "completed":
+					return completed;
 			}
+
+			return true;
 		}
-	});
+
+		addTodo(title) {
+			title = title.trim();
+			if (!title) return;
+
+			this.todos.unshift({
+				title: title,
+				completed: false,
+			});
+		}
+
+		toggleAll(allChecked) {
+			this.todos.forEach(todo => todo.completed = allChecked);
+		}
+
+		removeTodo(todo) {
+			let index = this.todos.indexOf(todo);
+			if (index >= 0) this.todos.splice(index, 1);
+		}
+
+		setEditingTodo(todo) {
+			this.editingTodo = todo;
+			this.todo_title = todo.title;
+		}
+
+		commitTodo(todo, title) {
+			if (!this.editingTodo) return;
+			this.editingTodo = null;
+
+			title = (title || "").trim();
+			if (!title) return this.removeTodo(todo);
+			todo.title = title;
+		}
+
+		revertTodo() {
+			this.editingTodo = null;
+			this.todo_title = null;
+		}
+
+		clearCompleted() {
+			this.todos = this.todos.filter(todo => !todo.completed);
+		}
+	}
+
+	module.component.value("todo-app", TodoApp.prototype);
+
+	module.exports = TodoApp;
 }
 </script>
 

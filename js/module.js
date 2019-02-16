@@ -126,6 +126,10 @@
 		return create;
 	}
 
+	module.use = function(plugin) {
+		plugin(module);
+	};
+
 	module.directive = createPrefixFactory(name => "@" + name);
 	module.component = createPrefixFactory(name => "<" + name.toUpperCase() + ">");
 	module.pipe = createPrefixFactory(name => "|" + name);
@@ -139,10 +143,13 @@
 
 	window.module = module;
 
+
+	/// @FIXME: module start entry style!!!!!!!!!!
+
 	let name = document.documentElement.getAttribute("module");
-	if (name) {
-		window[name] = module;
-	}
+	document.addEventListener("DOMContentLoaded", function() {
+		window[name] && window[name](module);
+	});
 })();
 
 
