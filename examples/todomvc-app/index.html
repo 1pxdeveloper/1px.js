@@ -23,7 +23,6 @@
 					<input name="newTodo" class="new-todo" placeholder="What needs to be done?" autofocus>
 				</form>
 			</header>
-
 			<!-- This section should be hidden by default and shown when there are todos -->
 			<section class="main" [hidden]="todos.length === 0">
 				<input id="toggle-all" class="toggle-all" type="checkbox" [(checked)]="allChecked" (input)="toggleAll(allChecked)">
@@ -41,7 +40,6 @@
 					</li>
 				</ul>
 			</section>
-
 			<!-- This footer should hidden by default and shown when there are todos -->
 			<footer class="footer" [hidden]="todos.length === 0">
 				<!-- This should be `0 items left` by default -->

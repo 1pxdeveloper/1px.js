@@ -4,7 +4,7 @@
 	let pref = src.slice(0, -"1px.js".length);
 
 	window.exports = window;
-	window.require = () => window;
+	window.require = (path) => window;
 
 	[
 		"observable.js",

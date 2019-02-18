@@ -126,6 +126,7 @@
 		return create;
 	}
 
+	/// @FIXME: 임시 확인용
 	module.use = function(plugin) {
 		plugin(module);
 	};
@@ -141,6 +142,8 @@
 	module.$factories = $factories;
 	module.$queue = $factories;
 
+
+	///
 	window.module = module;
 
 

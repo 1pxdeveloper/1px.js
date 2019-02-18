@@ -3,6 +3,8 @@
 ## Working Drafts
 
 
+
+
 ### Bootstrap!!!!!!!! 
 ```html
 <html module="App"></html>
@@ -106,40 +108,6 @@ differences
 - in Array : 'a' in ['a','b','c','d'] // true (Draft)
 
 
-
-
-### Template Syntax
-
-```html
-<!-- property, interpolation -->
-<div [hidden]="isShow">{{ todo.title }}</div>
-
-<!-- event -->
-<button (click)="hello()">
-
-<!-- class -->
-<button [class.hello]="bool">
-
-<!-- attr -->
-<button [attr.id]="this.id">
-
-<!-- style -->
-<button [style.width.px]="img.width" [style.background-image.url]="'abc.jpg'">
-
-<!-- two-way -->
-<input [(value)]="title">
-
-<!-- ref -->
-<div #div>{{ div.tagName }}</div>
-
-<!-- call -->
-<input .focus()="condition" .blur()="bool" />
-```
-
-
-
-
-
 ### Template Syntax - If
 
 ```html
@@ -199,10 +167,9 @@ differences
 (keydown|esc) => e.target.key === "Escape"
 (keydown|39) => e.target.keyCode === 39
 (keydown|alt|esc) => e.target.alt && e.target.key === "Escape"
+```
 
-
-<-- create Custom Pipe -->
-<script>
+```javascript
 Event.pipes = {
 
 	prevent($) {
@@ -245,7 +212,6 @@ Event.pipes = {
 		return $.filter(e => e.keyCode === 27)
 	}
 };
-</script>
 ```
 
 
@@ -309,12 +275,12 @@ module.pipe("date", (value, format) => Date.format(value, format))
 ### Smart Watch
 
 ```javascript
-
-function init($) {
-	this.todos = [];
-    $ `this.num_completed = todos.filter(todo => todo.completed).length`
+class TodoApp {
+    init($) {
+        this.todos = [];
+        $ `this.num_completed = todos.filter(todo => todo.completed).length`
+    }
 }
-
 ```
 
 
@@ -572,6 +538,24 @@ $store.abc = "123"
 
 
 
+### JSContext
+```javascript
+let obj = {a: 100, b: 200};
+
+let $ = JSContext.create(obj);
+
+let c = $.evaluate("a + b");
+
+let d = $.assign("d", "a + b");
+
+$.watch$("a + b").subscribe(value => console.log(value));
+
+$`e = a + b`
+```
+
+
+
+
 ### 원칙과 목표
 
 - 일단 남들이 지원하는건 다 지원하자.
@@ -598,7 +582,6 @@ $store.abc = "123"
 [Parse]
 - array as item, index => item if item.completed /// if filter 구현하기
 - parse.js => 상수 cache ex) ['abc','def',2] or 100 + 400 * 2 등등..
-- $ `num_completed = (todos as todo if todo.completed).length` /// $ 구현하기, format 생각하기
 
 
 [Pipe]
@@ -613,15 +596,5 @@ $store.abc = "123"
 [WebComponent]
 - /// @FIXME: init & template & compile async 하게 만들기
 
-
-
-
 ```
-
-
-### @DONE
-- allMarked = !num_left /// assignment 구현하기 (expression but only root!!)
-
-
-
 

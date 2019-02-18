@@ -19,6 +19,7 @@ class WebComponent extends HTMLElement {
 		module.component.require(this.tagName, component => {
 			Object.setPrototypeOf(component, WebComponent.prototype);
 			Object.setPrototypeOf(this, component);
+			this.created(...arguments);
 		});
 	}
 
@@ -75,7 +76,11 @@ class WebComponent extends HTMLElement {
 		this.disconnected(...arguments);
 	}
 
-	init() {
+	init(context) {
+
+	}
+
+	created() {
 
 	}
 

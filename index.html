@@ -7,8 +7,52 @@
 </head>
 <body>
 
-<script>
+<my-test>hello</my-test>
 
+
+<script>
+exports.install = function(module, confg) {
+
+	const {component, directive, pipe, template} = module;
+
+	class TodoApp extends HTMLElement {
+		init($) {
+			this.todos = [];
+		}
+
+		addTodo(todo) {
+
+		}
+	}
+
+	function _pipe() {
+
+	}
+
+	function clickHandler() {
+
+	}
+
+	component("todo-app", TodoApp);
+	pipe("pipe", _pipe);
+	directive("(click)", clickHandler);
+
+
+	// template`dkfdjsalkfjalksdf`.bind(x).render(document.body);
+}
+
+
+// class M {
+// }
+//
+//
+// console.log(M.prototype);
+//
+// let m = new M();
+// console.log(m.todos);
+
+
+// customElements.define("my-test", Test);
 // let x = $parse("a = 10 if b > 10");
 </script>
 

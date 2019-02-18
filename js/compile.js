@@ -5,15 +5,19 @@ function traverse(node, fn) {
 	fn = fn || noop;
 
 	let stack = [];
-	while (node) {
+	while(node) {
 		node = fn(node) === false ? stack.pop() : node.firstChild || stack.pop();
 		node && node.nextSibling && stack.push(node.nextSibling);
 	}
 }
 
 function $compile(el, context) {
-
-	context = context || new JSContext(el);
+	if (arguments.length === 1) {
+		context = context || new JSContext(el);
+	}
+	if (!(context instanceof JSContext)) {
+		context = new JSContext(context);
+	}
 
 	traverse(el, node => {
 		switch (node.nodeType) {
@@ -80,6 +84,7 @@ function compile_element_node(el, context) {
 
 		/// Basic directives
 		if (syntax(context, el, attr, "#", _ref, "")) continue;
+		if (syntax(context, el, attr, "$", _ref2, "")) continue;
 		if (syntax(context, el, attr, "(", _event, ")")) continue;
 		if (syntax(context, el, attr, "[(", _twoway, ")]")) continue;
 		if (syntax(context, el, attr, "[attr.", _attr, "]")) continue;
@@ -201,6 +206,9 @@ function _ref(context, el, script, name) {
 	context.local[name] = el;
 }
 
+function _ref2(context, el, script, name) {
+	context.global["$" + name] = el;
+}
 
 /// TEXT_NODE
 function _nodeValue(value) {
@@ -225,7 +233,7 @@ function _nodeValue(value) {
 function compile_text_node(textNode, context) {
 	let index = textNode.nodeValue.indexOf("{{");
 
-	while (index >= 0) {
+	while(index >= 0) {
 		textNode = textNode.splitText(index);
 
 		index = textNode.nodeValue.indexOf("}}");
@@ -273,7 +281,7 @@ module.directive("*repeat", function() {
 		let s4 = [];
 		let s5 = [];
 
-		while (M[i][j] > 0) {
+		while(M[i][j] > 0) {
 			if (s1[i - 1] === s2[j - 1] && (M[i - 1][j - 1] + 1 === M[i][j])) {
 				// s3.unshift(s1[i - 1]);
 
@@ -396,14 +404,10 @@ module.directive("*if", function() {
 		context.watch$(script, function(bool) {
 
 			if (bool) {
-				if (placeholder.parentNode) {
-					placeholder.replaceWith(el);
-				}
+				placeholder.replaceWith(el);
 			} else {
 				el.replaceWith(placeholder);
 			}
-
-			// console.log("if", script, bool);
 		});
 	}
 });
@@ -451,5 +455,8 @@ module.directive("*else", function() {
 	}
 });
 
+
+/// @FIXME:...
+module.compile = $compile;
 
 exports.$compile = $compile;
