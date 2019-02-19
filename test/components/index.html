@@ -6,3 +6,53 @@
 		</section>
 	</template>
 </web-component>
+
+
+<script type="module">
+module.component("my-card", ["$localStorage", "template"], function($localStorage, template) {
+	return class {
+		init($) {
+
+		}
+	}
+});
+
+
+module.component("my-card", ["$localStorage", "template", function($localStorage, template) {
+
+	/// ...
+
+}]);
+
+
+module.component("my-card", function($localStorage, template) {
+
+	/// ...
+});
+
+
+module.pipe.value("hello", function() {
+
+
+});
+
+
+module.pipe.batch(function() {
+
+	return {
+		"date": function(value) {
+			console.log(value);
+		}
+	}
+});
+
+
+module.directive.batch(function() {
+
+	return {
+		"date": function(value) {
+			console.log(value);
+		}
+	}
+});
+</script>
