@@ -1,170 +1,163 @@
-const Observable = (function() {
+Object.defineProperty(Symbol, "observable", {value: Symbol("observable")});
 
-	Object.defineProperty(Symbol, "observable", {value: Symbol("observable")});
-
-	class Observable {
-		constructor(subscriber) {
-			if (typeof subscriber !== "function") {
-				throw new TypeError("Observable initializer must be a function");
-			}
-
-			this._subscriber = subscriber;
+class Observable {
+	constructor(subscriber) {
+		if (typeof subscriber !== "function") {
+			throw new TypeError("Observable initializer must be a function");
 		}
 
-		subscribe(observer, error, complete) {
-			if (typeof observer === "function") {
-				observer = {next: observer, error, complete};
-			} else if (typeof observer !== "object") {
-				observer = {};
-			}
-
-			return new Subscription(observer, this._subscriber);
-		}
-
-		[Symbol.observable]() {
-			return this;
-		}
-
-		static from(x) {
-			if (Object(x) !== x) {
-				throw new TypeError(x + " is not an object");
-			}
-
-			let cls = typeof this === "function" ? this : Observable;
-
-			// observable
-			let method = x[Symbol.observable];
-			if (method) {
-				let observable = method.call(x);
-
-				if (Object(observable) !== observable)
-					throw new TypeError(observable + " is not an object");
-
-				if (observable.constructor === cls)
-					return observable;
-
-				return new cls(observer => observable.subscribe(observer));
-			}
-
-
-			// iteratorable
-			method = x[Symbol.iterator];
-			if (!method) {
-				throw new TypeError(x + " is not observable");
-			}
-
-			return new cls(observer => {
-
-				for (let item of method.call(x)) {
-					observer.next(item);
-					if (observer.closed)
-						return;
-				}
-
-				observer.complete();
-			});
-		}
-
-		static of(...items) {
-			let cls = typeof this === "function" ? this : Observable;
-
-			return new cls(observer => {
-				for (let item of items) {
-					observer.next(item);
-					if (observer.closed)
-						return;
-				}
-
-				observer.complete();
-			});
-		}
+		this._subscriber = subscriber;
 	}
 
-	function cleanupSubscription(subscription) {
-		let cleanup = subscription._cleanup;
-		if (!cleanup)
+	subscribe(observer, error, complete) {
+		if (typeof observer === "function") {
+			observer = {next: observer, error, complete};
+		} else if (typeof observer !== "object") {
+			observer = {};
+		}
+
+		return new Subscription(observer, this._subscriber);
+	}
+
+	[Symbol.observable]() {
+		return this;
+	}
+
+	static from(x) {
+		if (Object(x) !== x) {
+			throw new TypeError(x + " is not an object");
+		}
+
+		let cls = typeof this === "function" ? this : Observable;
+
+		// observable
+		let method = x[Symbol.observable];
+		if (method) {
+			let observable = method.call(x);
+
+			if (Object(observable) !== observable)
+				throw new TypeError(observable + " is not an object");
+
+			if (observable.constructor === cls)
+				return observable;
+
+			return new cls(observer => observable.subscribe(observer));
+		}
+
+
+		// iteratorable
+		method = x[Symbol.iterator];
+		if (!method) {
+			throw new TypeError(x + " is not observable");
+		}
+
+		return new cls(observer => {
+
+			for (let item of method.call(x)) {
+				observer.next(item);
+				if (observer.closed)
+					return;
+			}
+
+			observer.complete();
+		});
+	}
+
+	static of(...items) {
+		let cls = typeof this === "function" ? this : Observable;
+
+		return new cls(observer => {
+			for (let item of items) {
+				observer.next(item);
+				if (observer.closed)
+					return;
+			}
+
+			observer.complete();
+		});
+	}
+}
+
+function cleanupSubscription(subscription) {
+	let cleanup = subscription._cleanup;
+	if (!cleanup)
+		return;
+
+	delete subscription._cleanup;
+	cleanup();
+}
+
+class Subscription {
+	constructor(observer, subscriber) {
+		this._cleanup = undefined;
+		this._observer = observer;
+
+		observer.start && observer.start(this);
+		if (this.closed) {
 			return;
-
-		delete subscription._cleanup;
-		cleanup();
-	}
-
-	class Subscription {
-		constructor(observer, subscriber) {
-			this._cleanup = undefined;
-			this._observer = observer;
-
-			observer.start && observer.start(this);
-			if (this.closed) {
-				return;
-			}
-
-			observer = new SubscriptionObserver(this);
-
-			try {
-				let cleanup = subscriber.call(undefined, observer);
-
-				if (cleanup instanceof Subscription)
-					this._cleanup = function() {
-						cleanup.unsubscribe()
-					};
-
-				else if (typeof cleanup === "function")
-					this._cleanup = cleanup;
-			} catch (e) {
-				console.error(e);
-				observer.error(e);
-				return;
-			}
-
-			if (this.closed) {
-				cleanupSubscription(this);
-			}
 		}
 
-		get closed() {
-			return this._observer === undefined;
+		observer = new SubscriptionObserver(this);
+
+		try {
+			let cleanup = subscriber.call(undefined, observer);
+
+			if (cleanup instanceof Subscription)
+				this._cleanup = function() {
+					cleanup.unsubscribe()
+				};
+
+			else if (typeof cleanup === "function")
+				this._cleanup = cleanup;
+		} catch (e) {
+			console.error(e);
+			observer.error(e);
+			return;
 		}
 
-		unsubscribe() {
-			if (this.closed) return;
-			delete this._observer;
+		if (this.closed) {
 			cleanupSubscription(this);
 		}
 	}
 
-
-	class SubscriptionObserver {
-		constructor(subscription) {
-			this._subscription = subscription;
-		}
-
-		get closed() {
-			return this._subscription.closed;
-		}
-
-		next(value) {
-			if (this.closed) return;
-			this._subscription._observer.next && this._subscription._observer.next(value);
-		}
-
-		error(value) {
-			if (this.closed) return;
-			this._subscription._observer.error && this._subscription._observer.error(value);
-			cleanupSubscription(this._subscription);
-		}
-
-		complete() {
-			if (this.closed) return;
-			this._subscription._observer.complete && this._subscription._observer.complete();
-			cleanupSubscription(this._subscription);
-		}
+	get closed() {
+		return this._observer === undefined;
 	}
 
-	exports.Observable = Observable;
-	return Observable;
+	unsubscribe() {
+		if (this.closed) return;
+		delete this._observer;
+		cleanupSubscription(this);
+	}
+}
 
-}());
+
+class SubscriptionObserver {
+	constructor(subscription) {
+		this._subscription = subscription;
+	}
+
+	get closed() {
+		return this._subscription.closed;
+	}
+
+	next(value) {
+		if (this.closed) return;
+		this._subscription._observer.next && this._subscription._observer.next(value);
+	}
+
+	error(value) {
+		if (this.closed) return;
+		this._subscription._observer.error && this._subscription._observer.error(value);
+		cleanupSubscription(this._subscription);
+	}
+
+	complete() {
+		if (this.closed) return;
+		this._subscription._observer.complete && this._subscription._observer.complete();
+		cleanupSubscription(this._subscription);
+	}
+}
 
 
 /// Operators
@@ -434,3 +427,6 @@ Observable.subject = function() {
 
 	return o;
 };
+
+
+exports.Observable = Observable;

@@ -101,20 +101,7 @@ class WebComponent extends HTMLElement {
 class WebComponentDefine extends HTMLElement {
 	constructor() {
 		super();
-		let name = this.getAttribute("name");
-		if (!name) {
-			throw new SyntaxError("name attribute is required.")
-		}
-
-		let template = this.querySelector("template");
-		WebComponentDefine.map[name.toUpperCase()] = {
-			template: template
-		};
-
-		if (!window.customElements.get(name)) {
-			window.customElements.define(name, class extends WebComponent {
-			});
-		}
+		customElementsDefine.call(this);
 	}
 
 	connectedCallback() {
@@ -122,8 +109,33 @@ class WebComponentDefine extends HTMLElement {
 	}
 }
 
+function customElementsDefine() {
+	console.log("@@@@@@@@@@@@@", this);
+
+
+	let name = this.getAttribute("name");
+
+	if (!name) {
+		throw new SyntaxError("name attribute is required.")
+	}
+
+	let template = this.querySelector("template");
+	WebComponentDefine.map[name.toUpperCase()] = {
+		template: template
+	};
+
+	if (!window.customElements.get(name)) {
+		window.customElements.define(name, class extends WebComponent {
+		});
+	}
+
+}
+
 WebComponentDefine.map = {};
 
 document.addEventListener("DOMContentLoaded", function() {
 	window.customElements.define("web-component", WebComponentDefine);
 });
+
+
+exports.customElementsDefine = customElementsDefine;

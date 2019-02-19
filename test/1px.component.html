@@ -3,85 +3,71 @@
 <head>
 	<meta charset="UTF-8">
 	<title>Title</title>
-	<script src="../js/observable.js"></script>
-	<script src="../js/module.js"></script>
-	<script src="../js/parse.js"></script>
-	<script src="../js/compile.js"></script>
-	<script src="../js/component.js"></script>
+	<link type="module" rel="preload" href="./components/index.html" as="fetch" crossorigin/>
+	<script src="../js/1px.js"></script>
 </head>
 <body>
 
-<web-component name="my-item">
-	<template>
-		<h1>asdfkjls</h1>
-		<div>akdfjlsf</div>
-		<div>{{ title }}</div>
-		<p>
-			<content></content>
-		</p>
+
+<div>
+	<template *if="">
+		<div>
+			asdjasldsajdjsa
+		</div>
 	</template>
-</web-component>
+</div>
 
 
-<web-component name="my-app">
-	<template>
-		<h1>{{ title }}</h1>
-		<h2>{{ title }}</h2>
-		<h3>{{ title }}</h3>
+<!--<web-component name="my-item">-->
+<!--<template>-->
+<!--<h1>asdfkjls</h1>-->
+<!--<div>akdfjlsf</div>-->
+<!--<div>{{ title }}</div>-->
+<!--<p>-->
+<!--<content></content>-->
+<!--</p>-->
+<!--</template>-->
+<!--</web-component>-->
 
-		<h2>{{ title2 }}</h2>
 
-		<p>{{ title + title2 }}</p>
+<!--<web-component name="my-app">-->
+<!--<template>-->
+<!--<h1>{{ title }}</h1>-->
+<!--<h2>{{ title }}</h2>-->
+<!--<h3>{{ title }}</h3>-->
 
-		<p>{{ c$ }}</p>
+<!--<h2>{{ title2 }}</h2>-->
 
-		<ul>
-			<my-item *repeat="arr as a, index" [title]="a">hello~~ {{ a }} {{ index }}</my-item>
-		</ul>
-	</template>
-</web-component>
+<!--<p>{{ title + title2 }}</p>-->
 
+<!--<p>{{ c$ }}</p>-->
+
+<!--<ul>-->
+<!--<my-item *repeat="arr as a, index" [title]="a">hello~~ {{ a }} {{ index }}</my-item>-->
+<!--</ul>-->
+<!--</template>-->
+<!--</web-component>-->
+
+
+<my-card></my-card>
 
 <my-app id="a"></my-app>
 
-<script>
-let a = document.getElementById("a");
-a.title = "asdfkljasdflas";
 
-module.component("my-app", function(module) {
-
-	module.exports = {
-		init() {
-			this.title = "hello";
-			this.arr = [1, 2, 3, 4];
-		},
-
-		hello() {
-
-		}
-	}
-});
-
-
-// let b = document.body;
-//
-// b.title2 = "hello";
-// b.title3 = "world";
-//
-// b.arr = ["A"];
-//
-// let click$ = Observable.fromEvent(document, "click");
-//
-// b.c$ = Observable.interval(500).map(i => i).takeUntil(click$).map(i => i * 10);
-//
-//
-// function test() {
-// 	b.title2 = "good";
-// 	b.title3 = "boy";
-// }
-//
-// $compile(b);
+<script type="module">
+console.log("!module");
 </script>
+
+
+<script>
+console.log("!");
+
+document.addEventListener("DOMContentLoaded", function() {
+
+	console.log("loaded!!");
+})
+</script>
+
 
 </body>
 </html>

@@ -1,3 +1,6 @@
+const {Observable} = require("./observable");
+
+
 /// watch$
 const watch$ = (function() {
 
@@ -23,7 +26,6 @@ const watch$ = (function() {
 			for (let method of methods) {
 				o[method] = function() {
 					let result = prototype[method].apply(this, arguments);
-					observer.next(this);
 					observer.complete();
 					return result;
 				}
@@ -87,7 +89,6 @@ const watch$ = (function() {
 					return;
 				}
 				value = newValue;
-				observer.next(value);
 				observer.complete();
 			}
 
@@ -148,7 +149,7 @@ function expression(rbp) {
 	next();
 
 	let left = t.nud() || t;
-	while($token.lbp > rbp) {
+	while ($token.lbp > rbp) {
 		t = $token;
 		next();
 		left = t.led(left) || t;
@@ -756,7 +757,7 @@ function _flat_tokens(token) {
 	let tokens = [];
 
 	let stack = [token];
-	while(stack.length) {
+	while (stack.length) {
 		let t = stack.pop();
 		tokens.push(t);
 		if (t.length) {
@@ -930,7 +931,7 @@ let nextTick = function() {
 
 	nextTick.commit = function() {
 		let fn;
-		while(fn = queue[index++]) {
+		while (fn = queue[index++]) {
 			fn();
 		}
 
@@ -998,7 +999,7 @@ class JSContext {
 		}).takeUntil(this.disconnect$);
 	}
 
-	on$(el, type, useCapture, handler) {
+	on$(el, type, useCapture) {
 		return Observable.fromEvent(el, type, useCapture).takeUntil(this.disconnect$);
 	}
 

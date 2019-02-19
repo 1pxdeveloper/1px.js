@@ -5,7 +5,7 @@ function traverse(node, fn) {
 	fn = fn || noop;
 
 	let stack = [];
-	while(node) {
+	while (node) {
 		node = fn(node) === false ? stack.pop() : node.firstChild || stack.pop();
 		node && node.nextSibling && stack.push(node.nextSibling);
 	}
@@ -233,7 +233,7 @@ function _nodeValue(value) {
 function compile_text_node(textNode, context) {
 	let index = textNode.nodeValue.indexOf("{{");
 
-	while(index >= 0) {
+	while (index >= 0) {
 		textNode = textNode.splitText(index);
 
 		index = textNode.nodeValue.indexOf("}}");
@@ -281,7 +281,7 @@ module.directive("*repeat", function() {
 		let s4 = [];
 		let s5 = [];
 
-		while(M[i][j] > 0) {
+		while (M[i][j] > 0) {
 			if (s1[i - 1] === s2[j - 1] && (M[i - 1][j - 1] + 1 === M[i][j])) {
 				// s3.unshift(s1[i - 1]);
 
@@ -454,9 +454,5 @@ module.directive("*else", function() {
 		});
 	}
 });
-
-
-/// @FIXME:...
-module.compile = $compile;
 
 exports.$compile = $compile;
