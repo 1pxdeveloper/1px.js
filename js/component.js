@@ -36,7 +36,7 @@ class WebComponent extends HTMLElement {
 
 		/// @FIXME: private scope;;;;
 		/// @FIXME: nextTick dependancy
-		let context = JSContext.create(this);
+		let context = JSContext.connect(this);
 		$compile(template, context);
 		this.init(context);
 		nextTick.commit(); /// @NOTE: 즉각 업데이트를 하기 위함.
