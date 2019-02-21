@@ -1,0 +1,127 @@
+<web-component name="todo-app" bind="TodoApp">
+	<local-storage $store key="todomvc-1px" [todos]="todos.forEach(todo => todo.title; todo.completed); todos"></local-storage>
+
+	<var [num_completed]="todos.filter(todo => todo.completed).length"></var>
+	<var [num_items_left]="todos.length - num_completed"></var>
+	<var [allChecked]="!num_items_left"></var>
+
+	<router $router>
+		<route href="#/" (change)="filter = 'all'" default></route>
+		<route href="#/active" (change)="filter = 'active'"></route>
+		<route href="#/completed" (change)="filter = 'completed'"></route>
+	</router>
+
+	<template>
+		<section class="todoapp">
+			<header class="header">
+				<h1>todos</h1>
+				<form #form (submit)="addTodo(form.newTodo.value); form.reset()">
+					<input name="newTodo" class="new-todo" placeholder="What needs to be done?" autofocus>
+				</form>
+			</header>
+			<!-- This section should be hidden by default and shown when there are todos -->
+			<section class="main" [hidden]="todos.length === 0">
+				<input id="toggle-all" class="toggle-all" type="checkbox" [(checked)]="allChecked" (input)="toggleAll(allChecked)">
+				<label for="toggle-all">Mark all as complete</label>
+				<ul class="todo-list">
+					<li *repeat="todos as todo, index" [hidden]="!checkFilter(filter, todo.completed)"
+							[class.completed]="todo.completed" [class.editing]="editingTodo === todo">
+						<div class="view">
+							<input class="toggle" type="checkbox" [(checked)]="todo.completed">
+							<label (dblclick)="setEditingTodo(todo);">{{ todo.title }}</label>
+							<button class="destroy" (click)="removeTodo(todo)"></button>
+						</div>
+						<input #title class="edit" [value]="todo_title" (change)="commitTodo(todo, title.value) if editingTodo"
+								(keydown|esc)="revertTodo(todo)" .focus()="editingTodo === todo">
+					</li>
+				</ul>
+			</section>
+			<!-- This footer should hidden by default and shown when there are todos -->
+			<footer class="footer" [hidden]="todos.length === 0">
+				<!-- This should be `0 items left` by default -->
+				<span class="todo-count"><strong>{{ num_items_left || 0 }}</strong> item{{ num_items_left !== 1 ? 's': '' }} left</span>
+				<!-- Remove this if you don't implement routing -->
+				<ul class="filters">
+					<li>
+						<a [class.selected]="filter === 'all'" href="#/">All</a>
+					</li>
+					<li>
+						<a [class.selected]="filter === 'active'" href="#/active">Active</a>
+					</li>
+					<li>
+						<a [class.selected]="filter === 'completed'" href="#/completed">Completed</a>
+					</li>
+				</ul>
+				<!-- Hidden if no completed items are left ↓ -->
+				<button class="clear-completed" [hidden]="!num_completed" (click)="clearCompleted()">Clear completed</button>
+			</footer>
+		</section>
+	</template>
+
+
+	<script type="module">export class TodoApp {
+
+		init() {
+			this.todos = this.$store.todos || [];
+			this.filter = "all";
+			this.editingTodo = null;
+		}
+
+		/// Methods
+		checkFilter(filter, completed) {
+			switch (filter) {
+				case "active":
+					return !completed;
+
+				case "completed":
+					return completed;
+			}
+
+			return true;
+		}
+
+		addTodo(title) {
+			title = title.trim();
+			if (!title) return;
+
+			return this.todos.unshift({
+				title: title,
+				completed: false,
+			});
+		}
+
+		toggleAll(allChecked) {
+			this.todos.forEach(todo => todo.completed = allChecked);
+		}
+
+		removeTodo(todo) {
+			let index = this.todos.indexOf(todo);
+			if (index >= 0) this.todos.splice(index, 1);
+		}
+
+		setEditingTodo(todo) {
+			this.editingTodo = todo;
+			this.todo_title = todo.title;
+		}
+
+		commitTodo(todo, title) {
+			if (!this.editingTodo) return;
+			this.editingTodo = null;
+
+			title = (title || "").trim();
+			if (!title) return this.removeTodo(todo);
+			todo.title = title;
+		}
+
+		revertTodo() {
+			this.editingTodo = null;
+			this.todo_title = null;
+		}
+
+		clearCompleted() {
+			this.todos = this.todos.filter(todo => !todo.completed);
+		}
+	}
+	</script>
+
+</web-component>
