@@ -1,0 +1,208 @@
+<web-component name="ai-app">
+
+	<template>
+		<main>
+			<section *if="!start">
+				<h1 style="margin: auto">start to click</h1>
+			</section>
+
+			<section [hidden]="!start">
+				<flex>
+					<h2 class="msg" [class.isfinal]="isFinal">{{ text1 }}{{'?' if isFinal }}</h2>
+				</flex>
+
+				<mic-wave $wave></mic-wave>
+			</section>
+		</main>
+	</template>
+
+	<script>$module.component("ai-app", function(stt) {
+
+		return class AIApp {
+			init($) {
+				let $this = this;
+
+				$this.start = false;
+				$this.text1 = "";
+				$this.isFinal = false;
+
+				$.on$(document, ["mousedown", "touchstart"], true).take(1).subscribe(event => {
+
+
+					// speakSound("Can I help you?");
+
+
+					stt(function(event) {
+
+
+						console.log(event.resultIndex, event.results);
+
+
+						let results = Array.from(event.results[event.resultIndex]);
+
+
+						// results.sort((a, b) => b.confidence - a.confidence);
+
+						let ret = results[0];
+
+						console.log(ret);
+
+						// console.log(results);
+
+						// console.log(event);
+
+						$this.text1 = ret.transcript;
+						$this.isFinal = event.results[event.resultIndex].isFinal;
+					});
+
+					this.$wave.start();
+
+					this.start = true;
+				})
+			}
+
+			start() {
+
+
+			}
+		}.prototype;
+	});
+	</script>
+</web-component>
+
+
+<web-component name="mic-wave">
+	<template>
+		<canvas $canvas width="375" height="150"></canvas>
+		<h1>공항이 어딘지 알고싶어요.</h1>
+	</template>
+</web-component>
+
+
+<script>$module.component("mic-wave", function() {
+
+	return class MicWave {
+
+		init($) {
+			console.log(this.$canvas);
+		}
+
+		start() {
+			navigator.getUserMedia({audio: true}, (stream) => {
+					this.start_microphone(stream);
+				},
+				function(e) {
+					alert('Error capturing audio.');
+				}
+			);
+		}
+
+		start_microphone(stream) {
+			let canvas = this.$canvas;
+			let ctx = canvas.getContext("2d");
+
+			let audioContext = new AudioContext();
+			let microphone_stream = audioContext.createMediaStreamSource(stream);
+
+			let analyser_node = audioContext.createAnalyser();
+			analyser_node.smoothingTimeConstant = 0;
+			analyser_node.fftSize = 2048;
+
+			microphone_stream.connect(analyser_node);
+
+
+			let array_freq_domain = new Uint8Array(2048);
+
+			function draw() {
+				requestAnimationFrame(draw);
+
+				analyser_node.getByteTimeDomainData(array_freq_domain);
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+				let HEIGHT = canvas.height;
+				let sliceWidth = 1;
+				let x = 0;
+
+				ctx.beginPath();
+				ctx.lineWidth = 1;
+				ctx.strokeStyle = "#555";
+
+				for (let i = 0; i < canvas.width; i++) {
+
+					let v = array_freq_domain[i] / 128.0;
+					let y = v * HEIGHT / 2;
+
+					if (i === 0) {
+						ctx.moveTo(x, y);
+					} else {
+						ctx.lineTo(x, y);
+					}
+
+					x += sliceWidth;
+				}
+
+				ctx.stroke();
+			}
+
+			draw();
+		}
+	}.prototype;
+});
+
+
+$module.factory("stt", function() {
+
+	return function mic(fn) {
+		window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+		let recognition = new SpeechRecognition();
+		recognition.continuous = true;
+		recognition.interimResults = true;
+		recognition.maxAlternatives = 10;
+		recognition.lang = 'en-US';
+
+		console.log(recognition);
+
+		recognition.onresult = function(event) {
+			console.log(event.resultIndex, event.results);
+			fn(event);
+		};
+
+		recognition.onsoundstart = function(event) {
+			console.log("onsoundstart");
+		};
+
+		recognition.onsoundend = function(event) {
+			console.log("onsoundend");
+		};
+
+		recognition.onspeechstart = function(event) {
+			console.log("onspeechstart");
+		};
+
+		recognition.onspeechsend = function(event) {
+			console.log("onspeechend");
+		};
+
+		let x = recognition.start();
+
+		return recognition;
+	}
+});
+
+
+function speakSound(msg) {
+	let url = "https://ai-tutor-lg-ai.appspot.com/tts?text=" + encodeURIComponent(msg);
+
+	let audio = document.createElement('audio');
+	audio.style.display = "none";
+	audio.src = url;
+	audio.autoplay = true;
+	audio.onended = function() {
+		audio.remove() //Remove when played.
+	};
+	document.body.appendChild(audio);
+}
+</script>
+
+</web-component>

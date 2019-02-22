@@ -1,7 +1,7 @@
 let express = require("express");
 
-let {Observable} = require("./js/observable");
-let {JSContext} = require("./js/parse");
+let {Observable} = require("./src/js/observable");
+let {JSContext} = require("./src/js/parse");
 
 
 let app = express();

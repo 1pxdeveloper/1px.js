@@ -273,7 +273,18 @@ Observable.prototype.takeUntil = function(observable$) {
 	return new Observable(observer => {
 		let s = this.subscribe(observer);
 		let stop = s.unsubscribe.bind(s);
-		observable$.subscribe(stop, stop, stop);
+
+
+		observable$.subscribe(stop, stop, function() {
+
+
+			console.log("complete!!");
+
+
+			stop();
+
+
+		});
 	});
 };
 
@@ -394,7 +405,11 @@ Observable.merge = function(...observables) {
 
 	return new Observable(observer => {
 
-		observables.map(observable => {
+		observables.forEach(observable => {
+
+			console.info(observable);
+
+
 			return observable.subscribe({
 				next(value) {
 					observer.next(value)

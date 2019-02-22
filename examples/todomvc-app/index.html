@@ -8,7 +8,7 @@
 	<!--<link rel="stylesheet" href="node_modules/todomvc-app-css/index.css">-->
 	<!-- CSS overrides - remove if you don't need it -->
 	<link rel="stylesheet" href="css/app.css">
-	<script src="../../js/1px.js"></script>
+	<script src="../../src/js/1px.js"></script>
 </head>
 <body>
 
@@ -63,107 +63,104 @@
 	</template>
 </web-component>
 
-<script>
-function main(module) {
+<script type="module">
+$module.component("todo-app", function($localStorage) {
 
-	module.component("todo-app", function($localStorage) {
+	const $store = $localStorage("todomvc-1px");
 
-		const $store = $localStorage("todomvc-1px");
+	return {
+		init($) {
+			/// localStorage Auto Save
+			this.todos = $store.todos || [];
 
-		return {
-			init($) {
-				/// localStorage Auto Save
-				this.todos = $store.todos || [];
+			this.allChecked = null;
+			this.num_completed = null;
+			this.num_items_left = null;
+			this.editingTodo = null;
+			this.filter = "all";
 
-				this.allChecked = null;
-				this.num_completed = null;
-				this.num_items_left = null;
-				this.editingTodo = null;
-				this.filter = "all";
+			/// Computed
+			$`this.num_completed = this.todos.filter(todo => todo.completed).length`;
+			$`this.num_items_left = this.todos.length - this.num_completed`;
+			$`this.allChecked = !this.num_items_left`;
 
-				/// Computed
-				$`this.num_completed = this.todos.filter(todo => todo.completed).length`;
-				$`this.num_items_left = this.todos.length - this.num_completed`;
-				$`this.allChecked = !this.num_items_left`;
+			/// localStorage Auto Save
+			$`this.todos.forEach(todo => todo.title; todo.completed)`.subscribe(() => {
+				$store.todos = this.todos;
+			});
 
-				/// localStorage Auto Save
-				$`this.todos.forEach(todo => todo.title; todo.completed)`.subscribe(() => {
-					$store.todos = this.todos;
-				});
+			$.route(this);
+		},
 
-				$.route(this);
-			},
+		/// Route Service
+		"#/": function() {
+			this.filter = "all";
+		},
 
-			/// Route Service
-			"#/": function() {
-				this.filter = "all";
-			},
+		"#/active": function() {
+			this.filter = "active";
+		},
 
-			"#/active": function() {
-				this.filter = "active";
-			},
+		"#/completed": function() {
+			this.filter = "completed";
+		},
 
-			"#/completed": function() {
-				this.filter = "completed";
-			},
+		/// Methods
+		checkFilter(filter, completed) {
+			switch (filter) {
+				case "active":
+					return !completed;
 
-			/// Methods
-			checkFilter(filter, completed) {
-				switch (filter) {
-					case "active":
-						return !completed;
-
-					case "completed":
-						return completed;
-				}
-
-				return true;
-			},
-
-			addTodo(title) {
-				title = title.trim();
-				if (!title) return;
-
-				this.todos.unshift({
-					title: title,
-					completed: false,
-				});
-			},
-
-			toggleAll(allChecked) {
-				this.todos.forEach(todo => todo.completed = allChecked);
-			},
-
-			removeTodo(todo) {
-				let index = this.todos.indexOf(todo);
-				if (index >= 0) this.todos.splice(index, 1);
-			},
-
-			setEditingTodo(todo) {
-				this.editingTodo = todo;
-				this.todo_title = todo.title;
-			},
-
-			commitTodo(todo, title) {
-				if (!this.editingTodo) return;
-				this.editingTodo = null;
-
-				title = (title || "").trim();
-				if (!title) return this.removeTodo(todo);
-				todo.title = title;
-			},
-
-			revertTodo() {
-				this.editingTodo = null;
-				this.todo_title = null;
-			},
-
-			clearCompleted() {
-				this.todos = this.todos.filter(todo => !todo.completed);
+				case "completed":
+					return completed;
 			}
+
+			return true;
+		},
+
+		addTodo(title) {
+			title = title.trim();
+			if (!title) return;
+
+			this.todos.unshift({
+				title: title,
+				completed: false,
+			});
+		},
+
+		toggleAll(allChecked) {
+			this.todos.forEach(todo => todo.completed = allChecked);
+		},
+
+		removeTodo(todo) {
+			let index = this.todos.indexOf(todo);
+			if (index >= 0) this.todos.splice(index, 1);
+		},
+
+		setEditingTodo(todo) {
+			this.editingTodo = todo;
+			this.todo_title = todo.title;
+		},
+
+		commitTodo(todo, title) {
+			if (!this.editingTodo) return;
+			this.editingTodo = null;
+
+			title = (title || "").trim();
+			if (!title) return this.removeTodo(todo);
+			todo.title = title;
+		},
+
+		revertTodo() {
+			this.editingTodo = null;
+			this.todo_title = null;
+		},
+
+		clearCompleted() {
+			this.todos = this.todos.filter(todo => !todo.completed);
 		}
-	});
-}
+	}
+});
 </script>
 
 

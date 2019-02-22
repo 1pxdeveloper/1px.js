@@ -5,7 +5,7 @@ function traverse(node, fn) {
 	fn = fn || noop;
 
 	let stack = [];
-	while (node) {
+	while(node) {
 		node = fn(node) === false ? stack.pop() : node.firstChild || stack.pop();
 		node && node.nextSibling && stack.push(node.nextSibling);
 	}
@@ -18,6 +18,9 @@ function $compile(el, context) {
 	if (!(context instanceof JSContext)) {
 		context = new JSContext(context);
 	}
+
+	console.log(context);
+
 
 	traverse(el, node => {
 		switch (node.nodeType) {
@@ -59,10 +62,11 @@ function compile_element_node(el, context) {
 		let hasAttr = el.hasAttribute(attrName);
 		if (hasAttr) {
 			let attrValue = el.getAttribute(attrName);
-			module.directive.require(attrName, directive => directive(context, el, attrValue));
+			$module.directive.require(attrName, directive => directive(context, el, attrValue));
 		}
 		return hasAttr;
 	});
+
 
 	if (hasTemplateDirective) {
 		return false;
@@ -73,7 +77,7 @@ function compile_element_node(el, context) {
 
 		/// Custom directives
 		let customDefaultPrevent = false;
-		module.directive.require(attr.nodeName, directive => {
+		$module.directive.require(attr.nodeName, directive => {
 			if (typeof directive === "function") {
 				let ret = directive(context, el, attr.nodeValue);
 				customDefaultPrevent = ret === false;
@@ -231,9 +235,19 @@ function _nodeValue(value) {
 }
 
 function compile_text_node(textNode, context) {
+
+
+	console.log("compile_text_node");
+	console.log(textNode.nodeValue);
+
+
 	let index = textNode.nodeValue.indexOf("{{");
 
-	while (index >= 0) {
+
+	console.log(index);
+
+
+	while(index >= 0) {
 		textNode = textNode.splitText(index);
 
 		index = textNode.nodeValue.indexOf("}}");
@@ -250,7 +264,7 @@ function compile_text_node(textNode, context) {
 
 
 /// Default Template Directive
-module.directive("*repeat", function() {
+$module.directive("*repeat", function() {
 
 	function LCS(s1, s2) {
 		s1 = s1 || [];
@@ -281,7 +295,7 @@ module.directive("*repeat", function() {
 		let s4 = [];
 		let s5 = [];
 
-		while (M[i][j] > 0) {
+		while(M[i][j] > 0) {
 			if (s1[i - 1] === s2[j - 1] && (M[i - 1][j - 1] + 1 === M[i][j])) {
 				// s3.unshift(s1[i - 1]);
 
@@ -396,10 +410,15 @@ module.directive("*repeat", function() {
 
 
 /// Directive: "*if"
-module.directive("*if", function() {
+$module.directive("*if", function() {
 	return function(context, el, script) {
+		el.removeAttribute("*if");
+		el.childNodes.forEach(node => $compile(node, context));
+
 		let placeholder = document.createComment("if: " + script);
 		el._ifScript = placeholder._ifScript = script;
+
+		console.log("ifffffff", context, el, script);
 
 		context.watch$(script, function(bool) {
 
@@ -409,6 +428,7 @@ module.directive("*if", function() {
 				el.replaceWith(placeholder);
 			}
 		});
+
 	}
 });
 
@@ -418,7 +438,7 @@ module.directive("*if", function() {
 
 
 /// Directive: "*else"
-module.directive("*else", function() {
+$module.directive("*else", function() {
 	return function(context, el, script) {
 
 		let placeholder = document.createComment("else: " + script);

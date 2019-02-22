@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Title</title>
+</head>
+<body>
+
+<script>
+(function() {
+
+	function Subject(value) {
+		this.queue = Object.create(null);
+		this.value = value || Object.create(null);
+	}
+
+	Subject.prototype = {
+		subscribe(name, callback) {
+			if (name in this.value) {
+				return callback(this.value[name]);
+			}
+
+			this.queue[name] = this.queue[name] || [];
+			this.queue[name].push(callback);
+		},
+
+		publish(name, value) {
+			this.value[name] = value;
+
+			if (this.queue[name]) {
+				let q = this.queue[name].slice();
+				delete this.queue[name];
+				q.forEach(callback => callback(value));
+			}
+		}
+	};
+
+
+	let $value = Object.create(null);
+	let $factory = Object.create(null);
+	let $subject_value = new Subject($value);
+	let $subject_factory = new Subject($factory);
+
+
+	function value(name, value) {
+		$subject_value.publish(name, value);
+	}
+
+	function factory(name, factoryFn) {
+		if (!factoryFn.$inject) {
+			let str = String(factoryFn);
+			str = str.slice(str.indexOf("(") + 1, str.indexOf(")")).trim();
+			factoryFn.$inject = str ? str.split(/\s*,\s*/) : [];
+		}
+		$subject_factory.publish(name, factoryFn);
+	}
+
+
+	function require(names, callback) {
+
+		if (!Array.isArray(names)) {
+			names = [names];
+		}
+
+		let args = [];
+		let count = 0;
+
+		let ret;
+
+		names.forEach((name, index) => {
+			invokeFactory(name);
+			$subject_value.subscribe(name, function(value) {
+				args[index] = value;
+				count++;
+				if (count === names.length) {
+					ret = args;
+					callback.apply(null, args);
+				}
+			});
+		});
+
+		return ret;
+	}
+
+
+	function invokeFactory(name) {
+		let exist = false;
+		$subject_value.subscribe(name, () => exist = true);
+		if (exist) return;
+
+		$subject_factory.subscribe(name, factory => {
+			require(factory.$inject, function() {
+
+				/// test용
+				factory.invokeCount = factory.invokeCount || 0;
+				factory.invokeCount++;
+
+				$subject_value.publish(name, factory.apply(null, arguments));
+			});
+		});
+	}
+
+	function createPrefixModule(prefix) {
+		return {
+			value(name, value) {
+				return value(prefix + name, value);
+			},
+
+			factory(name, value) {
+				return factory(prefix + name, value);
+			},
+
+			require(names, value) {
+				if (!Array.isArray(names)) names = [names];
+				names = names.map(name => prefix + name);
+				return require(names, value);
+			}
+		}
+	}
+
+
+	window.$module = {value, factory, require};
+	window.$module.directive = createPrefixModule("directive.");
+	window.$module.component = createPrefixModule("component.");
+	window.$module.service = createPrefixModule("server.");
+	window.$module.pipe = createPrefixModule("pipe.");
+})();
+
+
+$module.factory("test2", function(a, test, c) {
+
+	return function() {
+		console.log(a, test, c);
+	}
+});
+
+
+$module.require(["a", "b", "c"], function(a, b, c) {
+	console.log("require", a, b, c);
+});
+
+
+$module.require(["test2"], function(test2) {
+	console.log(test2);
+});
+
+
+$module.value("a", "A");
+$module.value("b", "B");
+$module.value("c", "C");
+
+
+$module.factory("test", function(a, b, c) {
+	return {a, b, c}
+});
+
+
+</script>
+</body>
+</html>

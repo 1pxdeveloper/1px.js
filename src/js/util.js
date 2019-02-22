@@ -50,13 +50,11 @@ KeyboardEvent.pipes = {
 
 
 ///
-module.directive(".focus()", function($) {
+$module.directive(".focus()", function() {
 	return function(context, el, script) {
 		context.watch$(script, function(bool) {
 
-
 			console.log(script, bool);
-
 
 			if (bool) {
 				window.requestAnimationFrame(function() {
@@ -69,7 +67,7 @@ module.directive(".focus()", function($) {
 
 
 /// default Pipes
-module.pipe("html", function($) {
+$module.pipe("html", function() {
 	return function(value) {
 		if (value === undefined) value = "";
 		let h = document.createElement("div");
@@ -80,7 +78,7 @@ module.pipe("html", function($) {
 
 
 /// $localStorage
-module.factory("$localStorage", function() {
+$module.factory("$localStorage", function() {
 
 	function $localStorage(key) {
 		let store = JSON.parse(localStorage.getItem(key)) || Object.create(null);

@@ -7,8 +7,6 @@ const watch$ = (function() {
 	const ARRAY_METHODS = ["reverse", "splice", "push", "pop", "unshift", "shift", "sort"];
 	const DATE_METHODS = ["setDate", "setFullYear", "setHours", "setMilliseconds", "setMonth", "setSeconds", "setTime", "setUTCDate", "setUTCFullYear", "setUTCHours", "setUTCMilliseconds", "setUTCMinutes", "setUTCSeconds", "setYear"];
 
-	let numm = 0;
-
 	function mutationObservableFromClass$(object, methods) {
 		let key = methods[0];
 		if (object[key].observable$) {
@@ -16,9 +14,6 @@ const watch$ = (function() {
 		}
 
 		let observable$ = new Observable(observer => {
-			// numm++;
-			// console.log("mutation watch$ ob: " + numm);
-
 			let prototype = Object.getPrototypeOf(object);
 			let o = Object.create(prototype);
 			Object.setPrototypeOf(object, o);
@@ -26,6 +21,7 @@ const watch$ = (function() {
 			for (let method of methods) {
 				o[method] = function() {
 					let result = prototype[method].apply(this, arguments);
+					observer.next(this);
 					observer.complete();
 					return result;
 				}
@@ -34,10 +30,6 @@ const watch$ = (function() {
 			o[key].observable$ = observable$;
 
 			return function() {
-
-				// numm--;
-				// console.log("--mutation watch$ ob: " + numm);
-
 				delete o[key].observable$;
 				Object.setPrototypeOf(object, prototype);
 			}
@@ -78,8 +70,8 @@ const watch$ = (function() {
 		}
 
 		let observable$ = new Observable(function(observer) {
-			// num++;
-			// console.log("watch$ ob: " + num, object, prop);
+			num++;
+			console.log("watch$ ob: " + num, object, prop);
 
 			let value = object[prop];
 			let subscription = mutationObservable$(value).subscribe(observer);
@@ -89,6 +81,7 @@ const watch$ = (function() {
 					return;
 				}
 				value = newValue;
+				observer.next(value);
 				observer.complete();
 			}
 
@@ -106,8 +99,8 @@ const watch$ = (function() {
 			/// cleanup!
 			return function() {
 
-				// num--;
-				// console.log("-watch$ ob: " + num, object, prop);
+				num--;
+				console.log("-watch$ ob: " + num, object, prop);
 
 				subscription.unsubscribe();
 				delete set.observable$;
@@ -149,7 +142,7 @@ function expression(rbp) {
 	next();
 
 	let left = t.nud() || t;
-	while ($token.lbp > rbp) {
+	while($token.lbp > rbp) {
 		t = $token;
 		next();
 		left = t.led(left) || t;
@@ -757,7 +750,7 @@ function _flat_tokens(token) {
 	let tokens = [];
 
 	let stack = [token];
-	while (stack.length) {
+	while(stack.length) {
 		let t = stack.pop();
 		tokens.push(t);
 		if (t.length) {
@@ -882,6 +875,8 @@ function $parse(script) {
 			});
 
 			function nextValue() {
+
+
 				stop$.next();
 
 				watchers = [];
@@ -919,7 +914,6 @@ let nextTick = function() {
 
 		if (queue.length === 0) {
 			Promise.resolve().then(() => {
-				console.log("nextTick", i++);
 				nextTick.commit();
 			})
 		}
@@ -931,7 +925,7 @@ let nextTick = function() {
 
 	nextTick.commit = function() {
 		let fn;
-		while (fn = queue[index++]) {
+		while(fn = queue[index++]) {
 			fn();
 		}
 
@@ -1000,6 +994,10 @@ class JSContext {
 	}
 
 	on$(el, type, useCapture) {
+		if (Array.isArray(type)) {
+			return Observable.merge(...type.map(type => this.on$(el, type, useCapture)));
+		}
+
 		return Observable.fromEvent(el, type, useCapture).takeUntil(this.disconnect$);
 	}
 

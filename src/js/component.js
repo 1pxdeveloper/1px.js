@@ -14,16 +14,31 @@ class WebComponent extends HTMLElement {
 
 	constructor() {
 		super();
-
-		/// @FIXME: init async 하게 만들기.. require 옵션 추가하기
-		module.component.require(this.tagName, component => {
-			Object.setPrototypeOf(component, WebComponent.prototype);
-			Object.setPrototypeOf(this, component);
-			this.created(...arguments);
-		});
 	}
 
 	connectedCallback() {
+
+		console.log("connectedCallback");
+
+		if (!this._binded) {
+
+			console.log("connectedCallback not bind");
+
+			$module.component.require(this.tagName.toLowerCase(), (component) => {
+				if (component) {
+					Object.setPrototypeOf(component, WebComponent.prototype);
+					Object.setPrototypeOf(this, component);
+					this._binded = true;
+					this.connectedCallback();
+				}
+			});
+			return;
+		}
+
+
+		console.log("connectedCallback binded!!");
+
+
 		let originalContent = Array.from(this.childNodes);
 
 		/// @FIXME: init & template & compile async 하게 만들기
@@ -31,8 +46,15 @@ class WebComponent extends HTMLElement {
 		/// Apply Template Engine
 		let o = WebComponentDefine.map[this.tagName];
 
+
+		console.log("~~~~~~~~~~~~~~~~~", o);
+
+
 		/// @FIXME: ... 여기서 굳이 importNode여야 한가?
-		let template = document.importNode(o.template.content, true);
+		let template = o.template.cloneNode(true).content;
+
+
+
 
 		/// @FIXME: private scope;;;;
 		/// @FIXME: nextTick dependancy
@@ -57,12 +79,12 @@ class WebComponent extends HTMLElement {
 
 
 		/// Override disconnected
-		this.destroy = () => {
-			delete this.destroy;
-			context.disconnect();
-			while (this.lastChild) this.lastChild.remove();
-			this.appendChild(DocumentFragment.from(originalContent));
-		};
+		// this.destroy = () => {
+		// 	delete this.destroy;
+		// 	context.disconnect();
+		// 	while(this.lastChild) this.lastChild.remove();
+		// 	this.appendChild(DocumentFragment.from(originalContent));
+		// };
 
 
 		/// Override connected Call
@@ -109,14 +131,15 @@ class WebComponentDefine extends HTMLElement {
 	}
 }
 
+
 function customElementsDefine() {
-	console.log("@@@@@@@@@@@@@", this);
-
-
 	let name = this.getAttribute("name");
-
 	if (!name) {
 		throw new SyntaxError("name attribute is required.")
+	}
+
+	if (window.customElements.get(name)) {
+		throw new SyntaxError(name + " is already defined.")
 	}
 
 	let template = this.querySelector("template");
@@ -124,18 +147,10 @@ function customElementsDefine() {
 		template: template
 	};
 
-	if (!window.customElements.get(name)) {
-		window.customElements.define(name, class extends WebComponent {
-		});
-	}
-
+	window.customElements.define(name, class extends WebComponent {});
 }
 
 WebComponentDefine.map = {};
-
-document.addEventListener("DOMContentLoaded", function() {
-	window.customElements.define("web-component", WebComponentDefine);
-});
-
+window.customElements.define("web-component", WebComponentDefine);
 
 exports.customElementsDefine = customElementsDefine;
