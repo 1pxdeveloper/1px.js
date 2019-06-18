@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Title</title>
+	<script src="src/js/1px.js"></script>
+</head>
+<body>
+
+<ui-view id="ui-view">my content</ui-view>
+
+
+<script type="module">
+
+import {WebComponent} from "./src/js2/1px.js";
+
+import * as pipe from "./src/js2/pipe.js";
+
+
+
+
+
+
+// console.log(pipe);
+//
+// console.log(Object.keys(pipe));
+//
+
+
+
+WebComponent.define("ui-view", `
+
+	<template>
+		<h1>Hello, my name is {{ name }} UIView</h1>
+	</template>
+
+`, class extends WebComponent {
+
+	init($) {
+		this.name = "@@comp@@";
+	}
+
+	hello() {
+		console.log("hello, world");
+	}
+
+});
+
+
+
+
+let u = document.getElementById("ui-view");
+
+console.log(u);
+console.log(u.hello);
+
+
+</script>
+
+
+</body>
+</html>
