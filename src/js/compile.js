@@ -235,18 +235,7 @@ function _nodeValue(value) {
 }
 
 function compile_text_node(textNode, context) {
-
-
-	console.log("compile_text_node");
-	console.log(textNode.nodeValue);
-
-
 	let index = textNode.nodeValue.indexOf("{{");
-
-
-	console.log(index);
-
-
 	while(index >= 0) {
 		textNode = textNode.splitText(index);
 

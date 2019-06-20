@@ -12,47 +12,50 @@
 
 <script type="module">
 
-import {WebComponent} from "./src/js2/1px.js";
-
-import * as pipe from "./src/js2/pipe.js";
-
+import {$module} from "./src/js2/1px.js";
+// import {Observable} from "./src/js2/1px.js";
 
 
+$module.component("ui-view", function(html, WebComponent) {
 
 
+	const msg = "#msg!!!";
 
-// console.log(pipe);
-//
-// console.log(Object.keys(pipe));
-//
+	// language=HTML
+	html`
+		<template>
+			<h1>Hello, my name ${msg} is {{ name }} UIView</h1>
+			<ul>
+				<li></li>
+			</ul>
+		</template>
+	`;
 
 
+	return class UIView extends WebComponent {
 
-WebComponent.define("ui-view", `
+		init($) {
+			this.name = "@@comp@@";
 
-	<template>
-		<h1>Hello, my name is {{ name }} UIView</h1>
-	</template>
+			let o = new Observable(o => {
 
-`, class extends WebComponent {
+			});
+		}
 
-	init($) {
-		this.name = "@@comp@@";
+		hello() {
+			console.log("hello, world");
+		}
+
 	}
-
-	hello() {
-		console.log("hello, world");
-	}
-
 });
-
-
 
 
 let u = document.getElementById("ui-view");
 
 console.log(u);
 console.log(u.hello);
+
+window.u = u;
 
 
 </script>
