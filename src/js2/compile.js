@@ -1,5 +1,6 @@
 (function() {
 	const {$module} = require("./module");
+	const {JSContext} = require("./parse");
 	
 	
 	function traverse(node, fn) {
@@ -35,11 +36,11 @@
 		
 		
 		/// @FIXME:... default template directive
-		let hasTemplateDirective = ["*repeat", "*if", "*else"].some(attrName => {
+		let hasTemplateDirective = ["*foreach", "*if", "*else"].some(attrName => {
 			let hasAttr = el.hasAttribute(attrName);
 			if (hasAttr) {
 				let attrValue = el.getAttribute(attrName);
-				$module.directive.require(attrName, directive => directive(context, el, attrValue));
+				$module.directive.require([attrName, directive => directive(context, el, attrValue)]);
 			}
 			return hasAttr;
 		});
@@ -54,12 +55,12 @@
 			
 			/// Custom directives
 			let customDefaultPrevent = false;
-			$module.directive.require(attr.nodeName, directive => {
+			$module.directive.require([attr.nodeName, directive => {
 				if (typeof directive === "function") {
 					let ret = directive(context, el, attr.nodeValue);
 					customDefaultPrevent = ret === false;
 				}
-			});
+			}]);
 			if (customDefaultPrevent) continue;
 			
 			
@@ -216,17 +217,7 @@
 	}
 	
 	function compile_text_node(textNode, context) {
-		
-		
-		console.log("compile_text_node");
-		console.log(textNode.nodeValue);
-		
-		
 		let index = textNode.nodeValue.indexOf("{{");
-		
-		
-		console.log(index);
-		
 		
 		while(index >= 0) {
 			textNode = textNode.splitText(index);
@@ -246,7 +237,7 @@
 	
 	function $compile(el, context) {
 		
-		console.log("$compile(el, context)", el, context);
+		// console.log("$compile(el, context)", el, context);
 		
 		
 		if (arguments.length === 1) {
@@ -256,14 +247,10 @@
 			context = new JSContext(context);
 		}
 		
-		console.log(context);
-		
-		
 		if (el.tagName === "TEMPLATE") {
 			compile_element_node(el, context);
 			el = el.content;
 		}
-		
 		
 		traverse(el, node => {
 			switch (node.nodeType) {
@@ -280,7 +267,7 @@
 	
 	
 	/// Default Template Directive
-	$module.directive("*repeat", function() {
+	$module.directive("*foreach", function() {
 		
 		function LCS(s1, s2) {
 			s1 = s1 || [];
@@ -358,7 +345,7 @@
 			let placeholder = document.createComment("repeat: " + script);
 			let placeholderEnd = document.createComment("endrepeat");
 			let repeatNode = el.cloneNode(true);
-			repeatNode.removeAttribute("*repeat");
+			repeatNode.removeAttribute("*foreach");
 			
 			el.before(placeholder);
 			el.replaceWith(placeholderEnd);
@@ -409,6 +396,17 @@
 						else {
 							r = createRepeatNode(repeatNode, context, $row, $index, value, index);
 							placeholder.before(r.node);
+							
+							/// @FIXME...
+							requestAnimationFrame(function() {
+								requestAnimationFrame(function() {
+									let enter = r.node.getAttribute("transition-enter");
+									if (enter) {
+										r.node.classList.add(enter);
+									}
+								});
+							});
+							
 						}
 						
 						return r;
@@ -439,8 +437,6 @@
 			
 			let placeholder = document.createComment("if: " + script);
 			el._ifScript = placeholder._ifScript = script;
-			
-			console.log("ifffffff", context, el, script);
 			
 			context.watch$(script, function(bool) {
 				

@@ -6,15 +6,20 @@
 	const $$templates = Object.create(null);
 	
 	class WebComponent extends HTMLElement {
-		static define(name, template, cls) {
-			let t = document.createElement("body");
-			t.innerHTML = template;
-			template = t.getElementsByTagName("template")[0];
-			$$templates[name] = template;
-			
-			window.customElements.define(name, cls);
+
+		/// @TODO: template 연동은 임시..
+		static template() {
+			let html = String.raw(...arguments);
+			let wrap = document.createElement("body");
+			wrap.innerHTML = html;
+			$$templates[WebComponent.template.tagName] = wrap.getElementsByTagName("template")[0];
 		}
 		
+		static templateSelector(selector) {
+			console.log(WebComponent.template.tagName, document.querySelector(selector));
+			$$templates[WebComponent.template.tagName] = document.querySelector(selector);
+		}
+
 		constructor() {
 			super();
 			this.created();
@@ -32,6 +37,10 @@
 			
 			let name = this.tagName.toLowerCase();
 			let template = $$templates[name];
+			
+			console.log(template);
+			
+			
 			if (template) {
 				template = template.cloneNode(true);
 				$compile(template, context);

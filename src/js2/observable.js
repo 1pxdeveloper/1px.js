@@ -303,6 +303,26 @@
 	};
 	
 	
+	Observable.prototype.toPromise = function() {
+		return new Promise((resolve, reject) => {
+			let _value;
+			this.subscribe({
+				next(value) {
+					_value = value;
+				},
+				
+				error(error) {
+					reject(error);
+				},
+				
+				complete() {
+					resolve(_value);
+				}
+			})
+		});
+	};
+	
+	
 	Observable.prototype.share = function() {
 		let observers = [];
 		let subscription;
@@ -458,5 +478,5 @@
 	};
 	
 	exports.Observable = Observable;
-
+	
 })();

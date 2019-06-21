@@ -83,7 +83,7 @@
 			
 			let observable$ = new Observable(function(observer) {
 				num++;
-				console.log("watch$ ob: " + num, object, prop);
+				// console.log("watch$ ob: " + num, object, prop);
 				
 				let value = object[prop];
 				let subscription = mutationObservable$(value).subscribe(observer);
@@ -112,7 +112,7 @@
 				return function() {
 					
 					num--;
-					console.log("-watch$ ob: " + num, object, prop);
+					// console.log("-watch$ ob: " + num, object, prop);
 					
 					subscription.unsubscribe();
 					delete set.observable$;

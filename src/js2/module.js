@@ -1,6 +1,8 @@
 (function() {
 	"use strict";
 	
+	function noop() {}
+	
 	function Register(value) {
 		this.queue = Object.create(null);
 		this.value = value || Object.create(null);
@@ -48,7 +50,7 @@
 	function _makeInjectable(callback) {
 		if (Array.isArray(callback)) {
 			let array = callback;
-			callback = array.slice(-1);
+			callback = array[array.length - 1];
 			callback.$inject = array.slice(0, -1);
 		}
 		
@@ -65,24 +67,16 @@
 		return callback;
 	}
 	
-	function _invokeValue(callback, args, index, name, value) {
+	function _invokeValue(resolve, callback, args, index, name, value) {
 		args[index] = value;
 		for (let k = 0; k < args.length; k++) if (!(k in args)) return;
-		callback.apply(null, args);
+		resolve(callback.apply(null, args));
 	}
 	
-	function _invokeFactory(callback, args, index, name, value) {
-		if (value$$.isDefined(name)) {
-			return;
+	function _invokeFactory(name, factory) {
+		if (!value$$.isDefined(name)) {
+			$module.require(factory, value$$.define.bind(value$$, name));
 		}
-		
-		function factory() {
-			value$$.define(name, value.apply(null, arguments));
-		}
-		
-		factory.$inject = value.$inject;
-		
-		$module.require(factory);
 	}
 	
 	function _makePrefixModuleProvider(prefix) {
@@ -118,17 +112,17 @@
 		factory$$.define(name, _makeInjectable(callback));
 	};
 	
-	$module.require = function(callback) {
+	$module.require = function(callback, resolve) {
+		resolve = resolve || noop;
 		callback = _makeInjectable(callback);
 		if (!callback.$inject.length) {
-			callback();
-			return;
+			resolve(callback());
 		}
 		
 		let args = Array(callback.$inject.length);
 		callback.$inject.forEach((name, index) => {
-			factory$$.whenDefined(name, _invokeFactory.bind(null, callback, args, index));
-			value$$.whenDefined(name, _invokeValue.bind(null, callback, args, index));
+			factory$$.whenDefined(name, _invokeFactory);
+			value$$.whenDefined(name, _invokeValue.bind(null, resolve, callback, args, index));
 		});
 	};
 	
@@ -136,6 +130,6 @@
 	$module.service = _makePrefixModuleProvider("service.");
 	$module.pipe = _makePrefixModuleProvider("pipe.");
 	
-
+	
 	exports.$module = $module;
 })();

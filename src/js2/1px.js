@@ -13,11 +13,11 @@
 		"parse.js",
 		"compile.js",
 		"component.js",
-		// "util.js",
+		"batch.js",
 		// "import.js"
 
 	].forEach(src => {
 		document.write(`<script src="${pref}${src}"></script>`);
 	});
-
+	
 })();
