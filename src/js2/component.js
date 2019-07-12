@@ -1,10 +1,10 @@
 (function() {
 	"use strict";
-	
+
 	const {JSContext, $compile} = require("./compile");
-	
+
 	const $$templates = Object.create(null);
-	
+
 	class WebComponent extends HTMLElement {
 
 		/// @TODO: template 연동은 임시..
@@ -12,9 +12,11 @@
 			let html = String.raw(...arguments);
 			let wrap = document.createElement("body");
 			wrap.innerHTML = html;
+			
 			$$templates[WebComponent.template.tagName] = wrap.getElementsByTagName("template")[0];
+			console.log(WebComponent.template.tagName, $$templates[WebComponent.template.tagName])
 		}
-		
+
 		static templateSelector(selector) {
 			console.log(WebComponent.template.tagName, document.querySelector(selector));
 			$$templates[WebComponent.template.tagName] = document.querySelector(selector);
@@ -24,27 +26,21 @@
 			super();
 			this.created();
 		}
-		
+
 		connectedCallback() {
 			this.$$originalContent = document.createDocumentFragment();
-			while(this.childNodes.length) {
+			while (this.childNodes.length) {
 				this.$$originalContent.appendChild(this.childNodes[0]);
 			}
-			
+
 			let context = JSContext.connect(this);
-			this.init(context);
-			
-			
 			let name = this.tagName.toLowerCase();
 			let template = $$templates[name];
-			
-			console.log(template);
-			
-			
+
 			if (template) {
 				template = template.cloneNode(true);
-				$compile(template, context);
-				
+				$compile(template, context, this);
+
 				// /// Attach Shady DOM!!
 				// let contents = DocumentFragment.from(this.childNodes);
 				//
@@ -58,31 +54,34 @@
 				// 	content.replaceWith(contents);
 				// }
 				// this.appendChild(template);
-				
-				
+
+
 				this.appendChild(template.content);
 			}
-			
+
+			this.$ = context;
+			this.init(context);
 			this.connected();
 		}
-		
+
 		disconnectedCallback() {
 			this.innerHTML = "";
 			this.appendChild(this.$$originalContent);
 			delete this.$$originalContent;
+			this.$.disconnect();
 			this.disconnected();
 		}
-		
+
 		init() {}
-		
+
 		created() {}
-		
+
 		connected() {}
-		
+
 		disconnected() {}
 	}
-	
+
 	exports.WebComponent = WebComponent;
-	
+
 })();
 

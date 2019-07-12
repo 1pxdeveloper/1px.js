@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en" app="$module">
+<head>
+	<meta charset="UTF-8">
+	<title>Title</title>
+	<script src="src/js2/1px.js"></script>
+
+	<style>
+		.fade {
+			animation: fade 1s both;
+		}
+		h1 {
+			opacity: 0;
+		}
+
+		@keyframes fade {
+			from { opacity: 0; }
+			to { opacity: 1}
+		}
+
+	</style>
+</head>
+<body>
+
+<ui-test id="app"></ui-test>
+
+<script>
+$module.component("ui-test", function(WebComponent) {
+
+	WebComponent.template`
+		<template>
+			<h1 [class.fade]="show">Hello</h1>
+		</template>
+	`;
+
+	return class extends WebComponent {
+		init() {
+			window.app = this;
+			this.show = true;
+		}
+
+		toggle() {
+			this.show = !this.show;
+		}
+	}
+})
+</script>
+
+
+</body>
+</html>
