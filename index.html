@@ -3,31 +3,30 @@
 <head>
 	<meta charset="UTF-8">
 	<title>Title</title>
-	<script src="old/js4/1px.js"></script>
+	<script src="src/js2/1px.js"></script>
 </head>
 <body>
+
+
+<template id="test">
+	<div>asdkfjaslkdjs</div>
+	<div>asdk {{ name }}js</div>
+</template>
+
+
 
 <my-test>hello</my-test>
 
 
-<script type="module">
-const {Observable} = require("1px");
-const {JSContext} = require("1px");
-const {$parse} = require("1px");
+<script>
 
+$module.compile("#test", function() {
 
+	window.test = {
+		name: "hello, world"
+	}
 
-
-window.o = {a: 100, b: 100};
-
-let $ = JSContext.connect(o);
-
-
-$`a`.subscribe(x => {
-
-
-	console.log(x);
-
+	return test;
 })
 
 

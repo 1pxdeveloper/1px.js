@@ -8,12 +8,15 @@
 	window.require = (path) => exports;
 
 	[
+		"utils.js",
 		"observable.js",
-		"module.js",
+		"1px.module.js",
 		"parse.js",
 		"compile.js",
+		"directives.js",
 		"component.js",
 		"batch.js",
+		"1px.touch.js",
 		// "import.js"
 
 	].forEach(src => {
