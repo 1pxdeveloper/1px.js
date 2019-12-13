@@ -487,7 +487,7 @@ const share = () => (observable) => {
 			complete() { for (const observer of observers) observer.complete() }
 		});
 		
-		return function() {
+		return () => {
 			observers = observers.filter(o => o !== observer);
 			
 			if (observers.length === 0) {
@@ -506,9 +506,6 @@ const shareReplay = (bufferSize = Infinity) => (observable) => {
 	
 	return new Observable(observer => {
 		if (subscription) {
-			console.warn("shareReplay", "hassubscription", buffer);
-			
-			
 			for (const value of buffer) {
 				observer.next(value);
 			}
@@ -523,12 +520,9 @@ const shareReplay = (bufferSize = Infinity) => (observable) => {
 		
 		subscription = subscription || observable.subscribe({
 			next(value) {
-				for (const observer of observers) observer.next(value);
 				buffer.push(value);
 				buffer = buffer.slice(-bufferSize);
-				
-				
-				console.warn("shareReplay", buffer);
+				for (const observer of observers) observer.next(value);
 			},
 			
 			error(error) {
@@ -540,12 +534,11 @@ const shareReplay = (bufferSize = Infinity) => (observable) => {
 			}
 		});
 		
-		return function() {
+		return () => {
 			observers = observers.filter(o => o !== observer);
 			
 			if (observers.length === 0) {
 				subscription.unsubscribe();
-				// subscription = null;
 			}
 		}
 	});
@@ -655,10 +648,6 @@ const connectMap = (callback = just) => lift(observer => {
 	
 	return {
 		next(value) {
-			
-			console.warn("connectMap", "next", value);
-			
-			
 			if (subscription) subscription.unsubscribe();
 			subscription = Observable.castAsync(callback(value)).subscribe(observer);
 		},
@@ -674,17 +663,17 @@ const connectMap = (callback = just) => lift(observer => {
 
 const concatMap = (callback = just) => lift(observer => {
 	
-	const queue = [];
-	
-	let allSourceCompleted = false;
+	let sourceCompleted = false;
 	let running = false;
 	let subscription;
+	
+	const queue = [];
 	
 	function doQueue() {
 		if (running) return;
 		
 		if (queue.length === 0) {
-			if (allSourceCompleted) {
+			if (sourceCompleted) {
 				observer.complete();
 			}
 			return;
@@ -695,7 +684,7 @@ const concatMap = (callback = just) => lift(observer => {
 		const observable = Observable.castAsync(callback(value));
 		
 		let completed = false;
-		const _observer = Object.setPrototypeOf({complete: () => completed = true}, observer);
+		const concatMapObserver = Object.setPrototypeOf({complete: () => completed = true}, observer);
 		
 		subscription = observable
 			.finalize(() => {
@@ -704,7 +693,7 @@ const concatMap = (callback = just) => lift(observer => {
 					doQueue();
 				}
 			})
-			.subscribe(_observer);
+			.subscribe(concatMapObserver);
 	}
 	
 	return {
@@ -714,8 +703,8 @@ const concatMap = (callback = just) => lift(observer => {
 		},
 		
 		complete() {
-			allSourceCompleted = true;
-			if (running === false && queue.length === 0) {
+			sourceCompleted = true;
+			if (queue.length === 0 && running === false) {
 				observer.complete();
 			}
 		},
@@ -784,7 +773,7 @@ Observable.fromPromise = (promise) => new Observable(observer => {
 /// Utils
 /// -------------------------------------------------------------------------------------------
 // @FIXME: 내가 만든거
-Observable.fromAsync = Observable.castAsync = (value) => {
+Observable.castAsync = (value) => {
 	if (value instanceof Observable) {
 		return value;
 	}
@@ -833,7 +822,6 @@ Observable.zip = (...observables) => new Observable(observer => {
 		
 		return observable.subscribe(value => {
 			stack[index].push(value);
-			// console.log(JSON.stringify(stack), index);
 			
 			if (stack.every(v => v.length > 0)) {
 				const ret = [];
@@ -843,7 +831,7 @@ Observable.zip = (...observables) => new Observable(observer => {
 		});
 	});
 	
-	return function() {
+	return () => {
 		for (const s of subscriptions) s.unsubscribe();
 	}
 });
@@ -901,13 +889,13 @@ Observable.combine = Observable.combineLatest = (...observables) => new Observab
 	
 	const subscriptions = observables.map(combine);
 	
-	return function() {
+	return () => {
 		for (const s of subscriptions) s.unsubscribe();
 	}
 });
 
 
-Observable.combineAnyway = function(...observables) {
+Observable.combineAnyway = (...observables) => {
 	return new Observable(observer => {
 		let arr = Array(observables.length);
 		
@@ -938,7 +926,7 @@ Observable.combineAnyway = function(...observables) {
 		
 		const subscriptions = observables.map(combine);
 		
-		return function() {
+		return () => {
 			for (const s of subscriptions) s.unsubscribe();
 		}
 	});

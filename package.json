@@ -1,7 +1,7 @@
 {
   "name": "1px.js",
   "version": "1.0.0",
-  "description": "## Working Drafts",
+  "description": "Front End Framework",
   "main": "1px.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

@@ -42,7 +42,6 @@ $module.directive("*foreach", function() {
 			.map(array => Array.from(array))
 			.scan((prevArray, array) => {
 				
-				
 				/// LCS Diff: LCS를 이용해서 같은건 유지하고, 삭제할 노드와 replace될 노드를 구분하는 로직을 짤것.
 				/// @NOTE: d == undeinfed 삭제후보, e === undefined 교체.. e에 없는거 추가...
 				const [d, e] = _.LCS(prevArray, array);

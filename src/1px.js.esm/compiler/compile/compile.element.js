@@ -215,7 +215,7 @@ function _twoway(context, el, script, value) {
 
 
 function _ref2(context, el, script, name) {
-	context.thisObj["$" + name] = el;
+	context.state["$" + name] = el;
 }
 
 

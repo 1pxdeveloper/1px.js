@@ -4,11 +4,16 @@ import {traverseDOM} from "./compile.util.js";
 import {$compile_element_node} from "./compile.element.js";
 import {$compile_text_node} from "./compile.text.js";
 
+import {$module} from "../module.js";
+
 
 /// -----------------------------------------------------------------------
 /// Compile
 /// -----------------------------------------------------------------------
-const $compile = (el, context, to) => {
+const ELEMENT_NODE = 1;
+const TEXT_NODE = 3;
+
+function $compile(el, context, to) {
 	
 	if (!(context instanceof JSContext)) {
 		context = new JSContext(context);
@@ -20,21 +25,24 @@ const $compile = (el, context, to) => {
 	}
 	
 	traverseDOM(el, (node) => {
-		if (!node) return;
+		if (!node) return false;
 		
 		switch (node.nodeType) {
-			case Node.ELEMENT_NODE:
+			case ELEMENT_NODE:
 				return $compile_element_node(node, context);
 			
-			case Node.TEXT_NODE:
+			case TEXT_NODE:
 				return $compile_text_node(node, context);
 		}
 	});
 	
 	return context;
-};
+}
 
 export {
 	traverseDOM,
 	$compile
 }
+
+/// @FIXME:
+$module.compile = $compile;

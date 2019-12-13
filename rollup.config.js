@@ -8,15 +8,15 @@ function localResolver() {
 			if (!importer) {
 				return null;
 			}
-
+			
 			if (importee.indexOf('./') === -1) {
 				return null;
 			}
-
+			
 			if (importee.endsWith(".js")) {
 				return null;
 			}
-
+			
 			return path.join(path.dirname(importer), importee, 'index.js');
 		}
 	};
@@ -24,14 +24,22 @@ function localResolver() {
 
 
 export default {
-	input: './1px.js/src/1px.js',
-
+	input: './src/1px.js.esm/index.js',
+	
 	plugins: [
 		localResolver()
 	],
-
-	output: {
-		file: './1px.js/dist/1px.js',
-		format: 'iife',
-	}
+	
+	output: [
+		{
+			name: "_px",
+			file: './dist/1px.js',
+			format: 'iife'
+		},
+		
+		{
+			file: './dist/1px.esm.js',
+			format: 'esm'
+		}
+	]
 }

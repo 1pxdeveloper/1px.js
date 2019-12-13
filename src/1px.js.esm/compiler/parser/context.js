@@ -14,8 +14,8 @@ const noWatch$$ = (object, prop) => Observable.of(object[prop]);
 
 export class JSContext {
 
-	constructor(thisObj, locals = Object.create(null)) {
-		this.thisObj = thisObj;
+	constructor(state, locals = Object.create(null)) {
+		this.state = state;
 		this.locals$ = new BehaviorSubject(locals);
 
 		this._disconnect$ = new Subject();
@@ -61,7 +61,7 @@ export class JSContext {
 	}
 
 	fork(locals) {
-		return new JSContext(this.thisObj, Object.setPrototypeOf(locals, this.locals$.value));
+		return new JSContext(this.state, Object.setPrototypeOf(locals, this.locals$.value));
 	}
 
 	fromEvent(el, type, useCapture = false) {

@@ -1,4 +1,4 @@
-const filterCallback = (callback) => {
+export const filterCallback = (callback) => {
 	if (Object(callback) !== callback) return _.is(callback);
 	if (typeof callback === "function") return callback;
 	
@@ -11,7 +11,7 @@ const filterCallback = (callback) => {
 	}
 };
 
-const mapCallback = (callback) => {
+export const mapCallback = (callback) => {
 	if (Object(callback) !== callback) return callback;
 	if (typeof callback === "function") return callback;
 	
@@ -31,6 +31,7 @@ const mapCallback = (callback) => {
 };
 
 
+/// fp
 export const _ = () => {};
 
 /// Common
@@ -59,33 +60,6 @@ _.isNot = (a) => (b) => !Object.is(a, b);
 
 _.hasLength = (value) => value.length && value.length > 0;
 _.instanceof = (constructor) => (object) => (object instanceof constructor);
-
-
-/// Array
-_.slice = (start, end) => (a) => a.slice(start, end);
-
-_.map = (callback) => (a) => a.map(mapCallback(callback));
-_.filter = (callback) => (a) => a.filter(filterCallback(callback));
-_.every = (callback) => (a) => a.every(filterCallback(callback));
-_.some = (callback) => (a) => a.some(filterCallback(callback));
-
-_.remove = (callback) => _.filter(_.not(callback));
-_.removeItem = (item) => _.remove(_.is(item));
-_.append = _.push = (item) => (array) => [...array, item];
-_.prepend = _.unshift = (item) => (array) => [item, ...array];
-_.patch = (target, object) => _.map(item => item !== target ? item : ({...item, ...object}));
-_.patchAll = (object) => _.map(item => ({...item, ...object}));
-
-_.sort = (callback) => (array) => (array => (array.sort(callback), array))(array.slice());
-
-_.replaceIndex = (object, index) => (array) => {
-	if (index < 0) index = array.length + index;
-	const r = array.slice();
-	r[index] = object;
-	return r;
-};
-
-_.last = (array) => array[array.length - 1];
 
 
 /// Object
@@ -178,19 +152,6 @@ _.cond = (pairs) => (...args) => {
 };
 _.switch = (table) => (id) => table[id];
 _.if = (cond, callback, elseCallback = _.identity) => (value) => cond(value) ? callback(value) : elseCallback(value);
-
-
-/// String
-_.capitalize = (string) => string.slice(0, 1).toUpperCase() + string.slice(1);
-_.trim = (string) => _.isStringLike(string) ? String(string).trim() : "";
-_.split = (...args) => (string) => string.split(...args);
-_.splitAt = (index) => (string) => [string.slice(0, index), string.slice(index)];
-_.rpartition = (sep) => (string) => {
-	const lastIndex = string.lastIndexOf(sep);
-	if (lastIndex === -1) return [string, "", ""];
-	return [string.slice(0, lastIndex), string.slice(lastIndex, lastIndex + sep.length), string.slice(lastIndex + sep.length)];
-};
-_.startsWith = (searchString, position) => (string) => String(string).startsWith(searchString, position);
 
 
 /// Effect

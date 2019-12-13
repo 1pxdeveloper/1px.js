@@ -1,4 +1,4 @@
-(function () {
+var _px = (function (exports) {
 	'use strict';
 
 	const filterCallback = (callback) => {
@@ -34,6 +34,7 @@
 	};
 
 
+	/// fp
 	const _$1 = () => {};
 
 	/// Common
@@ -62,33 +63,6 @@
 
 	_$1.hasLength = (value) => value.length && value.length > 0;
 	_$1.instanceof = (constructor) => (object) => (object instanceof constructor);
-
-
-	/// Array
-	_$1.slice = (start, end) => (a) => a.slice(start, end);
-
-	_$1.map = (callback) => (a) => a.map(mapCallback(callback));
-	_$1.filter = (callback) => (a) => a.filter(filterCallback(callback));
-	_$1.every = (callback) => (a) => a.every(filterCallback(callback));
-	_$1.some = (callback) => (a) => a.some(filterCallback(callback));
-
-	_$1.remove = (callback) => _$1.filter(_$1.not(callback));
-	_$1.removeItem = (item) => _$1.remove(_$1.is(item));
-	_$1.append = _$1.push = (item) => (array) => [...array, item];
-	_$1.prepend = _$1.unshift = (item) => (array) => [item, ...array];
-	_$1.patch = (target, object) => _$1.map(item => item !== target ? item : ({...item, ...object}));
-	_$1.patchAll = (object) => _$1.map(item => ({...item, ...object}));
-
-	_$1.sort = (callback) => (array) => (array => (array.sort(callback), array))(array.slice());
-
-	_$1.replaceIndex = (object, index) => (array) => {
-		if (index < 0) index = array.length + index;
-		const r = array.slice();
-		r[index] = object;
-		return r;
-	};
-
-	_$1.last = (array) => array[array.length - 1];
 
 
 	/// Object
@@ -181,19 +155,6 @@
 	};
 	_$1.switch = (table) => (id) => table[id];
 	_$1.if = (cond, callback, elseCallback = _$1.identity) => (value) => cond(value) ? callback(value) : elseCallback(value);
-
-
-	/// String
-	_$1.capitalize = (string) => string.slice(0, 1).toUpperCase() + string.slice(1);
-	_$1.trim = (string) => _$1.isStringLike(string) ? String(string).trim() : "";
-	_$1.split = (...args) => (string) => string.split(...args);
-	_$1.splitAt = (index) => (string) => [string.slice(0, index), string.slice(index)];
-	_$1.rpartition = (sep) => (string) => {
-		const lastIndex = string.lastIndexOf(sep);
-		if (lastIndex === -1) return [string, "", ""];
-		return [string.slice(0, lastIndex), string.slice(lastIndex, lastIndex + sep.length), string.slice(lastIndex + sep.length)];
-	};
-	_$1.startsWith = (searchString, position) => (string) => String(string).startsWith(searchString, position);
 
 
 	/// Effect
@@ -297,6 +258,45 @@
 		const script = Array.from(document.querySelectorAll("script")).pop();
 		const prefix = script.src.slice(0, script.src.lastIndexOf("/") + 1);
 		for (const src of sources) document.write(`<script src="${prefix}${src}"></script>`);
+	};
+
+	/// Array
+	_$1.slice = (start, end) => (a) => a.slice(start, end);
+
+	_$1.map = (callback) => (a) => a.map(mapCallback(callback));
+	_$1.filter = (callback) => (a) => a.filter(filterCallback(callback));
+	_$1.every = (callback) => (a) => a.every(filterCallback(callback));
+	_$1.some = (callback) => (a) => a.some(filterCallback(callback));
+
+	_$1.remove = (callback) => _$1.filter(_$1.not(callback));
+	_$1.removeItem = (item) => _$1.remove(_$1.is(item));
+	_$1.append = _$1.push = (item) => (array) => [...array, item];
+	_$1.prepend = _$1.unshift = (item) => (array) => [item, ...array];
+	_$1.patch = (target, object) => _$1.map(item => item !== target ? item : ({...item, ...object}));
+	_$1.patchAll = (object) => _$1.map(item => ({...item, ...object}));
+
+	_$1.sort = (callback) => (array) => (array => (array.sort(callback), array))(array.slice());
+
+	_$1.replaceIndex = (object, index) => (array) => {
+		if (index < 0) index = array.length + index;
+		const r = array.slice();
+		r[index] = object;
+		return r;
+	};
+
+	_$1.last = (array) => array[array.length - 1];
+
+	/// String
+	_$1.capitalize = (string) => string.slice(0, 1).toUpperCase() + string.slice(1);
+	_$1.trim = (string) => _$1.isStringLike(string) ? String(string).trim() : "";
+	_$1.split = (...args) => (string) => string.split(...args);
+	_$1.splitAt = (index) => (string) => [string.slice(0, index), string.slice(index)];
+	_$1.startsWith = (searchString, position) => (string) => String(string).startsWith(searchString, position);
+
+	_$1.rpartition = (sep) => (string) => {
+		const lastIndex = string.lastIndexOf(sep);
+		if (lastIndex === -1) return [string, "", ""];
+		return [string.slice(0, lastIndex), string.slice(lastIndex, lastIndex + sep.length), string.slice(lastIndex + sep.length)];
 	};
 
 	if (!Symbol.observable) {
@@ -1079,7 +1079,7 @@
 				complete() { for (const observer of observers) observer.complete(); }
 			});
 			
-			return function() {
+			return () => {
 				observers = observers.filter(o => o !== observer);
 				
 				if (observers.length === 0) {
@@ -1098,9 +1098,6 @@
 		
 		return new Observable$1(observer => {
 			if (subscription) {
-				console.warn("shareReplay", "hassubscription", buffer);
-				
-				
 				for (const value of buffer) {
 					observer.next(value);
 				}
@@ -1115,12 +1112,9 @@
 			
 			subscription = subscription || observable.subscribe({
 				next(value) {
-					for (const observer of observers) observer.next(value);
 					buffer.push(value);
 					buffer = buffer.slice(-bufferSize);
-					
-					
-					console.warn("shareReplay", buffer);
+					for (const observer of observers) observer.next(value);
 				},
 				
 				error(error) {
@@ -1132,12 +1126,11 @@
 				}
 			});
 			
-			return function() {
+			return () => {
 				observers = observers.filter(o => o !== observer);
 				
 				if (observers.length === 0) {
 					subscription.unsubscribe();
-					// subscription = null;
 				}
 			}
 		});
@@ -1247,10 +1240,6 @@
 		
 		return {
 			next(value) {
-				
-				console.warn("connectMap", "next", value);
-				
-				
 				if (subscription) subscription.unsubscribe();
 				subscription = Observable$1.castAsync(callback(value)).subscribe(observer);
 			},
@@ -1266,17 +1255,17 @@
 
 	const concatMap = (callback = just) => lift(observer => {
 		
-		const queue = [];
-		
-		let allSourceCompleted = false;
+		let sourceCompleted = false;
 		let running = false;
 		let subscription;
+		
+		const queue = [];
 		
 		function doQueue() {
 			if (running) return;
 			
 			if (queue.length === 0) {
-				if (allSourceCompleted) {
+				if (sourceCompleted) {
 					observer.complete();
 				}
 				return;
@@ -1287,7 +1276,7 @@
 			const observable = Observable$1.castAsync(callback(value));
 			
 			let completed = false;
-			const _observer = Object.setPrototypeOf({complete: () => completed = true}, observer);
+			const concatMapObserver = Object.setPrototypeOf({complete: () => completed = true}, observer);
 			
 			subscription = observable
 				.finalize(() => {
@@ -1296,7 +1285,7 @@
 						doQueue();
 					}
 				})
-				.subscribe(_observer);
+				.subscribe(concatMapObserver);
 		}
 		
 		return {
@@ -1306,8 +1295,8 @@
 			},
 			
 			complete() {
-				allSourceCompleted = true;
-				if (running === false && queue.length === 0) {
+				sourceCompleted = true;
+				if (queue.length === 0 && running === false) {
 					observer.complete();
 				}
 			},
@@ -1376,7 +1365,7 @@
 	/// Utils
 	/// -------------------------------------------------------------------------------------------
 	// @FIXME: 내가 만든거
-	Observable$1.fromAsync = Observable$1.castAsync = (value) => {
+	Observable$1.castAsync = (value) => {
 		if (value instanceof Observable$1) {
 			return value;
 		}
@@ -1425,7 +1414,6 @@
 			
 			return observable.subscribe(value => {
 				stack[index].push(value);
-				// console.log(JSON.stringify(stack), index);
 				
 				if (stack.every(v => v.length > 0)) {
 					const ret = [];
@@ -1435,7 +1423,7 @@
 			});
 		});
 		
-		return function() {
+		return () => {
 			for (const s of subscriptions) s.unsubscribe();
 		}
 	});
@@ -1493,13 +1481,13 @@
 		
 		const subscriptions = observables.map(combine);
 		
-		return function() {
+		return () => {
 			for (const s of subscriptions) s.unsubscribe();
 		}
 	});
 
 
-	Observable$1.combineAnyway = function(...observables) {
+	Observable$1.combineAnyway = (...observables) => {
 		return new Observable$1(observer => {
 			let arr = Array(observables.length);
 			
@@ -1530,7 +1518,7 @@
 			
 			const subscriptions = observables.map(combine);
 			
-			return function() {
+			return () => {
 				for (const s of subscriptions) s.unsubscribe();
 			}
 		});
@@ -2450,7 +2438,7 @@
 
 	evaluateRule("(literal)", function() { return of(this.value) });
 
-	evaluateRule("this", function() { return of(this.context.thisObj) });
+	evaluateRule("this", function() { return of(this.context.state) });
 
 	/// [1,2,3]
 	evaluateRule("[", params);
@@ -2507,7 +2495,7 @@
 					return this.watch(locals, prop);
 				}
 				
-				const object = this.context.thisObj;
+				const object = this.context.state;
 				this.object = object;
 				this.prop = prop;
 				
@@ -2580,8 +2568,8 @@
 
 	class JSContext {
 
-		constructor(thisObj, locals = Object.create(null)) {
-			this.thisObj = thisObj;
+		constructor(state, locals = Object.create(null)) {
+			this.state = state;
 			this.locals$ = new BehaviorSubject(locals);
 
 			this._disconnect$ = new Subject();
@@ -2627,7 +2615,7 @@
 		}
 
 		fork(locals) {
-			return new JSContext(this.thisObj, Object.setPrototypeOf(locals, this.locals$.value));
+			return new JSContext(this.state, Object.setPrototypeOf(locals, this.locals$.value));
 		}
 
 		fromEvent(el, type, useCapture = false) {
@@ -2966,7 +2954,7 @@
 
 
 	function _ref2(context, el, script, name) {
-		context.thisObj["$" + name] = el;
+		context.state["$" + name] = el;
 	}
 
 
@@ -3019,7 +3007,10 @@
 	/// -----------------------------------------------------------------------
 	/// Compile
 	/// -----------------------------------------------------------------------
-	const $compile$1 = (el, context, to) => {
+	const ELEMENT_NODE = 1;
+	const TEXT_NODE = 3;
+
+	function $compile$1(el, context, to) {
 		
 		if (!(context instanceof JSContext)) {
 			context = new JSContext(context);
@@ -3031,19 +3022,22 @@
 		}
 		
 		traverseDOM(el, (node) => {
-			if (!node) return;
+			if (!node) return false;
 			
 			switch (node.nodeType) {
-				case Node.ELEMENT_NODE:
+				case ELEMENT_NODE:
 					return $compile_element_node(node, context);
 				
-				case Node.TEXT_NODE:
+				case TEXT_NODE:
 					return $compile_text_node(node, context);
 			}
 		});
 		
 		return context;
-	};
+	}
+
+	/// @FIXME:
+	$module.compile = $compile$1;
 
 	class WebComponent extends HTMLElement {
 		
@@ -3107,10 +3101,6 @@
 		})
 	};
 
-
-	$module.value("JSContext", {});
-	$module.value("WebComponent", WebComponent);
-
 	/// Default Template Directive
 	$module.directive("*foreach", function() {
 		
@@ -3149,7 +3139,6 @@
 				.map(value => _$1.isArrayLike(value) ? value : [])
 				.map(array => Array.from(array))
 				.scan((prevArray, array) => {
-					
 					
 					/// LCS Diff: LCS를 이용해서 같은건 유지하고, 삭제할 노드와 replace될 노드를 구분하는 로직을 짤것.
 					/// @NOTE: d == undeinfed 삭제후보, e === undefined 교체.. e에 없는거 추가...
@@ -3344,7 +3333,7 @@
 						console.time("Time" + (++timerId));
 						console.groupEnd();
 
-						return Observable.fromAsync(fetch(url, init).then(response))
+						return Observable.castAsync(fetch(url, init).then(response))
 							.tap(res => console.group("Response", init.method, url))
 							.tap(_.log("Response"))
 							.tap(() => console.timeEnd("Time" + (timerId--)))
@@ -3403,6 +3392,869 @@
 		return new HttpService();
 	});
 
+	function noop$2() {}
+
+	function foreach(arr, callback) {
+		for (let i = 0; i < arr.length; i++) {
+			callback(arr[i], i, arr);
+		}
+	}
+
+	function $matches(elm, selector) {
+		let matches = (elm.document || elm.ownerDocument).querySelectorAll(selector),
+			i = matches.length;
+		while(--i >= 0 && matches.item(i) !== elm) {}
+		return i > -1;
+	}
+
+	function matchesSelector(el, selector) {
+		if (!el || el.nodeType !== 1) return false;
+		let matches = el.matches || el.matchesSelector || el.webkitMatchesSelector || el.msMatchesSelector || el.mozMatchesSelector || el.oMatchesSelector;
+		if (!matches) {
+			return $matches(el, selector);
+		}
+		return matches.call(el, selector);
+	}
+
+	function $$closest(element, selector) {
+		
+		while(element) {
+			if (matchesSelector(element, selector)) {
+				return element;
+			}
+			element = element.parentNode;
+		}
+		
+		return null;
+	}
+
+	function $isDisabled(element) {
+		return $$closest(element, "[disabled]");
+	}
+	let SCROLL_CHECK_DELAY = 100;
+
+	let TOUCH_START = "touchstart";
+	let TOUCH_MOVE = "touchmove";
+	let TOUCH_END = "touchend";
+	let TOUCH_CANCEL = "touchcancel";
+
+	if (!("ontouchstart" in document)) {
+		TOUCH_START = "mousedown";
+		TOUCH_MOVE = "mousemove";
+		TOUCH_END = "mouseup";
+		//			TOUCH_CANCEL = "contextmenu";
+	}
+
+
+	///
+	let activeTouchElements = [];
+
+	function hasAttribute(el, attr) {
+		return el && el.hasAttribute && el.hasAttribute(attr);
+	}
+
+	function arrayPushOnce(array, obj) {
+		if (array.indexOf(obj) === -1) {
+			array.push(obj);
+		}
+	}
+
+	function isTouchFreeze(el) {
+		let freeze = $$closest(el, "[wux-touch-freeze]");
+		return freeze && freeze !== el;
+	}
+
+	function getElementPointersFromTouches(element, touches) {
+		let pointers = [];
+		foreach(touches, function(touch) {
+			if (element.$$touch.$touchIds.indexOf(touch.identifier) >= 0) {
+				let pointer = Pointer.map[touch.identifier];
+				if (!pointer) {
+					return;
+				}
+				
+				pointers.push(pointer);
+			}
+		});
+		
+		return pointers;
+	}
+
+	function removeActiveTouchElement(element) {
+		let index = activeTouchElements.indexOf(element);
+		if (index !== -1) {
+			element.$isFinished = true;
+			element.$$touch.$touchIds = [];
+			scrollCheckRelease(element);
+			activeTouchElements.splice(index, 1);
+		}
+	}
+
+	function scrollCheck(element, fn) {
+		scrollCheckRelease(element);
+		
+		let handler = function(e) {
+			if (hasAttribute(e.target, "wux-touch-scroll-allow")) {
+				return;
+			}
+			
+			// 스크롤된 element에 포함되어 있는지?
+			if (!e.target.contains(element)) {
+				return;
+			}
+			
+			window.removeEventListener("scroll", handler, true);
+			fn(e);
+		};
+		window.addEventListener("scroll", handler, true);
+		element.$$touch.$scrollCheckHandler = handler;
+	}
+
+	function scrollCheckRelease(element) {
+		window.removeEventListener("scroll", element.$$touch.$scrollCheckHandler, true);
+		element.$$touch.$scrollCheckHandler = null;
+		element.$$touch.$isScrolled = false;
+	}
+
+
+	function Pointer(pointer, event) {
+		this.type = event.type;
+		this.target = event.target;
+		this.timeStamp = event.timeStamp;
+		
+		this.pageX = pointer.pageX;
+		this.pageY = pointer.pageY;
+		this.clientX = pointer.clientX;
+		this.clientY = pointer.clientY;
+		this.screenX = pointer.screenX;
+		this.screenY = pointer.screenY;
+		
+		this.start = {
+			pageX: this.pageX,
+			pageY: this.pageY,
+			clientX: this.clientX,
+			clientY: this.clientY,
+			screenX: this.screenX,
+			screenY: this.screenY
+		};
+		
+		this.deltaX = 0;
+		this.deltaY = 0;
+		this.distanceX = 0;
+		this.distanceY = 0;
+		this.displacementX = 0;
+		this.displacementY = 0;
+		this.displacementXTimeStamp = event.timeStamp;
+		this.displacementYTimeStamp = event.timeStamp;
+		this.velocityX = 0;
+		this.velocityY = 0;
+		
+		this.scale = 1;
+		this.d = 0;
+		
+		this.isPanStart = false;
+		this.isPanning = false;
+		this.isPanEnd = false;
+	}
+
+	Pointer.map = {};
+
+	Pointer.prototype = {
+		update: function(pointer, event) {
+			let prevTimeStamp = this.timeStamp;
+			this.timeStamp = event.timeStamp;
+			
+			this.deltaX = pointer.screenX - this.screenX;
+			this.deltaY = pointer.screenY - this.screenY;
+			this.distanceX = pointer.screenX - this.start.screenX;
+			this.distanceY = pointer.screenY - this.start.screenY;
+			
+			if (this.velocityY * this.deltaY < 0) {
+				this.lastDisplacementY = this.displacementY;
+				this.displacementY = 0;
+				this.displacementYTimeStamp = prevTimeStamp;
+				this.velocityY = 0;
+			}
+			
+			if (this.velocityX * this.deltaX < 0) {
+				this.lastDisplacementX = this.displacementX;
+				this.displacementX = 0;
+				this.displacementXTimeStamp = prevTimeStamp;
+				this.velocityX = 0;
+			}
+			
+			this.displacementX += this.deltaX;
+			this.displacementY += this.deltaY;
+			
+			this.velocityX = this.displacementX / (this.timeStamp - this.displacementXTimeStamp);
+			this.velocityY = this.displacementY / (this.timeStamp - this.displacementYTimeStamp);
+			this.velocityX = this.velocityX === this.velocityX ? this.velocityX : 0; // NaN 처리
+			this.velocityY = this.velocityY === this.velocityY ? this.velocityY : 0; // NaN 처리
+			
+			this.isPanStart = this.type === TOUCH_START && event.type === TOUCH_MOVE;
+			this.isPanning = this.type === TOUCH_MOVE && event.type === TOUCH_MOVE;
+			this.isPanEnd = this.type === TOUCH_MOVE && event.type === TOUCH_END;
+			
+			this.type = event.type;
+			this.pageX = pointer.pageX;
+			this.pageY = pointer.pageY;
+			this.clientX = pointer.clientX;
+			this.clientY = pointer.clientY;
+			this.screenX = pointer.screenX;
+			this.screenY = pointer.screenY;
+		},
+		
+		contains: function(element) {
+			let rect = element.getBoundingClientRect();
+			let x = this.clientX;
+			let y = this.clientY;
+			
+			return (rect.top <= y && y <= rect.bottom && rect.left <= x && x <= rect.right);
+		}
+	};
+
+	function PointerEvent(element, event) {
+		
+		// 변경된 터치 계산 값 추출
+		let pointers = getElementPointersFromTouches(element, event.changedTouches);
+		
+		if (pointers.length >= 2) {
+			let p1 = pointers[0];
+			let p2 = pointers[1];
+			
+			let d = Math.sqrt(Math.pow(p1.screenX - p2.screenX, 2) + Math.pow(p1.screenY - p2.screenY, 2));
+			let scale = d / p1.d;
+			scale = scale === scale ? scale : 1;
+			p1.scale = p2.scale = scale;
+			p1.d = p2.d = d;
+		}
+		
+		if (pointers[0]) {
+			Object.assign(this, pointers[0]);
+		}
+		
+		this.type = event.type;
+		this.target = event.target;
+		this.currentTarget = element;
+		this.originalEvent = event;
+		this.pointers = getElementPointersFromTouches(element, event.touches);
+	}
+
+	function dispatchPointerEvent(element, pointerEvent) {
+		if ($isDisabled(element)) {
+			return;
+		}
+		
+		if (isTouchFreeze(element)) {
+			return;
+		}
+		
+		if (element.$$touch.$isFinished) {
+			return;
+		}
+		
+		let handlers = element.$$touch.$handlers;
+		
+		let types = ["press", "down", "panstart", "pan", "pan-x", "pan-y", "panend", "tap", "up", "release", "longpress"];
+		
+		for (let i = 0; i < types.length; i++) {
+			
+			let type = types[i];
+			
+			if (!handlers.hasOwnProperty(type)) {
+				continue;
+			}
+			
+			if (typeof dispatchPointerEvent.delegate[type] !== "function") {
+				continue;
+			}
+			
+			if (type === "panstart" && (handlers["pan"] || handlers["pan-x"] || handlers["pan-y"])) {
+				continue;
+			}
+			
+			let handler = handlers[type];
+			
+			if (dispatchPointerEvent.delegate[type].call(handlers, element, pointerEvent, handler) === false) {
+				element.$$touch.$isFinished = true;
+			}
+			
+			if (element.$$touch.$isFinished) {
+				removeActiveTouchElement(element);
+				break;
+			}
+		}
+		
+		/// 남아있는 터치가 없으면 터치 프로세스 종료
+		if (pointerEvent.pointers.length === 0) {
+			element.$$touch.$isFinished = true;
+			removeActiveTouchElement(element);
+		}
+	}
+
+	dispatchPointerEvent.delegate = {
+		
+		"press": function(el, event, handler) {
+			if (event.type === TOUCH_START && event.pointers.length === 1) {
+				return handler(event);
+			}
+		},
+		
+		"down": function(el, event, handler) {
+			if (event.type === TOUCH_START) {
+				return handler(event);
+			}
+		},
+		
+		"panstart": function(el, event, handler) {
+			if (event.type === TOUCH_MOVE && event.isPanStart) {
+				return handler(event);
+			}
+		},
+		
+		"pan": function(el, event, handler) {
+			if (event.type === TOUCH_MOVE && event.isPanStart) {
+				// event.originalEvent.preventDefault();
+				
+				let handlers = el.$$touch.$handlers;
+				if (typeof handlers["panstart"] === "function") {
+					if (dispatchPointerEvent.delegate["panstart"].call(handlers, el, event, handlers["panstart"]) === false) {
+						return false;
+					}
+				}
+				
+				return handler(event);
+			}
+			
+			if (event.type === TOUCH_MOVE && event.isPanning) {
+				// event.originalEvent.preventDefault();
+				return handler(event);
+			}
+		},
+		
+		"pan-x": function(el, event, handler) {
+			if (event.type === TOUCH_START) {
+				scrollCheck(el, function() {
+					el.$$touch.$isScrolled = true;
+				});
+				return;
+			}
+			
+			if (event.type === TOUCH_MOVE && event.isPanStart) {
+				setTimeout(function() {
+					if (el.$$touch.$isScrolled) {
+						return;
+					}
+					
+					let handlers = el.$$touch.$handlers;
+					if (typeof handlers["panstart"] === "function") {
+						if (dispatchPointerEvent.delegate["panstart"].call(handlers, el, event, handlers["panstart"]) === false) {
+							el.$$touch.$isFinished = true;
+							return false;
+						}
+					}
+				}, SCROLL_CHECK_DELAY);
+			}
+			
+			if (event.type === TOUCH_MOVE && event.isPanning) {
+				if (el.$$touch.$isScrolled) {
+					return;
+				}
+				
+				event.originalEvent.preventDefault();
+				return handler(event);
+			}
+		},
+		
+		"pan-y": function(el, event, handler) {
+			
+			if (event.type === TOUCH_MOVE && event.isPanStart) {
+				event.originalEvent.preventDefault();
+				
+				let handlers = el.$$touch.$handlers;
+				if (typeof handlers["panstart"] === "function") {
+					if (dispatchPointerEvent.delegate["panstart"].call(handlers, el, event, handlers["panstart"]) === false) {
+						return false;
+					}
+				}
+				
+				return handler(event);
+			}
+			
+			if (event.type === TOUCH_MOVE && event.isPanning) {
+				event.originalEvent.preventDefault();
+				return handler(event);
+			}
+		},
+		
+		"panend": function(el, event, handler) {
+			if (event.type === TOUCH_END && event.isPanEnd) {
+				if (el.$$touch.$isScrolled) {
+					return;
+				}
+				
+				return handler(event);
+			}
+		},
+		
+		"tap": function(el, event, handler) {
+			if (event.type === TOUCH_START) {
+				scrollCheck(el, function() {
+					el.$$touch.$isScrolled = true;
+				});
+				return;
+			}
+			
+			if (event.type === TOUCH_END && !event.isPanEnd && event.pointers.length === 0) {
+				if (el.$$touch.$isScrolled) {
+					return;
+				}
+				
+				return handler(event);
+			}
+		},
+		
+		"up": function(el, event, handler) {
+			if (event.type === TOUCH_END) {
+				return handler(event);
+			}
+		},
+		
+		"release": function(el, event, handler) {
+			if (event.type === TOUCH_END && event.pointers.length === 0) {
+				return handler(event);
+			}
+		},
+		
+		"cancel": function(el, event, handler) {
+			if (event.type === TOUCH_CANCEL) {
+				el.$$touch.$isFinished = true;
+				return handler(event);
+			}
+		},
+		
+		"longpress": function(el, event, handler) {
+			
+			//			if (event.type === TOUCH_START && event.pointers.length === 1) {
+			//				scrollCheck(el, function() {
+			//					el.$$touch.$isScrolled = true;
+			//				});
+			//
+			//				if (el.$$touch.$longPressTimer) {
+			//					$timeout.cancel(el.$$touch.$longPressTimer);
+			//					el.$$touch.$longPressTimer = null;
+			//				}
+			//
+			//				el.$$touch.$longPressTimer = $timeout(function() {
+			//					if (el.$$touch.$isScrolled) {
+			//						return;
+			//					}
+			//
+			//					el.$$touch.$isFinished = true;
+			//					let ret = handler(event);
+			//					$timeout(noop);
+			//					return ret;
+			//
+			//				}, LONG_PRESS_DELAY);
+			//
+			//				return;
+			//			}
+			//
+			//			if (event.type === TOUCH_MOVE || event.type === TOUCH_END) {
+			//				if (el.$$touch.$longPressTimer) {
+			//					$timeout.cancel(el.$$touch.$longPressTimer);
+			//					el.$$touch.$longPressTimer = null;
+			//				}
+			//			}
+		}
+	};
+
+
+	function touchEventDelegate(event) {
+		// convert changedTouches to Pointer & update
+		foreach(event.changedTouches, function(touch) {
+			let pointer = Pointer.map[touch.identifier] = Pointer.map[touch.identifier] || new Pointer(touch, event);
+			pointer.update(touch, event);
+		});
+		
+		
+		/// Dispatch PointerEvent to ActiveTouchElements
+		foreach(activeTouchElements.slice(), function(element) {
+			if (!element.$$touch || !element.$$touch.$touchIds || !element.$$touch.$handlers) {
+				removeActiveTouchElement(element);
+				return;
+			}
+			
+			dispatchPointerEvent(element, new PointerEvent(element, event));
+		});
+		
+		
+		/// 남아있는 터치로 포인터 맵 최신화
+		let _map = Pointer.map;
+		Pointer.map = {};
+		foreach(event.touches, function(touch) {
+			Pointer.map[touch.identifier] = _map[touch.identifier];
+		});
+		
+		
+		foreach(activeTouchElements.slice(), function(element) {
+			let pointerEvent = new PointerEvent(element, event);
+			
+			// 터치가 없을 경우,
+			if (pointerEvent.pointers.length === 0) {
+				
+				// 그 전에 완료처리가 되지 않았다면,
+				if (!element.$$touch.$isFinished) {
+					
+					// cancel이벤트를 호출해준다.
+					if (typeof element.$$touch.$handlers["cancel"] === "function") {
+						element.$$touch.$handlers["cancel"](pointerEvent);
+					}
+				}
+				
+				// 터치엘리먼트 목록에서 제외한다
+				removeActiveTouchElement(element);
+			}
+		});
+	}
+
+
+	/// bind Touch Event
+	if (TOUCH_START === "touchstart") {
+		window.addEventListener("touchstart", function(event) {
+			setTimeout(function() {
+				touchEventDelegate(event);
+			}, 0);
+		}, true);
+		
+		window.addEventListener("touchmove", touchEventDelegate, true);
+		window.addEventListener("touchend", touchEventDelegate, true);
+		window.addEventListener("touchcancel", touchEventDelegate, true);
+		window.addEventListener("contextmenu", function() {
+			$touch.cancel();
+		}, true);
+	}
+
+	// mouseEvent Emulator
+	else {
+		window.addEventListener("mousedown", function(e) {
+			setTimeout(function() {
+				e.identifier = 0;
+				e.changedTouches = [e];
+				e.touches = [e];
+				touchEventDelegate(e);
+			}, 0);
+		}, true);
+		
+		window.addEventListener("mousemove", function(e) {
+			if (e.buttons === 0) {
+				return;
+			}
+			
+			e.identifier = 0;
+			e.changedTouches = [e];
+			e.touches = [e];
+			touchEventDelegate(e);
+		}, true);
+		
+		window.addEventListener("mouseup", function(e) {
+			e.identifier = 0;
+			e.changedTouches = [e];
+			e.touches = [];
+			touchEventDelegate(e);
+		}, true);
+		
+		window.addEventListener("contextmenu", function() {
+			$touch.cancel();
+		}, true);
+		
+		window.addEventListener("blur", function(e) {
+			if (e.target !== window) {
+				return;
+			}
+			
+			$touch.cancel();
+		}, false);
+		
+		// 마우스 버전은 스크롤 체크 기능 해제
+		scrollCheck = noop$2;
+		scrollCheckRelease = noop$2;
+	}
+
+
+	/// export $touch
+	let $touch = {
+		
+		bind: function(element, handlers) {
+			
+			// pre-process arguments
+			handlers = typeof handlers === "function" ? handlers(element) : handlers;
+			
+			
+			// 터치 이벤트 핸들러 등록
+			element.$$touch = element.$$touch || {};
+			element.$$touch.$touchIds = element.$$touch.$touchIds || [];
+			element.$$touch.$handlers = element.$$touch.$handlers || {};
+			element.$$touch.$isScrolled = element.$$touch.$isScrolled || false;
+			element.$$touch.$scrollCheckHandler = element.$$touch.$scrollCheckHandler || null;
+			Object.assign(element.$$touch.$handlers, handlers);
+			
+			
+			// 터치 시작 시, active Touch Element로 등록한다
+			element.addEventListener(TOUCH_START, function(event) {
+				
+				//				if ($isDisabled(element)) {
+				//					return;
+				//				}
+				
+				if (isTouchFreeze(element)) {
+					return;
+				}
+				
+				// @NOTE: 대개 터치 이벤트는 bubbling을 하지 않는다. 편의를 위해 stopPropagation()을 기본으로 지정함.
+				event.stopPropagation();
+				
+				element.$$touch.$isFinished = false;
+				
+				foreach(event.changedTouches || [{identifier: 0}], function(touch) {
+					arrayPushOnce(element.$$touch.$touchIds, touch.identifier);
+				});
+				
+				arrayPushOnce(activeTouchElements, element);
+			});
+		},
+		
+		unbind: function(element) {
+			element.$$touch = {};
+			element.$$touch.$touchIds = element.$$touch.$touchIds || [];
+			element.$$touch.$handlers = element.$$touch.$handlers || {};
+			element.$$touch.$isScrolled = element.$$touch.$isScrolled || false;
+			element.$$touch.$scrollCheckHandler = element.$$touch.$scrollCheckHandler || null;
+		},
+		
+		cancel: function() {
+			foreach(activeTouchElements, function(element) {
+				element.$$touch.$touchIds = [];
+				element.$$touch.$isFinished = true;
+				scrollCheckRelease(element);
+				
+				let pointerEvent = new PointerEvent(element, {
+					type: TOUCH_CANCEL,
+					changedTouches: [],
+					touches: []
+				});
+				
+				if (typeof element.$$touch.$handlers["cancel"] === "function") {
+					element.$$touch.$handlers["cancel"](pointerEvent);
+				}
+			});
+			
+			activeTouchElements = [];
+		},
+		
+		freeze: function(element, type) {
+			element = $(element);
+			element.attr("wux-touch-freeze", type || true);
+		},
+		
+		seal: function(element) {
+			element = $(element);
+			element.removeAttr("wux-touch-freeze");
+		}
+	};
+
+	$module.value("touch", $touch);
+
+	$module.directive("(touch)", function() {
+		return function(el, $scope, to, $def) {
+			let value = el.getAttribute("(touch)");
+			let handler = $parse(value, $def)($scope);
+			
+			return $touch.bind(to, handler);
+		}
+	});
+
+	window.$touch = $touch;
+
+	$module.factory("Animation", function(Observable) {
+		
+		const $rAF = window.requestAnimationFrame.bind(window);
+		$rAF.cancel = window.cancelAnimationFrame.bind(window);
+		
+		const FRAME_RATE = 1000 / 60;
+		
+		function cubic_bezier(x1, y1, x2, y2, epsilon) {
+			epsilon = epsilon || 1e-3;
+			
+			let curveX = function(t) {
+				let v = 1 - t;
+				return 3 * v * v * t * x1 + 3 * v * t * t * x2 + t * t * t;
+			};
+			
+			let curveY = function(t) {
+				let v = 1 - t;
+				return 3 * v * v * t * y1 + 3 * v * t * t * y2 + t * t * t;
+			};
+			
+			let derivativeCurveX = function(t) {
+				let v = 1 - t;
+				return 3 * (2 * (t - 1) * t + v * v) * x1 + 3 * (-t * t * t + 2 * v * t) * x2;
+			};
+			
+			return function(t) {
+				
+				let x = t, t0, t1, t2, x2, d2, i;
+				
+				// First try a few iterations of Newton's method -- normally very fast.
+				for (t2 = x, i = 0; i < 8; i++) {
+					x2 = curveX(t2) - x;
+					if (Math.abs(x2) < epsilon) {
+						return curveY(t2);
+					}
+					d2 = derivativeCurveX(t2);
+					if (Math.abs(d2) < 1e-6) {
+						break;
+					}
+					t2 = t2 - x2 / d2;
+				}
+				
+				t0 = 0;
+				t1 = 1;
+				t2 = x;
+				
+				if (t2 < t0) {
+					return curveY(t0);
+				}
+				if (t2 > t1) {
+					return curveY(t1);
+				}
+				
+				// Fallback to the bisection method for reliability.
+				while(t0 < t1) {
+					x2 = curveX(t2);
+					if (Math.abs(x2 - x) < epsilon) {
+						return curveY(t2);
+					}
+					if (x > x2) {
+						t0 = t2;
+					}
+					else {
+						t1 = t2;
+					}
+					t2 = (t1 - t0) * 0.5 + t0;
+				}
+				
+				// Failure
+				return curveY(t2);
+				
+			};
+		}
+		
+		const $default_ease = cubic_bezier(0.25, 0.5, 0.25, 1);
+		
+		function Animation(duration, from, to, ease) {
+			ease = ease || $default_ease;
+			ease.$cache = ease.$cache || {};
+			
+			let table = ease.$cache[duration];
+			if (!table) {
+				table = [];
+				for (let i = 0; i < duration; i += FRAME_RATE) {
+					table.push(ease(i / duration));
+				}
+				table.push(1);
+				ease.$cache[duration] = table;
+			}
+			
+			const animation = new Observable(observer => {
+				
+				function update(params) {
+					let {timestamp, startTime} = params;
+					let t = Math.floor((timestamp - startTime) / FRAME_RATE);
+					
+					// console.log(params);
+					
+					
+					let step = table[t];
+					step = step === undefined ? 1 : step;
+					
+					let value = from + (to - from) * step;
+					observer.next(value);
+					if (step === 1) {
+						return observer.complete();
+					}
+					
+					$rAF(function(timestamp) {
+						params.timestamp = timestamp;
+						update(params);
+					});
+				}
+				
+				$rAF(function(timestamp) {
+					update({startTime: timestamp, timestamp, table});
+				});
+				
+				return function() {
+				
+				}
+			});
+			
+			
+			return animation;
+		}
+		
+		// window.Animation = Animation;
+		return Animation;
+	});
+
+
+	$module.factory("Transform", function() {
+		
+		return {
+			translate: function(el, x, y, z) {
+				if (!el) return;
+				x = x || 0;
+				y = y || 0;
+				z = z || 0;
+				
+				x = _.isNumber(x) ? x + "px" : x;
+				y = _.isNumber(y) ? y + "px" : y;
+				z = _.isNumber(z) ? z + "px" : z;
+				
+				el.style.webkitTransform = "translate3d(" + x + "," + y + "," + z + ")";
+			},
+			
+			opacity: function(el, value) {
+				el.style.opacity = value;
+			}
+		}
+	});
+
+
+	$module.factory("FLIP", function() {
+		
+		return function FLIP(el) {
+			const first = el.getBoundingClientRect();
+			
+			return {
+				play: function(duration) {
+					const last = el.getBoundingClientRect();
+					const invertX = (first.left - last.left);
+					const invertY = (first.top - last.top);
+					
+					el.animate([
+						{transform: `translate(${invertX}px, ${invertY}px)`},
+						{transform: 'translate(0, 0)'}
+					], {
+						duration: duration,
+						easing: "ease"
+					});
+				}
+			}
+		};
+		
+	});
+
 	Object.assign(window, {
 		_: _$1,
 		
@@ -3435,4 +4287,19 @@
 	$module.value("JSContext", JSContext);
 	$module.value("WebComponent", WebComponent);
 
-}());
+	exports.$module = $module;
+	exports.Action = Action;
+	exports.AsyncSubject = AsyncSubject;
+	exports.BehaviorSubject = BehaviorSubject;
+	exports.JSContext = JSContext;
+	exports.Observable = Observable$1;
+	exports.ReplaySubject = ReplaySubject;
+	exports.RequestAction = RequestAction;
+	exports.StreamAction = StreamAction;
+	exports.Subject = Subject;
+	exports.WebComponent = WebComponent;
+	exports._ = _$1;
+
+	return exports;
+
+}({}));

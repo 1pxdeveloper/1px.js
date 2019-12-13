@@ -62,7 +62,3 @@ $module.component = function(name, callback) {
 		window.customElements.define(name, Component);
 	})
 };
-
-
-$module.value("JSContext", {});
-$module.value("WebComponent", WebComponent);

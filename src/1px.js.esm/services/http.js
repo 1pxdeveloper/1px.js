@@ -42,7 +42,7 @@ $module.factory("http", function() {
 					console.time("Time" + (++timerId));
 					console.groupEnd();
 
-					return Observable.fromAsync(fetch(url, init).then(response))
+					return Observable.castAsync(fetch(url, init).then(response))
 						.tap(res => console.group("Response", init.method, url))
 						.tap(_.log("Response"))
 						.tap(() => console.timeEnd("Time" + (timerId--)))

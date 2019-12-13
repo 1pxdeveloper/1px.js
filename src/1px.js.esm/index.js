@@ -14,6 +14,28 @@ import "./compiler/directives/directive.if.js"
 import "./compiler/directives/directive.template.js"
 
 import "./services/http.js"
+import "./services/1px.touch.js"
+import "./services/1px.animation.js"
+
+
+export {
+	_,
+	
+	Observable,
+	Subject,
+	BehaviorSubject,
+	ReplaySubject,
+	AsyncSubject,
+	
+	Action,
+	RequestAction,
+	StreamAction,
+	
+	JSContext,
+	WebComponent,
+	
+	$module
+}
 
 
 Object.assign(window, {

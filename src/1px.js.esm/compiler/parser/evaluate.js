@@ -40,7 +40,7 @@ evaluateRule("(end)", () => of(undefined));
 
 evaluateRule("(literal)", function() { return of(this.value) });
 
-evaluateRule("this", function() { return of(this.context.thisObj) });
+evaluateRule("this", function() { return of(this.context.state) });
 
 /// [1,2,3]
 evaluateRule("[", params);
@@ -97,7 +97,7 @@ evaluateRule("(name)", function() {
 				return this.watch(locals, prop);
 			}
 			
-			const object = this.context.thisObj;
+			const object = this.context.state;
 			this.object = object;
 			this.prop = prop;
 			
