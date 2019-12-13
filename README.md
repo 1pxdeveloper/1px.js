@@ -4,65 +4,9 @@
 
 
 
-
-### Bootstrap!!!!!!!! 
-```html
-<html module="App"></html>
-<script>
-
-App.component("todo-app", class {
-	init() {
-		
-	}
-	
-	addTodo() {
-		
-	}
-})
-</script>
-
-```
-
-
-### Compile (Simple just Library)
-```html
-<!-- your module name here (module attibute) -->
-<html module="app">
-<body>
-    <template id="app">
-        <h1>{{ title }}</h1>
-        <button (click)="change()"></button>
-    </template>
-</body>    
-</html>
-
-<scrpit>
-let context = {
-    title: "hello",
-
-    change: function() {
-        this.title = "world";
-    }
-}
-
-app.compile("#app", context);
-
-setTimeout(() => {
-    context.title = "change my title" /// auto-bind update
-}, 1000);
-</scrpit>
-```
-
-
 ### Template Syntax
 
 ```html
-<!-- property, interpolation -->
-<div [hidden]="isShow">{{ todo.title }}</div>
-
-<!-- event -->
-<button (click)="hello()">
-
 <!-- class -->
 <button [class.hello]="bool">
 
@@ -72,11 +16,17 @@ setTimeout(() => {
 <!-- style -->
 <button [style.width.px]="img.width" [style.background-image.url]="'abc.jpg'">
 
+<!-- event -->
+<button (click)="hello()">
+
+<!-- property, interpolation -->
+<div [hidden]="isShow">{{ todo.title }}</div>
+
 <!-- two-way -->
 <input [(value)]="title">
 
 <!-- ref -->
-<div #div>{{ div.tagName }}</div>
+<div $div>{{ $div.tagName }}</div>
 
 <!-- call -->
 <input .focus()="condition" .blur()="bool" />
@@ -125,23 +75,9 @@ differences
 ```html
 
 <!-- maniplation -->
-<div *foreach="todos as todo, index"></div>
-
-<!-- track by --> (Draft)
-<div *foreach="todos as todo" [key]="todo.id"></div>
-
-<!-- map, filter -->
-<div *foreach="todos as todo, index => todo.title if todo.complete"></div>
-```
-
-
-
-### Template Syntax - With (Draft)
-```html
-<section *with="100 + 200 * c as value">
-    <div>{{ value }}</div>
-    <div>{{ value + 100 }}</div>
-</section>
+<ul>
+    <li *foreach="todos as todo, index">#{{index}} - {{todo.title}}</div>
+</ul>
 ```
 
 
@@ -169,50 +105,6 @@ differences
 (keydown|alt|esc) => e.target.alt && e.target.key === "Escape"
 ```
 
-```javascript
-Event.pipes = {
-
-	prevent($) {
-		return $.do(e => e.preventDefault())
-	},
-
-	stop($) {
-		return $.do(e => e.stopPropagation())
-	},
-
-	capture($) {
-		return this
-	},
-
-	self($) {
-		return $.filter(e => e.target === $.element)
-	},
-
-	once($) {
-		return $.take(1)
-	},
-
-	shift($) {
-		return $.filter(e => e.shiftKey)
-	},
-
-	alt($) {
-		return $.filter(e => e.altKey)
-	},
-
-	ctrl($) {
-		return $.filter(e => e.ctrlKey)
-	},
-
-	meta($) {
-		return $.filter(e => e.metaKey)
-	},
-
-	esc($) {
-		return $.filter(e => e.keyCode === 27)
-	}
-};
-```
 
 
 ### Template Syntax - Event with Observable (Draft)
@@ -369,20 +261,6 @@ scope.watch$(script)
 
 ```
 
-
-### Service
-```html
-Watcher와 Module를 결합한 선언형 프로그래밍 모듈.
-
-<web-component>
-    <!-- Service -->
-    <http url="/api/todos" [params]="params" $http></http>
-    
-    <template>
-        <div *foreach="$http.res as page"></div>
-    </template>
-</web-component>
-```
 
 
 ### Form
