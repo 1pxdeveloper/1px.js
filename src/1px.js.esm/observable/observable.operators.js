@@ -296,11 +296,11 @@ const timeout = (timeout) => lift((observer, id) => ({
 }));
 
 
-const timeoutFirstOnly = (timeout) => lift((observer, id) => ({
+const timeoutFirstOnly = (timeout, error) => lift((observer, id) => ({
 	start() {
 		clearTimeout(id);
 		id = setTimeout(() => {
-			observer.error();/// @TODO: 여기에 뭘 보내야 할까??
+			observer.error(error);
 		}, timeout);
 	},
 	
@@ -321,7 +321,7 @@ const debug = (...tag) => lift(observer => ({
 	},
 	
 	next(value) {
-		console.log(...tag, ".next", value);
+		console.warn(...tag, ".next", value);
 		observer.next(value);
 	},
 	
@@ -447,6 +447,7 @@ const takeUntil = (notifier) => (observable) => {
 const until = (notifier) => (observable) => {
 	return new Observable(observer => {
 		const s = observable.subscribe(observer);
+		
 		const unsubscribe = () => s.unsubscribe();
 		const s2 = notifier.subscribe(unsubscribe, unsubscribe, unsubscribe);
 		
@@ -597,8 +598,11 @@ const switchMap = (callback = just) => lift(observer => {
 	let completed = false;
 	let subscription;
 	
-	const complete = () => completed && subscription.closed && observer.complete();
-	const switchMapObserver = Object.setPrototypeOf({complete}, observer);
+	const switchMapObserver = Object.setPrototypeOf({
+		complete() {
+			completed && observer.complete();
+		}
+	}, observer);
 	
 	return {
 		next(value) {
@@ -608,7 +612,9 @@ const switchMap = (callback = just) => lift(observer => {
 		
 		complete() {
 			completed = true;
-			complete();
+			if (!subscription || (subscription && subscription.closed)) {
+				observer.complete();
+			}
 		},
 		
 		finalize() {
@@ -622,8 +628,11 @@ const exhaustMap = (callback = just) => lift(observer => {
 	let completed = false;
 	let subscription;
 	
-	const complete = () => completed && (!subscription || (subscription && subscription.closed)) && observer.complete();
-	const exhaustMapObserver = Object.setPrototypeOf({complete}, observer);
+	const exhaustMapObserver = Object.setPrototypeOf({
+		complete() {
+			completed && observer.complete();
+		}
+	}, observer);
 	
 	return {
 		next(value) {
@@ -633,7 +642,10 @@ const exhaustMap = (callback = just) => lift(observer => {
 		
 		complete() {
 			completed = true;
-			complete();
+			
+			if (!subscription || (subscription && subscription.closed)) {
+				observer.complete();
+			}
 		},
 		
 		finalize() {

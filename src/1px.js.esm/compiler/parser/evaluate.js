@@ -54,10 +54,7 @@ evaluateRule("{", (a) => {
 });
 
 evaluateRule("#", (a) => {
-	
-	
-	console.log($module.$actions);
-	
+	/// @FIXME:..
 	return Observable.of($module.$actions[a.value])
 });
 

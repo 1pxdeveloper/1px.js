@@ -1,12 +1,8 @@
 import {_} from "../../fp";
 import {Observable} from "../../observable";
-import {JSContext} from "../parser/context.js";
 import {$module} from "../module.js";
 
-import {traverseDOM, templateSyntax, renderPipeLine} from "./compile.util.js";
-
-
-import {$compile_text_node} from "./compile.text.js";
+import {templateSyntax, renderPipeLine} from "./compile.util.js";
 
 
 /// -----------------------------------------------------------------------
@@ -186,8 +182,8 @@ function _style(context, el, script, name) {
 function _visible(context, el, script) {
 	return context(script)
 		.pipe(renderPipeLine)
-		.tap(value => el["hidden"] = !value)
-		.subscribe()
+		.tap(value => el.hidden = !value)
+		.subscribe();
 }
 
 function _prop(context, el, script, prop) {
@@ -259,7 +255,6 @@ function _event(context, el, script, value) {
 	
 	/// Event Handler
 	return event$
-	// .trace("(event)", type)
 		.switchMap(event => context.fork({event, el}).evaluate(script))
 		.switchMap(ret => Observable.castAsync(ret))
 		.subscribe()
