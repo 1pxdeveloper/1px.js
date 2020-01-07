@@ -16,5 +16,10 @@
   "bugs": {
     "url": "https://github.com/1pxdeveloper/1px.js/issues"
   },
-  "homepage": "https://github.com/1pxdeveloper/1px.js#readme"
+  "homepage": "https://github.com/1pxdeveloper/1px.js#readme",
+  "devDependencies": {
+    "express": "^4.17.1",
+    "express-ws": "^4.0.0",
+    "gulp": "^4.0.2"
+  }
 }

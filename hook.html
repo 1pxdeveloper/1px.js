@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Title</title>
+	<script src="dist/1px.js"></script>
+</head>
+<body>
+
+
+<script>
+/**
+ * This array diff algorithm is useful when one wants to detect small changes
+ * (like consecutive insertions or consecutive deletions) several times
+ * in short time intervals. Alternative algorithms like LCS woud be too expensive
+ * when running it too many times.
+ */
+
+// Algo 1 - Here index of both arrays are incremented when unequal
+// Good for detecting appends and pops(). For arrays of equal length this would be good to detect replace ops.
+function arrayDiff1(n, o) {
+	let i, j; // i is for n's index and j for o's index
+	let changes = [];
+
+	for (i = 0, j = 0; i < n.length && j < o.length; i++, j++) {
+		if (n[i] !== o[j]) {
+			changes.push({
+				replace: true,
+				op: 'replace',
+				value: n[i],
+				index: j
+			});
+		}
+	}
+
+	for (; i < n.length; i++) { // if more items from n remains
+		changes.push({
+			insert: true,
+			op: 'insert',
+			value: n[i],
+			index: i
+		});
+	}
+
+	for (let end = j; j < o.length; j++) { // if more items from o remains
+		changes.push({
+			remove: true,
+			op: 'remove',
+			value: o[j],
+			index: end
+		});
+	}
+
+	return changes;
+}
+
+// Algo 2 - Here index of new array is incremented when unequal
+// Good for detecting a newly added item
+function arrayDiff2(n, o) {
+	let i, j; // i is for n's index and j for o's index
+	let changes = [],
+		d = 0; //  "displacement". The difference between j and index of insertion or deletion.
+
+
+	for (i = 0, j = 0; i < n.length && j < o.length;) {
+		if (n[i] === o[j]) {
+			i++;
+			j++;
+		}
+		else {
+			changes.push({
+				insert: true,
+				op: 'insert',
+				value: n[i],
+				index: j + d
+			});
+			d++;
+			i++;
+		}
+	}
+	for (; i < n.length; i++) { // if more items from n remains
+		changes.push({
+			insert: true,
+			op: 'insert',
+			value: n[i],
+			index: j + d
+		});
+		d++;
+	}
+	for (; j < o.length; j++) { // if more items from o remains
+		changes.push({
+			remove: true,
+			op: 'remove',
+			value: o[j],
+			index: j + d
+		});
+		d -= 1;
+	}
+
+	return changes;
+}
+
+
+// Algo 3 - Here index of old array is incremented when unequal
+// Good for detecting a removed item
+function arrayDiff3(n, o) {
+	let i, j; // i is for n's index and j for o's index
+	let changes = [],
+		d = 0; //  "displacement". The difference between j and index of insertion or deletion.
+
+	for (i = 0, j = 0; i < n.length && j < o.length;) {
+		if (n[i] === o[j]) {
+			i++;
+			j++;
+		}
+		else {
+			changes.push({
+				remove: true,
+				op: 'remove',
+				value: o[j],
+				index: j + d
+			});
+			d -= 1;
+			j++;
+		}
+	}
+	for (; i < n.length; i++) { // if more items from n remains
+		changes.push({
+			insert: true,
+			op: 'insert',
+			value: n[i],
+			index: j + d
+		});
+		d++;
+	}
+	for (; j < o.length; j++) { // if more items from o remains
+		changes.push({
+			remove: true,
+			op: 'remove',
+			value: o[j],
+			index: j + d
+		});
+		d -= 1;
+	}
+
+	return changes;
+}
+
+function batchChanges(changes) {
+	changes.forEach(function(change, i) {
+		let len = changes.length;
+		let j;
+
+		change.batch = [change.value];
+		delete change.value;
+
+		// look forward for similar changes.
+		for (j = i + 1; j < len && changes[j].op === change.op; j++) {
+			change.batch.push(changes[j].value);
+		}
+
+		if (j > (i + 1)) {
+			changes.splice(i + 1, j - (i + 1));
+		}
+	});
+
+	return changes;
+}
+
+
+//  Chooses the changes from the alogirthm that returns least changes.
+//  Computational complexity is  O(3 * (n.length + o.length)) ~ O(N)  - where N is sum of lengths.
+//  Best time is O(n.length + o.length) (when arrays are equal).
+/**
+ * @param {Array} n The new array
+ * @param {Array} o The old array
+ */
+function diff(n, o) {
+	let diff2 = arrayDiff2(n, o);
+	if (diff2.length <= 1 || !o.length || !n.length) {
+		return batchChanges(diff2);
+	}
+
+	let diff3 = arrayDiff3(n, o);
+	if (diff3.length <= 1) {
+		return batchChanges(diff3);
+	}
+
+	let changesFromDiffAlgos = [
+		diff2,
+		diff3,
+		arrayDiff1(n, o)
+	];
+
+	let leastChanges;
+
+	changesFromDiffAlgos.forEach(function(changes) {
+		if (!leastChanges || (changes.length < leastChanges.length)) {
+			leastChanges = changes;
+		}
+	});
+
+	return batchChanges(leastChanges);
+}
+
+function patch(o, changes) {
+	o = o.slice(); // TODO: Remove later
+
+	changes.forEach(function(change) {
+		let spliceArgs = [change.index];
+
+		if (change.replace) {
+			if (change.batch) {
+				spliceArgs.push(change.batch.length);
+				spliceArgs.push.apply(spliceArgs, change.batch);
+			}
+			else {
+				spliceArgs.push(1, change.value);
+			}
+		}
+
+		else if (change.insert) {
+			if (change.batch) {
+				spliceArgs.push(0);
+				spliceArgs.push.apply(spliceArgs, change.batch);
+			}
+			else {
+				spliceArgs.push(0, change.value);
+			}
+		}
+
+		else { // remove
+			spliceArgs.push(change.batch ? change.batch.length : 1);
+		}
+
+		o.splice.apply(o, spliceArgs);
+	});
+
+	return o;
+}
+
+/************************Tests*****************************/
+// Simple tests
+(function() {
+
+	let oldArray = "helloworldskejd".split(""),
+		newArray = "helworldddejd".split("");
+
+	let optimalChanges = diff(newArray, oldArray);
+	let patchedArray = patch(oldArray, optimalChanges);
+
+	console.log(optimalChanges);
+	console.log(patchedArray, newArray, isEqual(patchedArray, newArray));
+
+
+}());
+
+
+function isEqual(a, b) {
+	if (a.length !== b.length) {
+		return false;
+	}
+	for (let i = 0; i < a.length; i++) {
+		if (a[i] !== b[i]) {
+			return false;
+		}
+	}
+	return true;
+}
+
+
+</script>
+
+
+</body>
+</html>

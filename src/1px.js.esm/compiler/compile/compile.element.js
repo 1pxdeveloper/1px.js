@@ -1,12 +1,8 @@
 import {_} from "../../fp";
 import {Observable} from "../../observable";
-import {JSContext} from "../parser/context.js";
 import {$module} from "../module.js";
 
-import {traverseDOM, templateSyntax, renderPipeLine} from "./compile.util.js";
-
-
-import {$compile_text_node} from "./compile.text.js";
+import {templateSyntax, renderPipeLine} from "./compile.util.js";
 
 
 /// -----------------------------------------------------------------------
@@ -154,6 +150,7 @@ function _attr(context, el, script, attr) {
 	return context(script)
 		.pipe(renderPipeLine)
 		.tap(value => (value || _.isStringLike(value)) ? el.setAttribute(attr, value) : el.removeAttribute(attr))
+		.catchError()
 		.subscribe()
 }
 
@@ -162,6 +159,7 @@ function _class(context, el, script, name) {
 		.mergeMap(value => Observable.castAsync(value))
 		.pipe(renderPipeLine)
 		.tap(value => value ? el.classList.add(name) : el.classList.remove(name))
+		.catchError()
 		.subscribe()
 }
 
@@ -180,20 +178,23 @@ function _style(context, el, script, name) {
 			}
 		})
 		.tap(value => el.style[prop] = value)
+		.catchError()
 		.subscribe();
 }
 
 function _visible(context, el, script) {
 	return context(script)
 		.pipe(renderPipeLine)
-		.tap(value => el["hidden"] = !value)
-		.subscribe()
+		.tap(value => el.hidden = !value)
+		.catchError()
+		.subscribe();
 }
 
 function _prop(context, el, script, prop) {
 	return context(script)
 	// .pipe(renderPipeLine) // @TODO: hasOwnProperty가 없는데 HTMLElement가 가지고 있는 경우에는 renderPipe를 통해야함. ex) id, src 등...
 		.tap(value => el[prop] = value)
+		.catchError()
 		.subscribe();
 }
 
@@ -210,6 +211,7 @@ function _twoway(context, el, script, value) {
 		.reject(_.isUndefined)
 		.reject(value => el[prop] === value)
 		.tap(value => el[prop] = value)
+		.catchError()
 		.subscribe();
 }
 
@@ -259,8 +261,8 @@ function _event(context, el, script, value) {
 	
 	/// Event Handler
 	return event$
-	// .trace("(event)", type)
-		.switchMap(event => context.fork({event, el}).evaluate(script))
-		.switchMap(ret => Observable.castAsync(ret))
+		.mergeMap(event => context.fork({event, el}).evaluate(script))
+		.mergeMap(ret => Observable.castAsync(ret))
+		.catchError()
 		.subscribe()
 }

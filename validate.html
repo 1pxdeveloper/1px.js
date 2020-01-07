@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Title</title>
+</head>
+<body>
+
+<script>
+
+fetch("csvjson.json").then(res => res.json()).then(res => {
+
+
+	res.forEach(data => {
+
+
+		const m = data.content_data;
+		if (!m) return;
+
+
+		if (data.cont_prod_id === "tutoring_content") {
+			return;
+		}
+
+
+		try {
+			if (!m.Mission.Description_Ko) throw "m.Mission.Description_Ko";
+			if (!m.Mission.Title) throw "m.Mission.Title";
+			if (!m.Mission.Guide_En) throw "m.Mission.Guide_En";
+			if (!m.Mission.Level) throw "m.Mission.Level";
+			if (!m.Mission.Id) throw "m.Mission.Id";
+			// if (!m.Mission.Gender) throw "m.Mission.Gender";
+			if (!m.Mission.Image) throw "m.Mission.Image";
+			if (!m.Mission.Description_En) throw "m.Mission.Description_En";
+
+			if (!m.Complete.Reaction) throw "m.Complete.Reaction";
+
+			m.Task.forEach((task, index) => {
+				if (!task.Guide) throw index + "task.Guide";
+				if (!task.Answer_Set) throw index + "task.Answer_Set";
+				if (!task.Answer_Set.split(/\n/).length) throw index + "task.Answer_Set.length";
+				// if (!task.Answer_Set.split(/\n/)[0].match(/\[[^\]]+]/)) throw index + "task.Hint.length";
+
+				if (task.Key) {
+					if (!task.Key) throw index + "task.Guide";
+					if (!task.Use_Key) throw index + "task.Use_Key";
+					if (!task.Use_Guide) throw index + "task.Use_Guide";
+					if (!task.Use_Hint) throw index + "task.Use_Hint";
+
+					// if (!(task.Use_Key.length > 0)) throw index + "task.Use_Key";
+					// if (!(task.Use_Guide.length > 0)) throw index + "task.Use_Guide";
+					// if (!(task.Use_Hint.length > 0)) throw index + "task.Use_Hint";
+					//
+					// let len = task.Use_Key.length;
+					// if (!(task.Use_Key.length === len)) throw index + "task.Use_Key";
+					// if (!(task.Use_Guide.length === len)) throw index + "task.Use_Guide";
+					// if (!(task.Use_Hint.length === len)) throw index + "task.Use_Hint";
+				}
+			})
+
+		} catch (e) {
+
+
+			// alert(e);
+			console.group(data.content_name);
+			console.log(e);
+			console.log(data);
+			console.log(m);
+
+			console.groupEnd();
+
+		}
+
+
+	})
+
+
+	// // window.res = res;
+	//
+	//
+	// // res = res.filter(m => m.content_id.startsWith("carrot"));//.map(m => m.content_data);
+	//
+	//
+	// console.log(res);
+
+	// console.log(res);
+
+	// const data = res.map(m => m.content_data);
+
+	// console.log(data);
+
+
+})
+
+</script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Title</title>
+</head>
+<body>
+
+<script>
+function HuntSzymanski_Alg1(stringA, stringB) {
+
+	let m = stringA.length;
+	let n = stringB.length;
+
+	let i, j, k, LCS, high, low, mid;
+	let matchList = {};
+	let L = [];
+
+	// make the matchList
+	for (i = 1; i <= m; i++) {
+		const ch = stringA[i];
+
+		matchList[ch] = matchList[ch] || [0];
+
+		if (matchList[ch][0] === 0) {
+			matchList[ch][0] = 1;
+
+			for (k = 1, j = n; j > 0; j--) {
+				if (ch === stringB[j]) {
+					matchList[ch][k] = j;
+					k++;
+				}
+
+				matchList[ch][k] = -1;
+			}
+		}
+	}
+
+	console.log(matchList);
+
+
+
+
+	// finding the LCS
+	for (LCS = 0, i = 1; i <= m; i++) {
+		const ch = stringA[i];
+
+		for (j = 1; matchList[ch][j] !== -1; j++) {
+
+			// if the number bigger then the biggest number in the L, LCS + 1
+			if (matchList[ch][j] > L[LCS]) {
+				LCS++;
+				L[LCS] = matchList[ch][j];
+			}
+
+			// else, do the binary search to find the place to insert the number
+			else {
+				high = LCS;
+				low = 0;
+				k = 0;
+
+				while (1) {
+					mid = low + ((high - low) / 2);
+					if (L[mid] === matchList[ch][j]) {
+						k = 1;
+						break;
+					}
+					if (high - low <= 1) {
+						mid = high;
+						break;
+					}
+					if (L[mid] > matchList[ch][j]) {
+						high = mid;
+					}
+
+					else if (L[mid] < matchList[ch][j]) {
+						low = mid;
+					}
+				}
+
+				if (k === 0) {
+					L[mid] = matchList[ch][j];
+				}
+			}
+		}
+	}
+
+
+	return L;
+}
+
+
+
+const d = HuntSzymanski_Alg1("hello", "bxell7o");
+
+
+console.log(d);
+
+
+
+</script>
+
+
+</body>
+</html>

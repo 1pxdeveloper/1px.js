@@ -1,10 +1,90 @@
 var _px = (function (exports) {
 	'use strict';
 
+	const NOT_CHANGED = "NOT_CHANGED"; // =;
+	const INSERT = "INSERT"; // +;
+	const DELETE = "DELETE"; // -;
+	const PATCH = "PATCH"; // -;
+
+	function diff(oldArray, newArray, compareFn = Object.is, newStart = 0, newEnd = newArray.length - 1, oldStart = 0, oldEnd = oldArray.length - 1) {
+
+		let rows = newEnd - newStart + 1;
+		let cols = oldEnd - oldStart + 1;
+		let dmax = rows + cols;
+
+		let v = [];
+		let d, k, r, c, pv, cv, pd;
+
+		outer: for (d = 0; d <= dmax; d++) {
+			pd = d - 1;
+			pv = d > 0 ? v[d - 1] : [0, 0];
+			cv = v[d] = [];
+
+			for (k = -d; k <= d; k += 2) {
+				if (k === -d || (k !== d && pv[pd + k - 1] < pv[pd + k + 1])) {
+					c = pv[pd + k + 1];
+				}
+				else {
+					c = pv[pd + k - 1] + 1;
+				}
+
+				r = c - k;
+
+				while (c < cols && r < rows && compareFn(oldArray[oldStart + c], newArray[newStart + r])) {
+					c++;
+					r++;
+				}
+
+				if (c === cols && r === rows) {
+					break outer;
+				}
+
+				cv[d + k] = c;
+			}
+		}
+
+		let diff = Array(d / 2 + dmax / 2);
+		let diffIndex = diff.length - 1;
+
+		for (d = v.length - 1; d >= 0; d--) {
+
+			// diagonal edge = equality
+			while (c > 0 && r > 0 && compareFn(oldArray[oldStart + c - 1], newArray[newStart + r - 1])) {
+				c--;
+				r--;
+				diff[diffIndex--] = [NOT_CHANGED, oldArray[oldStart + c], oldStart + c, newStart + r];
+			}
+
+			if (!d) break;
+			pd = d - 1;
+			pv = d ? v[d - 1] : [0, 0];
+			k = c - r;
+
+			// vertical edge = insertion
+			if (k === -d || (k !== d && pv[pd + k - 1] < pv[pd + k + 1])) {
+				r--;
+				diff[diffIndex--] = [INSERT, newArray[newStart + r], oldStart + c, newStart + r];
+			}
+
+			// horizontal edge = deletion
+			else {
+				c--;
+				diff[diffIndex--] = [DELETE, oldArray[oldStart + c], oldStart + c, newStart + r];
+			}
+		}
+
+		return diff;
+	}
+
+	diff.NOT_CHANGED = NOT_CHANGED;
+	diff.INSERT = INSERT;
+	diff.DELETE = DELETE;
+	diff.PATCH = PATCH;
+
 	const filterCallback = (callback) => {
 		if (Object(callback) !== callback) return _$1.is(callback);
 		if (typeof callback === "function") return callback;
-		
+
 		return (object) => {
 			for (let [key, _callback] of Object.entries(callback)) {
 				if (typeof _callback !== "function") _callback = _$1.is;
@@ -17,7 +97,7 @@ var _px = (function (exports) {
 	const mapCallback = (callback) => {
 		if (Object(callback) !== callback) return callback;
 		if (typeof callback === "function") return callback;
-		
+
 		return (object) => {
 			object = {...object};
 			for (let [key, _callback] of Object.entries(callback)) {
@@ -28,7 +108,7 @@ var _px = (function (exports) {
 					object[key] = _callback(object[key]);
 				}
 			}
-			
+
 			return object;
 		}
 	};
@@ -72,14 +152,14 @@ var _px = (function (exports) {
 			if ("function" === typeof obj.clone) {
 				return obj.clone();
 			}
-			
+
 			let clone = "array" === type ? [] : {}, key;
 			for (key in obj) {
 				clone[key] = _$1.cloneObject(obj[key]);
 			}
 			return clone;
 		}
-		
+
 		return obj;
 	};
 
@@ -103,7 +183,7 @@ var _px = (function (exports) {
 	/// Util
 	_$1.typeof = (value) => {
 		const s = typeof value;
-		
+
 		if ("object" === s) {
 			if (value) {
 				if (value instanceof Array) {
@@ -112,17 +192,17 @@ var _px = (function (exports) {
 				if (value instanceof Object) {
 					return s;
 				}
-				
+
 				const className = Object.prototype.toString.call(value);
-				
+
 				if ("[object Window]" === className) {
 					return "object";
 				}
-				
+
 				if ("[object Array]" === className || "number" == typeof value.length && "undefined" != typeof value.splice && "undefined" != typeof value.propertyIsEnumerable && !value.propertyIsEnumerable("splice")) {
 					return "array";
 				}
-				
+
 				if ("[object Function]" === className || "undefined" != typeof value.call && "undefined" != typeof value.propertyIsEnumerable && !value.propertyIsEnumerable("call")) {
 					return "function";
 				}
@@ -136,7 +216,7 @@ var _px = (function (exports) {
 				return "object";
 			}
 		}
-		
+
 		return s;
 	};
 
@@ -164,14 +244,14 @@ var _px = (function (exports) {
 
 	(function() {
 		let $uuid = 0;
-		
+
 		_$1.debug = {};
-		
+
 		_$1.debug.group = (...args) => {
 			console.group(...args);
 			return $uuid++;
 		};
-		
+
 		_$1.debug.groupEnd = (uuid = ($uuid - 1)) => {
 			console.groupEnd();
 			return;
@@ -204,11 +284,11 @@ var _px = (function (exports) {
 	_$1.LCS = (s1, s2) => {
 		s1 = s1 || [];
 		s2 = s2 || [];
-		
+
 		let M = [];
 		for (let i = 0; i <= s1.length; i++) {
 			M.push([]);
-			
+
 			for (let j = 0; j <= s2.length; j++) {
 				let currValue = 0;
 				if (i === 0 || j === 0) {
@@ -220,25 +300,25 @@ var _px = (function (exports) {
 				else {
 					currValue = Math.max(M[i][j - 1], M[i - 1][j]);
 				}
-				
+
 				M[i].push(currValue);
 			}
 		}
-		
+
 		let i = s1.length;
 		let j = s2.length;
-		
+
 		// let s3 = [];
 		let s4 = Array(i).fill(null);
 		let s5 = Array(j).fill(null);
-		
-		while(M[i][j] > 0) {
+
+		while (M[i][j] > 0) {
 			if (s1[i - 1] === s2[j - 1] && (M[i - 1][j - 1] + 1 === M[i][j])) {
 				// s3.unshift(s1[i - 1]);
-				
+
 				s4[i - 1] = s1[i - 1];
 				s5[j - 1] = s1[i - 1];
-				
+
 				i--;
 				j--;
 			}
@@ -249,7 +329,7 @@ var _px = (function (exports) {
 				j--;
 			}
 		}
-		
+
 		return [s4, s5];
 	};
 
@@ -259,6 +339,10 @@ var _px = (function (exports) {
 		const prefix = script.src.slice(0, script.src.lastIndexOf("/") + 1);
 		for (const src of sources) document.write(`<script src="${prefix}${src}"></script>`);
 	};
+
+
+	/// Diff
+	_$1.diff = diff;
 
 	/// Array
 	_$1.slice = (start, end) => (a) => a.slice(start, end);
@@ -2692,6 +2776,262 @@ var _px = (function (exports) {
 	const renderPipeLine = $ => $.distinctUntilChanged().switchMap(rAF$);
 
 	/// -----------------------------------------------------------------------
+	/// Compile Element
+	/// -----------------------------------------------------------------------
+	const localSVG = {};
+
+	function $compile_element_node(el, context, to = el) {
+		const tagName = el.tagName.toLowerCase();
+
+		if (tagName === "script") return false;
+		if (tagName === "style") return false;
+
+
+		const attributes = Array.from(el.attributes);
+
+		let ret;
+
+		const hasTemplateDirective = ["*foreach", "*if", "*else", "*template"].some(attrName => {
+			const attr = el.getAttributeNode(attrName);
+			if (!attr) return false;
+
+			$module.directive.require([attr.nodeName, (directive) => {
+				directive(context, el, attr.nodeValue, attr.nodeName);
+			}]);
+
+			return true;
+		});
+
+		if (hasTemplateDirective) {
+			return false;
+		}
+
+
+		/// @TODO: make Directive Hook
+		if (tagName === "svg") {
+			const svg = el;
+
+			const loadSVG = () => {
+				let src = svg.getAttributeNode("src");
+				if (!src || !src.nodeValue) return;
+
+				if (src) {
+					if (localSVG[src.nodeValue]) {
+						svg.replaceWith(localSVG[src.nodeValue]);
+					}
+					else {
+						fetch(src.nodeValue).then(res => res.text()).then(res => {
+
+							let template = document.createElement("template");
+							template.innerHTML = res;
+							localSVG[src.nodeValue] = template.content;
+
+							svg.replaceWith(localSVG[src.nodeValue]);
+						});
+					}
+				}
+			};
+
+
+			const observer = new MutationObserver(function(mutations) {
+				mutations.forEach((mutation) => {
+					if (mutation.attributeName === "src") {
+						loadSVG();
+					}
+				});
+			});
+
+			observer.observe(svg, {attributes: true});
+			loadSVG();
+		}
+
+
+		for (const attr of attributes) {
+
+			// /// Custom Directives
+			// /// @TODO: custom-directive 등록할때 아래처럼 syntax를 등록하는건 어떨까?
+			// let customDefaultPrevent = false;
+			// $module.directive.require([attr.nodeName, directive => {
+			// 	if (typeof directive === "function") {
+			// 		let ret = directive(context, el, attr.nodeValue);
+			// 		customDefaultPrevent = ret === false;
+			// 	}
+			// }]);
+			// if (customDefaultPrevent) continue;
+
+
+			/// Basic Directives
+			if (templateSyntax(context, to, attr, "(", _event, ")")) continue;
+			if (templateSyntax(context, to, attr, "[attr.", _attr, "]")) continue;
+			if (templateSyntax(context, to, attr, "[visible", _visible, "]")) continue;
+			if (templateSyntax(context, to, attr, "[class.", _class, "]")) continue;
+			if (templateSyntax(context, to, attr, "[style.", _style, "]")) continue;
+			// if (templateSyntax(context, to, attr, "[show.", _transition, "]")) continue;
+			if (templateSyntax(context, to, attr, "[(", _twoway, ")]")) continue;
+			if (templateSyntax(context, to, attr, "[", _prop, "]")) continue;
+			if (templateSyntax(context, to, attr, "$", _ref2, "")) continue;
+			// if (templateSyntax(context, to, attr, "#", _ref, "")) continue;
+			// if (templateSyntax(context, to, attr, ".", _call, ")")) continue;
+
+			if (el !== to) {
+				to.setAttributeNode(attr.cloneNode(true));
+			}
+		}
+
+
+		/// @TODO: Iframe Component
+		// if (tagName === "iframe" && el.hasAttribute("is")) {
+		//
+		// 	const iframe = el;
+		// 	const is = el.getAttribute("is");
+		//
+		// 	window.customElements.whenDefined(is).then(() => {
+		// 		const Component = window.customElements.get(is);
+		// 		const component = new Component;
+		// 		component.iframe = iframe;
+		// 		iframe.contentDocument.body.appendChild(component);
+		// 	});
+		//
+		// 	return false;
+		// }
+
+
+		/// Bind Controller
+		if (el.hasAttribute("is")) {
+			$module.controller.require([el.getAttribute("is"), (Controller) => {
+				const controller = new Controller;
+				const context = $compile(el.content || el.childNodes, controller);
+				typeof controller.init === "function" && controller.init(context);
+
+				if (el.content) {
+					el.replaceWith(el.content);
+				}
+
+				ret = false;
+			}]);
+
+			return ret;
+		}
+	}
+
+
+	/// Render From Template Syntax
+	function _attr(context, el, script, attr) {
+		return context(script)
+			.pipe(renderPipeLine)
+			.tap(value => (value || _$1.isStringLike(value)) ? el.setAttribute(attr, value) : el.removeAttribute(attr))
+			.subscribe()
+	}
+
+	function _class(context, el, script, name) {
+		return context(script)
+			.mergeMap(value => Observable$1.castAsync(value))
+			.pipe(renderPipeLine)
+			.tap(value => value ? el.classList.add(name) : el.classList.remove(name))
+			.subscribe()
+	}
+
+	function _style(context, el, script, name) {
+		const [prop, unit = ""] = name.split(".", 2);
+
+		return context(script)
+			.pipe(renderPipeLine)
+			.map(value => {
+				switch (unit) {
+					case "url":
+						return "url('" + encodeURI(value) + "')";
+
+					default:
+						return value + unit;
+				}
+			})
+			.tap(value => el.style[prop] = value)
+			.subscribe();
+	}
+
+	function _visible(context, el, script) {
+		return context(script)
+			.pipe(renderPipeLine)
+			.tap(value => el["hidden"] = !value)
+			.subscribe()
+	}
+
+	function _prop(context, el, script, prop) {
+		return context(script)
+		// .pipe(renderPipeLine) // @TODO: hasOwnProperty가 없는데 HTMLElement가 가지고 있는 경우에는 renderPipe를 통해야함. ex) id, src 등...
+			.tap(value => el[prop] = value)
+			.subscribe();
+	}
+
+
+	function _twoway(context, el, script, value) {
+
+		let [prop, eventType, ...options] = value.split(".");
+
+		context.fromEvent(el, eventType || "input")
+			.mergeMap(() => context.assign(script, el[prop]))
+			.subscribe();
+
+		return context(script)
+			.reject(_$1.isUndefined)
+			.reject(value => el[prop] === value)
+			.tap(value => el[prop] = value)
+			.subscribe();
+	}
+
+
+	function _ref2(context, el, script, name) {
+		context.state["$" + name] = el;
+	}
+
+
+	Event.pipes = {
+		prevent: $ => $.tap(e => e.preventDefault()),
+		stop: $ => $.tap(e => e.stopPropagation()),
+		capture: $ => $,
+		self: ($, element) => $.filter(e => e.target === element),
+		once: $ => $.take(1),
+		shift: $ => $.filter(e => e.shiftKey),
+		alt: $ => $.filter(e => e.altKey),
+		ctrl: $ => $.filter(e => e.ctrlKey),
+		meta: $ => $.filter(e => e.metaKey),
+		cmd: $ => $.filter(e => e.ctrlKey || e.metaKey)
+	};
+
+
+	function _event(context, el, script, value) {
+
+		let [type, ...options] = value.split(/\s*\|\s*/);
+		const useCapture = options.includes("capture");
+
+		/// @FIXME: Keyboard Event
+		let keys = [];
+		if (type.startsWith("keydown") || type.startsWith("keypress") || type.startsWith("keyup")) {
+			[type, ...keys] = type.split(".");
+		}
+
+		/// Normal Event
+		let event$ = context.fromEvent(el, type, useCapture);
+		if (keys.length) {
+			event$ = event$.filter(e => keys.includes(e.key.toLowerCase()));
+		}
+
+		/// Event Pipe
+		options.forEach(pipe => {
+			let handler = Event.pipes[pipe];
+			if (!handler) throw new Error(pipe + " is not registered event pipe.");
+			event$ = handler(event$, el);
+		});
+
+		/// Event Handler
+		return event$
+		// .trace("(event)", type)
+			.switchMap(event => context.fork({event, el}).evaluate(script))
+			.switchMap(ret => Observable$1.castAsync(ret))
+			.subscribe()
+	}
+
+	/// -----------------------------------------------------------------------
 
 
 	function _nodeValue(node, value) {
@@ -2746,262 +3086,6 @@ var _px = (function (exports) {
 			node = next;
 			index = node.nodeValue.indexOf("{{");
 		}
-	}
-
-	/// -----------------------------------------------------------------------
-	/// Compile Element
-	/// -----------------------------------------------------------------------
-	const localSVG = {};
-
-	function $compile_element_node(el, context, to = el) {
-		const tagName = el.tagName.toLowerCase();
-		
-		if (tagName === "script") return false;
-		if (tagName === "style") return false;
-		
-		
-		const attributes = Array.from(el.attributes);
-		
-		let ret;
-		
-		const hasTemplateDirective = ["*foreach", "*if", "*else", "*template"].some(attrName => {
-			const attr = el.getAttributeNode(attrName);
-			if (!attr) return false;
-			
-			$module.directive.require([attr.nodeName, (directive) => {
-				directive(context, el, attr.nodeValue, attr.nodeName);
-			}]);
-			
-			return true;
-		});
-		
-		if (hasTemplateDirective) {
-			return false;
-		}
-		
-		
-		/// @TODO: make Directive Hook
-		if (tagName === "svg") {
-			const svg = el;
-			
-			const loadSVG = () => {
-				let src = svg.getAttributeNode("src");
-				if (!src || !src.nodeValue) return;
-				
-				if (src) {
-					if (localSVG[src.nodeValue]) {
-						svg.replaceWith(localSVG[src.nodeValue]);
-					}
-					else {
-						fetch(src.nodeValue).then(res => res.text()).then(res => {
-							
-							let template = document.createElement("template");
-							template.innerHTML = res;
-							localSVG[src.nodeValue] = template.content;
-							
-							svg.replaceWith(localSVG[src.nodeValue]);
-						});
-					}
-				}
-			};
-			
-			
-			const observer = new MutationObserver(function(mutations) {
-				mutations.forEach((mutation) => {
-					if (mutation.attributeName === "src") {
-						loadSVG();
-					}
-				});
-			});
-			
-			observer.observe(svg, {attributes: true});
-			loadSVG();
-		}
-		
-		
-		for (const attr of attributes) {
-			
-			// /// Custom Directives
-			// /// @TODO: custom-directive 등록할때 아래처럼 syntax를 등록하는건 어떨까?
-			// let customDefaultPrevent = false;
-			// $module.directive.require([attr.nodeName, directive => {
-			// 	if (typeof directive === "function") {
-			// 		let ret = directive(context, el, attr.nodeValue);
-			// 		customDefaultPrevent = ret === false;
-			// 	}
-			// }]);
-			// if (customDefaultPrevent) continue;
-			
-			
-			/// Basic Directives
-			if (templateSyntax(context, to, attr, "(", _event, ")")) continue;
-			if (templateSyntax(context, to, attr, "[attr.", _attr, "]")) continue;
-			if (templateSyntax(context, to, attr, "[visible", _visible, "]")) continue;
-			if (templateSyntax(context, to, attr, "[class.", _class, "]")) continue;
-			if (templateSyntax(context, to, attr, "[style.", _style, "]")) continue;
-			// if (templateSyntax(context, to, attr, "[show.", _transition, "]")) continue;
-			if (templateSyntax(context, to, attr, "[(", _twoway, ")]")) continue;
-			if (templateSyntax(context, to, attr, "[", _prop, "]")) continue;
-			if (templateSyntax(context, to, attr, "$", _ref2, "")) continue;
-			// if (templateSyntax(context, to, attr, "#", _ref, "")) continue;
-			// if (templateSyntax(context, to, attr, ".", _call, ")")) continue;
-			
-			if (el !== to) {
-				to.setAttributeNode(attr.cloneNode(true));
-			}
-		}
-		
-		
-		/// @TODO: Iframe Component
-		// if (tagName === "iframe" && el.hasAttribute("is")) {
-		//
-		// 	const iframe = el;
-		// 	const is = el.getAttribute("is");
-		//
-		// 	window.customElements.whenDefined(is).then(() => {
-		// 		const Component = window.customElements.get(is);
-		// 		const component = new Component;
-		// 		component.iframe = iframe;
-		// 		iframe.contentDocument.body.appendChild(component);
-		// 	});
-		//
-		// 	return false;
-		// }
-		
-		
-		/// Bind Controller
-		if (el.hasAttribute("is")) {
-			$module.controller.require([el.getAttribute("is"), (Controller) => {
-				const controller = new Controller;
-				const context = $compile(el.content || el.childNodes, controller);
-				typeof controller.init === "function" && controller.init(context);
-				
-				if (el.content) {
-					el.replaceWith(el.content);
-				}
-				
-				ret = false;
-			}]);
-			
-			return ret;
-		}
-	}
-
-
-	/// Render From Template Syntax
-	function _attr(context, el, script, attr) {
-		return context(script)
-			.pipe(renderPipeLine)
-			.tap(value => (value || _$1.isStringLike(value)) ? el.setAttribute(attr, value) : el.removeAttribute(attr))
-			.subscribe()
-	}
-
-	function _class(context, el, script, name) {
-		return context(script)
-			.mergeMap(value => Observable$1.castAsync(value))
-			.pipe(renderPipeLine)
-			.tap(value => value ? el.classList.add(name) : el.classList.remove(name))
-			.subscribe()
-	}
-
-	function _style(context, el, script, name) {
-		const [prop, unit = ""] = name.split(".", 2);
-		
-		return context(script)
-			.pipe(renderPipeLine)
-			.map(value => {
-				switch (unit) {
-					case "url":
-						return "url('" + encodeURI(value) + "')";
-					
-					default:
-						return value + unit;
-				}
-			})
-			.tap(value => el.style[prop] = value)
-			.subscribe();
-	}
-
-	function _visible(context, el, script) {
-		return context(script)
-			.pipe(renderPipeLine)
-			.tap(value => el["hidden"] = !value)
-			.subscribe()
-	}
-
-	function _prop(context, el, script, prop) {
-		return context(script)
-		// .pipe(renderPipeLine) // @TODO: hasOwnProperty가 없는데 HTMLElement가 가지고 있는 경우에는 renderPipe를 통해야함. ex) id, src 등...
-			.tap(value => el[prop] = value)
-			.subscribe();
-	}
-
-
-	function _twoway(context, el, script, value) {
-		
-		let [prop, eventType, ...options] = value.split(".");
-		
-		context.fromEvent(el, eventType || "input")
-			.mergeMap(() => context.assign(script, el[prop]))
-			.subscribe();
-		
-		return context(script)
-			.reject(_$1.isUndefined)
-			.reject(value => el[prop] === value)
-			.tap(value => el[prop] = value)
-			.subscribe();
-	}
-
-
-	function _ref2(context, el, script, name) {
-		context.state["$" + name] = el;
-	}
-
-
-	Event.pipes = {
-		prevent: $ => $.tap(e => e.preventDefault()),
-		stop: $ => $.tap(e => e.stopPropagation()),
-		capture: $ => $,
-		self: ($, element) => $.filter(e => e.target === element),
-		once: $ => $.take(1),
-		shift: $ => $.filter(e => e.shiftKey),
-		alt: $ => $.filter(e => e.altKey),
-		ctrl: $ => $.filter(e => e.ctrlKey),
-		meta: $ => $.filter(e => e.metaKey),
-		cmd: $ => $.filter(e => e.ctrlKey || e.metaKey)
-	};
-
-
-	function _event(context, el, script, value) {
-		
-		let [type, ...options] = value.split(/\s*\|\s*/);
-		const useCapture = options.includes("capture");
-		
-		/// @FIXME: Keyboard Event
-		let keys = [];
-		if (type.startsWith("keydown") || type.startsWith("keypress") || type.startsWith("keyup")) {
-			[type, ...keys] = type.split(".");
-		}
-		
-		/// Normal Event
-		let event$ = context.fromEvent(el, type, useCapture);
-		if (keys.length) {
-			event$ = event$.filter(e => keys.includes(e.key.toLowerCase()));
-		}
-		
-		/// Event Pipe
-		options.forEach(pipe => {
-			let handler = Event.pipes[pipe];
-			if (!handler) throw new Error(pipe + " is not registered event pipe.");
-			event$ = handler(event$, el);
-		});
-		
-		/// Event Handler
-		return event$
-		// .trace("(event)", type)
-			.switchMap(event => context.fork({event, el}).evaluate(script))
-			.switchMap(ret => Observable$1.castAsync(ret))
-			.subscribe()
 	}
 
 	/// -----------------------------------------------------------------------
@@ -3103,106 +3187,160 @@ var _px = (function (exports) {
 
 	/// Default Template Directive
 	$module.directive("*foreach", function() {
-		
-		function createRepeatNode(node, context, local) {
+
+		const {NOT_CHANGED, DELETE, INSERT} = _$1.diff;
+		const {is} = Object;
+
+		const parseForeachScript = _$1.pipe(
+			_$1.rpartition(" as "),
+			_$1.spread((script, sep, rest) => [script, ...rest.split(",", 2)]),
+			_$1.map(_$1.trim)
+		);
+
+		function createRepeatNode(node, context, local, value) {
 			node = node.cloneNode(true);
-			context = context.fork(local);
-			$compile$1(node, context);
-			
-			return {node, context, local};
+			context = $compile$1(node, context.fork(local));
+			return {node, context, local, value};
 		}
-		
-		return function(context, el, _script) {
-			
+
+		function updateRepeatNode(newRow, willRemoves, newRows, cursor, value, index, local) {
+			if (!is(newRow.value, value)) {
+				newRow.value = value;
+				newRow.context.locals$.next(local);
+			}
+
+			if (cursor) {
+				cursor.before(newRow.node);
+			}
+
+			newRows[index] = newRow;
+
+			delete newRow.willRemoved;
+			return willRemoves.filter(o => o !== newRow);
+		}
+
+		return function(context, el, script) {
+
 			/// Parse [script] as [ROW], [INDEX]
-			const [script, ROW, INDEX] = _$1.go(
-				_script,
-				_$1.rpartition(" as "),
-				_$1.spread((script, sep, rest) => [script, ...rest.split(",", 2)]),
-				_$1.map(_$1.trim)
-			);
-			
+			const [_script, ROW, INDEX] = parseForeachScript(script);
+
 			/// Prepare Placeholder
 			const repeatNode = el.cloneNode(true);
 			repeatNode.removeAttribute("*foreach");
-			
-			const placeholder = document.createComment("foreach: " + _script);
+
+			const placeholder = document.createComment("foreach: " + script);
 			const placeholderEnd = document.createComment("endforeach");
 			el.before(placeholder);
 			el.replaceWith(placeholderEnd);
-			
-			
+
+
 			////
-			let container = [];
-			
-			context(script)
-				.map(value => _$1.isArrayLike(value) ? value : [])
-				.map(array => Array.from(array))
-				.scan((prevArray, array) => {
-					
-					/// LCS Diff: LCS를 이용해서 같은건 유지하고, 삭제할 노드와 replace될 노드를 구분하는 로직을 짤것.
-					/// @NOTE: d == undeinfed 삭제후보, e === undefined 교체.. e에 없는거 추가...
-					const [d, e] = _$1.LCS(prevArray, array);
-					
-					let willRemoved = [];
-					let noChanged = [];
-					
-					prevArray.forEach((value, index) => (d[index] === null ? willRemoved : noChanged).push(container[index]));
-					noChanged.push({node: placeholderEnd});
-					
-					
-					/// Render Diff
-					let cursor = noChanged[0].node;
-					
-					container = array.map((value, index) => {
-						
-						/// 변화없음.
-						if (e[index] !== null) {
-							const r = noChanged.shift();
-							cursor = noChanged[0].node;
-							return r;
-						}
-						
+			context(_script)
+				.map(value => _$1.isArrayLike(value) ? Array.from(value) : [])
+				.scan((prevRows, array) => {
+
+					/// Create Locals
+					const locals = array.map((value, index) => {
 						const local = Object.create(null);
 						ROW && (local[ROW] = value);
 						INDEX && (local[INDEX] = index);
-						
-						
-						/// 추가
-						if (!container[index] || willRemoved.length === 0) {
-							const r = createRepeatNode(repeatNode, context, local);
-							cursor.before(r.node);
-							
-							
-							/// @FIXME: css-transition
-							if (r.node.hasAttribute("css-transition")) {
-								requestAnimationFrame(() => {
-									requestAnimationFrame(() => {
-										const enter = r.node.getAttribute("css-transition") || "transition";
-										r.node.classList.add(enter + "-enter");
-									});
-								});
-							}
-							
-							return r;
-						}
-						
-						
-						/// 교체
-						container[index].context.locals$.next(local);
-						willRemoved = willRemoved.filter(x => x !== container[index]);
-						return container[index];
+						return local;
 					});
-					
-					
-					/// 삭제
-					willRemoved.forEach(r => r.node.remove());
-					
-					return array;
-					
+
+
+					/// Diff Prev Array with Current Array
+					console.log(prevRows, array);
+					let diffs = _$1.diff(prevRows, array, (a, b) => is(a.value, b));
+
+
+					/// Collect willRemoves
+					let willRemoves = [];
+					let newRows = [];
+
+					diffs = diffs.filter(([type, value, prev_index, index]) => {
+						const prevRow = prevRows[prev_index];
+
+						/// NOT_CHANGED
+						if (type === NOT_CHANGED) {
+							console.log("NOT_CHANGED!!", value);
+							newRows[index] = prevRow;
+							return false;
+						}
+
+						/// DELETE
+						if (type === DELETE) {
+							prevRow.willRemoved = true;
+							willRemoves.push(prevRow);
+							return false;
+						}
+
+						return true;
+					});
+
+
+					/// Patch Rows: INSERT => PATCH / REPLACE / REUSE / INSERT
+					for (const [type, value, prev_index, index] of diffs) {
+
+						const prevRow = prevRows[prev_index];
+						const local = locals[index];
+
+
+						/// PATCH
+						if (prevRow && prevRow.willRemoved) {
+							console.log("PATCH!!!", value);
+							willRemoves = updateRepeatNode(prevRow, willRemoves, newRows, null, value, index, local);
+							continue;
+						}
+
+
+						/// REPLACE
+						let cursor = (prevRow && prevRow.node) || placeholderEnd;
+						let newRow;
+
+						newRow = willRemoves.find(row => row.value === value);
+						if (newRow) {
+							console.log("REPLACE!!!", value);
+							willRemoves = updateRepeatNode(newRow, willRemoves, newRows, cursor, value, index, local);
+							continue;
+						}
+
+
+						/// REUSE
+						newRow = willRemoves[0];
+						if (newRow) {
+							console.log("REUSE!!!", value);
+							willRemoves = updateRepeatNode(newRow, willRemoves, newRows, cursor, value, index, local);
+							continue;
+						}
+
+
+						/// INSERT
+						console.log("INSERT!!!", value);
+						newRow = createRepeatNode(repeatNode, context, local, value);
+						willRemoves = updateRepeatNode(newRow, willRemoves, newRows, cursor, value, index, local);
+
+
+						/// @FIXME: css-transition
+						if (newRow.node.hasAttribute("css-transition")) {
+							requestAnimationFrame(() => {
+								const enter = newRow.node.getAttribute("css-transition") || "transition";
+								newRow.node.classList.add(enter + "-enter");
+							});
+						}
+					}
+
+
+					/// DELETE reminds
+					willRemoves.forEach(row => {
+						row.node.remove();
+						row.context.disconnect();
+					});
+
+					return newRows;
+
 				}, [])
 				.subscribe();
-			
+
 			return false;
 		}
 	});

@@ -5,106 +5,166 @@ import {$compile} from "../compile";
 
 /// Default Template Directive
 $module.directive("*foreach", function() {
-	
-	function createRepeatNode(node, context, local) {
+
+	const {NOT_CHANGED, DELETE, INSERT} = _.diff;
+	const {is} = Object;
+
+	const parseForeachScript = _.pipe(
+		_.rpartition(" as "),
+		_.spread((script, sep, rest) => [script, ...rest.split(",", 2)]),
+		_.map(_.trim)
+	);
+
+	const createLocals = (array, ROW, INDEX) => array.map((value, index) => {
+		const local = Object.create(null);
+		ROW && (local[ROW] = value);
+		INDEX && (local[INDEX] = index);
+		return local;
+	});
+
+
+	const createRepeatNode = (node, context, local, value) => {
 		node = node.cloneNode(true);
-		context = context.fork(local);
-		$compile(node, context);
-		
-		return {node, context, local};
+		context = $compile(node, context.fork(local));
+		return {node, context, local, value};
+	};
+
+
+	/// @FIXME: impure!
+	function updateRepeatNode(newRow, willRemoves, newRows, cursor, value, index, local) {
+		if (!is(newRow.value, value)) {
+			newRow.value = value;
+			newRow.context.locals$.next(local);
+		}
+
+		if (cursor) {
+			cursor.before(newRow.node);
+		}
+
+		newRows[index] = newRow;
+
+		delete newRow.willRemoved;
+		return willRemoves.filter(o => o !== newRow);
 	}
-	
-	return function(context, el, _script) {
-		
+
+	return function(context, el, script) {
+
 		/// Parse [script] as [ROW], [INDEX]
-		const [script, ROW, INDEX] = _.go(
-			_script,
-			_.rpartition(" as "),
-			_.spread((script, sep, rest) => [script, ...rest.split(",", 2)]),
-			_.map(_.trim)
-		);
-		
+		const [_script, ROW, INDEX] = parseForeachScript(script);
+
 		/// Prepare Placeholder
 		const repeatNode = el.cloneNode(true);
 		repeatNode.removeAttribute("*foreach");
-		
-		const placeholder = document.createComment("foreach: " + _script);
-		const placeholderEnd = document.createComment("endforeach");
+
+		const placeholder = document.createComment("foreach: " + script);
 		el.before(placeholder);
+
+		const placeholderEnd = document.createComment("endforeach");
 		el.replaceWith(placeholderEnd);
-		
-		
+
+
 		////
-		let container = [];
-		
-		context(script)
-			.map(value => _.isArrayLike(value) ? value : [])
-			.map(array => Array.from(array))
-			.scan((prevArray, array) => {
-				
-				/// LCS Diff: LCS를 이용해서 같은건 유지하고, 삭제할 노드와 replace될 노드를 구분하는 로직을 짤것.
-				/// @NOTE: d == undeinfed 삭제후보, e === undefined 교체.. e에 없는거 추가...
-				const [d, e] = _.LCS(prevArray, array);
-				
-				let willRemoved = [];
-				let noChanged = [];
-				
-				prevArray.forEach((value, index) => (d[index] === null ? willRemoved : noChanged).push(container[index]));
-				noChanged.push({node: placeholderEnd});
-				
-				
-				/// Render Diff
-				let cursor = noChanged[0].node;
-				
-				container = array.map((value, index) => {
-					
-					/// 변화없음.
-					if (e[index] !== null) {
-						const r = noChanged.shift();
-						cursor = noChanged[0].node;
-						return r;
+		context(_script)
+			.map(value => _.isArrayLike(value) ? Array.from(value) : [])
+			.scan((prevRows, array) => {
+
+				/// Create Locals
+				const locals = createLocals(array, ROW, INDEX);
+
+				/// Diff Prev Array with Current Array
+				let diffs = _.diff(prevRows, array, (a, b) => is(a.value, b));
+
+
+				/// Collect willRemoves
+				let willRemoves = [];
+				let newRows = [];
+
+				diffs = diffs.filter(([type, value, prev_index, index]) => {
+					const prevRow = prevRows[prev_index];
+
+					/// NOT_CHANGED
+					if (type === NOT_CHANGED) {
+						console.log("NOT_CHANGED!!", value);
+						newRows[index] = prevRow;
+						return false;
 					}
-					
-					const local = Object.create(null);
-					ROW && (local[ROW] = value);
-					INDEX && (local[INDEX] = index);
-					
-					
-					/// 추가
-					if (!container[index] || willRemoved.length === 0) {
-						const r = createRepeatNode(repeatNode, context, local);
-						cursor.before(r.node);
-						
-						
-						/// @FIXME: css-transition
-						if (r.node.hasAttribute("css-transition")) {
-							requestAnimationFrame(() => {
-								requestAnimationFrame(() => {
-									const enter = r.node.getAttribute("css-transition") || "transition";
-									r.node.classList.add(enter + "-enter");
-								})
-							});
-						}
-						
-						return r;
+
+					/// DELETE
+					if (type === DELETE) {
+						prevRow.willRemoved = true;
+						willRemoves.push(prevRow);
+						return false;
 					}
-					
-					
-					/// 교체
-					container[index].context.locals$.next(local);
-					willRemoved = willRemoved.filter(x => x !== container[index]);
-					return container[index];
+
+					return true;
 				});
-				
-				
-				/// 삭제
-				willRemoved.forEach(r => r.node.remove());
-				
-				return array;
-				
+
+
+				/// Patch Rows: INSERT => PATCH / REPLACE / REUSE / INSERT
+				for (const [type, value, prev_index, index] of diffs) {
+
+					const prevRow = prevRows[prev_index];
+					const local = locals[index];
+
+
+					/// PATCH
+					if (prevRow && prevRow.willRemoved) {
+						// console.log("PATCH!!!", value);
+						willRemoves = updateRepeatNode(prevRow, willRemoves, newRows, null, value, index, local);
+						continue;
+					}
+
+
+					/// REPLACE
+					let cursor = (prevRow && prevRow.node) || placeholderEnd;
+					let newRow;
+
+					newRow = willRemoves.find(row => row.value === value);
+					if (newRow) {
+						// console.log("REPLACE!!!", value);
+						willRemoves = updateRepeatNode(newRow, willRemoves, newRows, cursor, value, index, local);
+						continue;
+					}
+
+
+					/// REUSE
+					newRow = willRemoves[0];
+					if (newRow) {
+						// console.log("REUSE!!!", value);
+						willRemoves = updateRepeatNode(newRow, willRemoves, newRows, cursor, value, index, local);
+						continue;
+					}
+
+
+					/// INSERT
+					// console.log("INSERT!!!", value);
+					newRow = createRepeatNode(repeatNode, context, local, value);
+					willRemoves = updateRepeatNode(newRow, willRemoves, newRows, cursor, value, index, local);
+
+
+					/// @FIXME: css-transition
+					if (newRow.node.hasAttribute("css-transition")) {
+						requestAnimationFrame(() => {
+							requestAnimationFrame(() => {
+								const enter = newRow.node.getAttribute("css-transition") || "transition";
+								newRow.node.classList.add(enter + "-enter");
+							});
+						})
+					}
+				}
+
+
+				/// DELETE reminds
+				willRemoves.forEach(row => {
+					row.node.remove();
+					row.context.disconnect();
+				});
+
+				return newRows;
+
 			}, [])
 			.subscribe();
-		
+
 		return false;
 	}
 });

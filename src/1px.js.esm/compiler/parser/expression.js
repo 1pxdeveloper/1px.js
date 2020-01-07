@@ -6,15 +6,15 @@ const {castArray, noop} = _;
 /// Operator precedence
 let bp = 1000;
 
+const PREFIX = Object.create(null);
+const INFIX = Object.create(null);
+
 function precedence(type, ...operators) {
-	for (let operator of operators) {
+	for (const operator of operators) {
 		type[operator] = bp;
 	}
 	bp -= 10;
 }
-
-const PREFIX = precedence.PREFIX = Object.create(null);
-const INFIX = precedence.INFIX = Object.create(null);
 
 precedence(PREFIX, "(");
 precedence(PREFIX, "#", "@");
@@ -128,7 +128,7 @@ function constant(id, value) {
 function prefix(id, nud) {
 	for (id of castArray(id)) {
 		const s = symbol(id);
-		s.nbp = precedence.PREFIX[id];
+		s.nbp = PREFIX[id];
 		s.nud = nud || nud_of_prefix;
 	}
 }
@@ -136,7 +136,7 @@ function prefix(id, nud) {
 function infix(id, led) {
 	for (id of castArray(id)) {
 		const s = symbol(id);
-		s.lbp = precedence.INFIX[id];
+		s.lbp = INFIX[id];
 		s.led = led || led_of_infix;
 	}
 }
@@ -144,7 +144,7 @@ function infix(id, led) {
 function infixr(id, led) {
 	for (id of castArray(id)) {
 		const s = symbol(id);
-		s.lbp = precedence.INFIX[id];
+		s.lbp = INFIX[id];
 		s.led = led || lef_of_infixr;
 	}
 }
@@ -285,9 +285,8 @@ prefix("(", function() {
 		this.id = "=>";
 		
 		let args = this.push([]);
-		do {
-			args.push(next("(name)"));
-		} while($token.id === "," && next(","));
+		
+		do {args.push(next("(name)"))} while($token.id === "," && next(","));
 		
 		next(")");
 		

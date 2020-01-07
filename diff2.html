@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Title</title>
+	<script src="dist/1px.js"></script>
+</head>
+<body>
+
+<ul>
+	<li *foreach="rows as row">{{ row }}</li>
+</ul>
+
+
+<script>
+
+
+$module.compile(document.body, new function() {
+
+	this.rows = "HELLO".split("");
+
+	setTimeout(() => {
+		this.rows = "HALO".split("");
+	});
+
+
+	window.self = this;
+});
+
+
+//const a = "Hello".split("");
+//const b = "heplu".split("");
+//
+//const c = diff(a, b);
+//
+//
+//
+//const willRemoved = c.filter(diff => diff[0] === DELETE);
+//
+//
+//console.log("willRemoved", willRemoved);
+//
+//
+//
+//c.forEach(diff => {
+//
+//
+//	console.log(diff);
+//
+//
+//});
+//
+//
+//console.log(JSON.stringify(c, null, 2));
+
+
+// let a = document.getElementById("a");
+//
+// let b = document.getElementById("b");
+//
+//
+// function makeDOM(a) {
+// 	let A = [];
+//
+// 	traverseDOM(a, node => {
+//
+// 		A.push([node.nodeName, node.nodeValue]);
+//
+// 		if (node.nodeType === 1) {
+// 			return () => {
+// 				A.push(["/" + node.nodeName, node.nodeValue]);
+// 			}
+// 		}
+//
+// 	});
+//
+//
+// 	return A;
+// }
+//
+//
+// const A = makeDOM(a);
+// const B = makeDOM(b);
+//
+//
+// const C = diff(A, B, (a, b) => {
+// 	return a[0] === b[0] && a[1] === b[1];
+// });
+//
+//
+// console.log(A);
+//
+//
+// console.log(JSON.stringify(C.diff2, null, 2));
+
+
+</script>
+</body>
+</html>

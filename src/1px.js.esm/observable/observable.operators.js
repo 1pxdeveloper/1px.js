@@ -296,11 +296,11 @@ const timeout = (timeout) => lift((observer, id) => ({
 }));
 
 
-const timeoutFirstOnly = (timeout) => lift((observer, id) => ({
+const timeoutFirstOnly = (timeout, error) => lift((observer, id) => ({
 	start() {
 		clearTimeout(id);
 		id = setTimeout(() => {
-			observer.error();/// @TODO: 여기에 뭘 보내야 할까??
+			observer.error(error);
 		}, timeout);
 	},
 	
@@ -321,7 +321,7 @@ const debug = (...tag) => lift(observer => ({
 	},
 	
 	next(value) {
-		console.log(...tag, ".next", value);
+		console.warn(...tag, ".next", value);
 		observer.next(value);
 	},
 	
@@ -331,12 +331,12 @@ const debug = (...tag) => lift(observer => ({
 	},
 	
 	complete() {
-		console.warn(...tag, ".complete");
+		console.warn(...tag, ".completed");
 		observer.complete();
 	},
 	
 	finalize() {
-		// console.groupEnd();
+		console.warn(...tag, ".finalized");
 	}
 }));
 
@@ -447,6 +447,7 @@ const takeUntil = (notifier) => (observable) => {
 const until = (notifier) => (observable) => {
 	return new Observable(observer => {
 		const s = observable.subscribe(observer);
+		
 		const unsubscribe = () => s.unsubscribe();
 		const s2 = notifier.subscribe(unsubscribe, unsubscribe, unsubscribe);
 		
@@ -597,8 +598,11 @@ const switchMap = (callback = just) => lift(observer => {
 	let completed = false;
 	let subscription;
 	
-	const complete = () => completed && subscription.closed && observer.complete();
-	const switchMapObserver = Object.setPrototypeOf({complete}, observer);
+	const switchMapObserver = Object.setPrototypeOf({
+		complete() {
+			completed && observer.complete();
+		}
+	}, observer);
 	
 	return {
 		next(value) {
@@ -608,7 +612,9 @@ const switchMap = (callback = just) => lift(observer => {
 		
 		complete() {
 			completed = true;
-			complete();
+			if (!subscription || (subscription && subscription.closed)) {
+				observer.complete();
+			}
 		},
 		
 		finalize() {
@@ -622,8 +628,11 @@ const exhaustMap = (callback = just) => lift(observer => {
 	let completed = false;
 	let subscription;
 	
-	const complete = () => completed && (!subscription || (subscription && subscription.closed)) && observer.complete();
-	const exhaustMapObserver = Object.setPrototypeOf({complete}, observer);
+	const exhaustMapObserver = Object.setPrototypeOf({
+		complete() {
+			completed && observer.complete();
+		}
+	}, observer);
 	
 	return {
 		next(value) {
@@ -633,7 +642,10 @@ const exhaustMap = (callback = just) => lift(observer => {
 		
 		complete() {
 			completed = true;
-			complete();
+			
+			if (!subscription || (subscription && subscription.closed)) {
+				observer.complete();
+			}
 		},
 		
 		finalize() {
@@ -734,8 +746,8 @@ Observable.defer = (callback, thisObj, ...args) => new Observable(observer =>
 	Observable.castAsync(Function.prototype.apply.call(callback, thisObj, args)).subscribe(observer)
 );
 
-Observable.timeout = (timeout, value) => new Observable((observer, id) => {
-	id = setTimeout(() => {
+Observable.timeout = (timeout, value) => new Observable((observer) => {
+	const id = setTimeout(() => {
 		observer.next(value);
 		observer.complete();
 	}, timeout);
@@ -743,10 +755,35 @@ Observable.timeout = (timeout, value) => new Observable((observer, id) => {
 	return () => clearTimeout(id);
 });
 
-Observable.interval = (timeout) => new Observable((observer, i = 0, id) => {
-	id = setInterval(() => observer.next(i++), timeout);
+Observable.interval = (timeout) => new Observable((observer, i = 0) => {
+	const id = setInterval(() => observer.next(i++), timeout);
 	return () => clearInterval(id);
 });
+
+
+Observable.timer = (initialDelay, period) => new Observable((observer, i = 0, id1, id2) => {
+	id1 = setTimeout(() => {
+		if (observer.closed) return;
+		
+		observer.next(i++);
+		if (!period) return observer.complete();
+		if (!id1) return;
+		
+		id2 = setInterval(() => {
+			if (observer.closed) return;
+			observer.next(i++)
+		}, period);
+
+	}, initialDelay);
+	
+	return () => {
+		clearTimeout(id1);
+		clearInterval(id2);
+		id1 = undefined;
+		id2 = undefined;
+	}
+});
+
 
 Observable.fromEvent = (el, type, useCapture) => new Observable(observer => {
 	type = _.castArray(type);

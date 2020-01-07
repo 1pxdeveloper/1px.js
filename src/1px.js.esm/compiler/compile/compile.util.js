@@ -61,7 +61,7 @@ const rAF$ = (value) => new Observable(observer => {
 		return;
 	}
 	
-	return _.rAF(() => {
+	return _.rAF((t) => {
 		observer.next(value);
 		observer.complete();
 	});

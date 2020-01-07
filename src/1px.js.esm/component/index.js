@@ -1,3 +1,4 @@
+import {_} from "../fp";
 import {$module, makeInjectable} from "../compiler/module.js";
 import {$compile} from "../compiler/compile";
 
@@ -56,6 +57,17 @@ $module.component = function(name, callback) {
 	_callback.$inject = makeInjectable(callback).$inject;
 	
 	return $module.require(_callback, Component => {
+
+		/// Use Functional Component
+		if (typeof Component === "function" && !(Component.prototype instanceof WebComponent)) {
+			const init = Component;
+			Component = class extends WebComponent {
+				init(...args) {
+					return init.apply(this, args);
+				}
+			};
+		}
+		
 		Component = Component || class extends WebComponent {};
 		Object.assign(Component, decorator);
 		

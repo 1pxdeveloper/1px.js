@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Title</title>
+	<link rel="stylesheet" href="css/style.css"/>
+	<script src="/dist/1px.js"></script>
+</head>
+<body>
+
+<h1>Hello</h1>
+
+<script>
+class WS extends Observable {
+	constructor(host) {
+		const ws = new WebSocket(host);
+
+		super(observer => {
+			ws.onmessage = (msg) => {
+				observer.next(msg);
+			};
+
+			ws.onerror = (error) => {
+				observer.error(error)
+			}
+		});
+	}
+}
+
+
+const ws$ = new WS("ws://localhost:5555");
+
+ws$.subscribe(value => {
+	console.log(value);
+});
+
+
+window.addEventListener("focus", () => {
+
+	Array.from(document.getElementsByTagName("link")).forEach(link => {
+
+		link.setAttribute("href", link.getAttribute("href"))
+	})
+})
+
+</script>
+
+
+</body>
+</html>

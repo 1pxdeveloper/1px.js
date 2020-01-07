@@ -1,7 +1,10 @@
+import {diff} from "./diff.js";
+
+
 export const filterCallback = (callback) => {
 	if (Object(callback) !== callback) return _.is(callback);
 	if (typeof callback === "function") return callback;
-	
+
 	return (object) => {
 		for (let [key, _callback] of Object.entries(callback)) {
 			if (typeof _callback !== "function") _callback = _.is;
@@ -14,7 +17,7 @@ export const filterCallback = (callback) => {
 export const mapCallback = (callback) => {
 	if (Object(callback) !== callback) return callback;
 	if (typeof callback === "function") return callback;
-	
+
 	return (object) => {
 		object = {...object};
 		for (let [key, _callback] of Object.entries(callback)) {
@@ -25,7 +28,7 @@ export const mapCallback = (callback) => {
 				object[key] = _callback(object[key]);
 			}
 		}
-		
+
 		return object;
 	}
 };
@@ -69,14 +72,14 @@ _.cloneObject = (obj) => {
 		if ("function" === typeof obj.clone) {
 			return obj.clone();
 		}
-		
+
 		let clone = "array" === type ? [] : {}, key;
 		for (key in obj) {
 			clone[key] = _.cloneObject(obj[key]);
 		}
 		return clone;
 	}
-	
+
 	return obj;
 };
 
@@ -100,7 +103,7 @@ _.memoize1 = (func) => {
 /// Util
 _.typeof = (value) => {
 	const s = typeof value;
-	
+
 	if ("object" === s) {
 		if (value) {
 			if (value instanceof Array) {
@@ -109,17 +112,17 @@ _.typeof = (value) => {
 			if (value instanceof Object) {
 				return s;
 			}
-			
+
 			const className = Object.prototype.toString.call(value);
-			
+
 			if ("[object Window]" === className) {
 				return "object";
 			}
-			
+
 			if ("[object Array]" === className || "number" == typeof value.length && "undefined" != typeof value.splice && "undefined" != typeof value.propertyIsEnumerable && !value.propertyIsEnumerable("splice")) {
 				return "array";
 			}
-			
+
 			if ("[object Function]" === className || "undefined" != typeof value.call && "undefined" != typeof value.propertyIsEnumerable && !value.propertyIsEnumerable("call")) {
 				return "function";
 			}
@@ -133,7 +136,7 @@ _.typeof = (value) => {
 			return "object";
 		}
 	}
-	
+
 	return s;
 };
 
@@ -163,25 +166,25 @@ _.warn = (...args) => console.warn.bind(console, ...args);
 	let $uuid = 0;
 	let stack = [];
 	let queue = [];
-	
+
 	_.debug = {};
-	
+
 	_.debug.group = (...args) => {
 		console.group(...args);
 		stack.push($uuid);
 		return $uuid++;
 	};
-	
+
 	_.debug.groupEnd = (uuid = ($uuid - 1)) => {
 		console.groupEnd();
 		return;
-		
+
 		if (stack[stack.length - 1] !== uuid) {
 			queue.push(uuid);
 			stack.pop();
 			return;
 		}
-		
+
 		console.groupEnd();
 		for (const q of queue) {
 			console.groupEnd();
@@ -216,11 +219,11 @@ _.alert = (...args) => window.alert(...args);
 _.LCS = (s1, s2) => {
 	s1 = s1 || [];
 	s2 = s2 || [];
-	
+
 	let M = [];
 	for (let i = 0; i <= s1.length; i++) {
 		M.push([]);
-		
+
 		for (let j = 0; j <= s2.length; j++) {
 			let currValue = 0;
 			if (i === 0 || j === 0) {
@@ -232,25 +235,25 @@ _.LCS = (s1, s2) => {
 			else {
 				currValue = Math.max(M[i][j - 1], M[i - 1][j]);
 			}
-			
+
 			M[i].push(currValue);
 		}
 	}
-	
+
 	let i = s1.length;
 	let j = s2.length;
-	
+
 	// let s3 = [];
 	let s4 = Array(i).fill(null);
 	let s5 = Array(j).fill(null);
-	
-	while(M[i][j] > 0) {
+
+	while (M[i][j] > 0) {
 		if (s1[i - 1] === s2[j - 1] && (M[i - 1][j - 1] + 1 === M[i][j])) {
 			// s3.unshift(s1[i - 1]);
-			
+
 			s4[i - 1] = s1[i - 1];
 			s5[j - 1] = s1[i - 1];
-			
+
 			i--;
 			j--;
 		}
@@ -261,7 +264,7 @@ _.LCS = (s1, s2) => {
 			j--;
 		}
 	}
-	
+
 	return [s4, s5];
 };
 
@@ -271,3 +274,8 @@ _.importScripts = (...sources) => {
 	const prefix = script.src.slice(0, script.src.lastIndexOf("/") + 1);
 	for (const src of sources) document.write(`<script src="${prefix}${src}"></script>`);
 };
+
+
+/// Diff
+_.diff = diff;
+
