@@ -7,19 +7,23 @@
 ### Template Syntax
 
 ```html
+<!-- text interpolation -->
+<h1>{{ title }}</h1>
+
+<h1>{{ x + y / 10 * 2 }}</h1>
+
+
 <!-- class -->
 <button [class.hello]="bool">
 
 <!-- attr -->
-<button [attr.id]="this.id">
+<button [attr.id]="id">
 
 <!-- style -->
 <button [style.width.px]="img.width" [style.background-image.url]="'abc.jpg'">
 
-<!-- event -->
-<button (click)="hello()">
 
-<!-- property, interpolation -->
+<!-- property -->
 <div [hidden]="isShow">{{ todo.title }}</div>
 
 <!-- two-way -->
@@ -30,6 +34,10 @@
 
 <!-- call -->
 <input .focus()="condition" .blur()="bool" />
+
+
+<!-- event -->
+<button (click)="hello()">
 ```
 
 
@@ -48,29 +56,19 @@ No
 - (a,b) => ... (O)
 - (a,b) => ...; ...; ... (O)
 
+
 differences
 
+- ; expressions: 30; foo(); // 30
 - pipe: | ex) array | filter: x => x < 10
-- if expressions: z = x if y > 10
-- as Observable: [1,2,3,4] as row
-- ; expressions: foo(); bar; 30; // 30
+- if expressions: foo() if y > 10
 - null or undefined dot chain no error: a.b.c.d // if a.b === undefined ? undefined;
-- in Array : 'a' in ['a','b','c','d'] // true (Draft)
 
 
-### Template Syntax - If
-
-```html
-<!-- if -->
-<div *if="condition"></div>
-
-<div *else-if="condition2"></div>
-
-<div *else></div>
-```
 
 
-### Template Syntax - List
+
+### Template Syntax - Repeat(*foreach)
 
 ```html
 
@@ -80,6 +78,18 @@ differences
 </ul>
 ```
 
+
+
+### Template Syntax - Condition(*if, *else)
+
+```html
+<!-- if -->
+<div *if="condition"></div>
+
+<div *else-if="condition2"></div>
+
+<div *else></div>
+```
 
 
 
@@ -94,33 +104,16 @@ differences
 <button (click|prevent|capture)="foo(bar)"></button>
 <button (click|once)="foo(bar)"></button>
 
-(click|prevent) => event.preventDefault();
-(click|stop) => event.stopPropagation();
-(click|capture) => addEventListener(..., ..., true)
-(click|self) => event.target === event.currentTarget
-(click|once) => .take(1)
+(click|prevent) // event.preventDefault();
+(click|stop) // event.stopPropagation();
+(click|capture) // addEventListener(..., ..., true)
+(click|self) // event.target === event.currentTarget
+(click|once) // .take(1)
 
-(keydown|esc) => e.target.key === "Escape"
-(keydown|39) => e.target.keyCode === 39
-(keydown|alt|esc) => e.target.alt && e.target.key === "Escape"
+(keydown|escape) => e.target.key === "Escape"
+(keydown|alt|escape) => e.target.alt && e.target.key === "Escape"
+
 ```
-
-
-
-### Template Syntax - Event with Observable (Draft)
-```html
-<button (click$)="$.mapTo(event).delay(1000).debounce(1000).do(abc)"></div>
-
-<button (click$.assign)="myObservable$"></div>
-
-<button (click$)="myObservable$"></div>
-
-<script>
-    this.myObservable$.delay(100).subscribe(event => foo(event))
-</script>
-```
-
-
 
 
 
@@ -157,7 +150,7 @@ differences
 <div>{{ today | date: 'yyyy-mm-dd' }}</div>
 
 <script>
-module.pipe("date", (value, format) => Date.format(value, format))
+$module.pipe("date", (value, format) => Date.format(value, format))
 </script>
 ```
 
@@ -179,21 +172,20 @@ class TodoApp {
 ### Module
 
 ```javascript
-module.value("count", 0)
+$module.value("count", 0);
 
-module.require(function(http, element) { ... })
+$module.require(function(http, element) { ... });
 
-module.factory("mylib", function(http, element) { ... })
+$module.factory("mylib", function(http, element) { ... });
 
 
 
 ///
-module.component();
+$module.component();
 
-module.service();
-
-module.pipe();
+$module.pipe();
 ```
+
 
 
 ### WebComponent
@@ -201,29 +193,34 @@ module.pipe();
 ```html
 <todo-apps></todo-apps>
 
-<web-component name="todo-apps">
-    <!-- Service -->
-    <http url="/api/users/:id" #http></http>
+<script>
+
+$module.component("todo-apps", function(WebComponent) {
     
-    <!-- Template -->
-    <template>
-        <div *foreach="todos as todo">{{ todo.title }}</div>   
-    </template>
-
-    <!-- Sub Template (for Route or Condition) -->
-    <template *if="multiple" *route="/users/:id">
-        <div *foreach="todos as todo">{{ todo.title }}</div>   
-    </template>
-</web-component>
-
-
-<script>module.component("todo-apps", {
-    init() {
+	//language=HTML
+	this.templateHTML = `
+        <!-- Service -->
+        <http url="/api/users/:id" #http></http>
         
-    },
+        <!-- Template -->
+        <template>
+            <div *foreach="todos as todo">{{ todo.title }}</div>   
+        </template>
     
-    addTodos(title) {
+        <!-- Sub Template (for Route or Condition) -->
+        <template *if="multiple" *route="/users/:id">
+            <div *foreach="todos as todo">{{ todo.title }}</div>   
+        </template>
+	`;
+	
+	return class extends WebComponent {
+        init() {
+            
+        },
         
+        addTodos(title) {
+            
+        }
     }
 })
 </script>
@@ -234,11 +231,9 @@ module.pipe();
 ### WebComponent - content & slot
 
 ```html
-<web-component name="my-btn" replace="true">
-    <template>
-        <button><content></content></button>   
-    </template>
-</web-component>
+<template>
+    <button><content></content></button>   
+</template>
 
 <my-btn>hello world</my-btn>
 ```
@@ -250,6 +245,9 @@ module.pipe();
 ```javascript
 let o = Observable.of(1, 2, 3).subscribe(v => v);
 ```
+
+
+
 ### Expression
 
 ```html
@@ -325,6 +323,8 @@ userId(ctx, next) {
 SSR을 고려했을때 처음 딱 1번만 Virtual DOM으로 업데이트 하는 방법을 생각해보자.
 ```
 
+
+
 ### SSR & Universal on ServerSide
 ```html
 express와 Node.js 를 이용해서 Universal을 만들 방법을 생각해보자.
@@ -340,6 +340,8 @@ express와 Node.js 를 이용해서 Universal을 만들 방법을 생각해보�
 - **Point: 모든 페이지는 동일한 정적 구조를 항시 유지한다. 
 => account의 정보와 같이 접근하는 사람마다 다른 페이지일 경우에만 client 사용
 ```
+
+
 
 
 ### UI Library
@@ -370,7 +372,6 @@ express와 Node.js 를 이용해서 Universal을 만들 방법을 생각해보�
 
 - {{ tags | highlight: currentTags | html }} 이런거~~~ 텍스트 표시자에서 html 출력하는 기능
 
-- 카트 자동 계산은 진짜 죽음이었지 ㅠㅠ
 
 - account 모듈
 
@@ -385,7 +386,8 @@ express와 Node.js 를 이용해서 Universal을 만들 방법을 생각해보�
 ### localStorage....
 ```javascript
 
-module.factory("$localStorage", function() {
+
+$module.factory("$localStorage", function() {
 	function $localStorage(key) {
 		let store = JSON.parse(localStorage.getItem(key)) || Object.create(null);
 		Object.setPrototypeOf(store, null);
@@ -417,6 +419,7 @@ $store.abc = "123"
 
 
 ### JSContext
+
 ```javascript
 let obj = {a: 100, b: 200};
 
@@ -452,9 +455,9 @@ $`e = a + b`
 ```html
 
 [Module]
-- es6 modules?
+- es6 $modules?
 - directives, pipes, component 어떻게 등록할건데?
-- single module name??
+- single $module name??
 
 
 [Parse]
