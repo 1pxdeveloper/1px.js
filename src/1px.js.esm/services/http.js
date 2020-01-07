@@ -42,7 +42,7 @@ $module.factory("http", function(Observable) {
 					console.time("Time" + (++timerId));
 					console.groupEnd();
 					
-					return Observable.castAsync(fetch(url, init).then(response))
+					return Observable.castAsync(fetch(url, init).then(...response))
 						.tap(res => console.group("Response", init.method, url))
 						.tap(_.log("Response"))
 						.tap(() => console.timeEnd("Time" + (timerId--)))
@@ -93,7 +93,7 @@ $module.factory("http", function(Observable) {
 		}
 		
 		/// Response
-		response(response) {
+		response(...response) {
 			return this.resource({response});
 		}
 	}
